@@ -14,3 +14,6 @@ Desktop.ini
 # Editor swap/backup files
 *.swp
 *~
+
+*.exe
+*.dll
