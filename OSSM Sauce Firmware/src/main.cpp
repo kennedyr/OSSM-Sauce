@@ -16,9 +16,6 @@ QueueHandle_t moveQueue;
 const char moveQueueSize = 50;
 bool moveQueueIsEmpty = true;
 
-QueueHandle_t positionQueue;
-const char positionQueueSize = 50;
-bool positionQueueIsEmpty = true;
 int previousTargetPosition;
 
 StrokeCommand smoothMoveCommand;
@@ -200,7 +197,6 @@ void parseMessage(esp_websocket_event_data_t *data) {
       movementMode = MODE_IDLE;
       playTimeMs = 0;
       xQueueReset(moveQueue);
-      xQueueReset(positionQueue);
       moveQueueIsEmpty = true;
       break;
     }
@@ -341,7 +337,6 @@ void setup() {
   Serial.println("");
 
   moveQueue = xQueueCreate(moveQueueSize, 9);
-  positionQueue = xQueueCreate(positionQueueSize, 4);
 
   sensorlessHoming();
 
