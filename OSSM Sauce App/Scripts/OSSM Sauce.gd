@@ -165,11 +165,14 @@ func _physics_process(delta):
 			marker_index += 1
 	
 	var depth:float = paths[active_path_index][frame]
+	var ms_timing: int = round((float(frame) / 50) * 1000)
+	var minutes: int = floori(ms_timing / 60000.0)
+	var seconds: int = floori((ms_timing % 60000) / 1000)
 	frame += 1
 
 	$PathDisplay/Paths.get_child(active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
-
+	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
 
 #func _process22(delta):
 	#%WebSocket.poll()
@@ -628,6 +631,7 @@ func activate_move_mode():
 	%ActionPanel/Pause.hide()
 	%PathDisplay/PathArea.show()
 	%PathDisplay/Paths.show()
+	%PathDisplay/TimeLabel.show()
 	%PathDisplay/Ball.show()
 	%Menu/Main/PlaylistButtons.show()
 	%Menu/Main/PathButtons.show()
@@ -644,6 +648,7 @@ func deactivate_move_mode():
 	%ActionPanel/Pause.show()
 	%PathDisplay/Paths.hide()
 	%PathDisplay/PathArea.hide()
+	%PathDisplay/TimeLabel.hide()
 	%PathDisplay/Ball.hide()
 	%Menu/Main/PlaylistButtons.hide()
 	%Menu/Main/PathButtons.hide()

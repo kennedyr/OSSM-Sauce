@@ -141,7 +141,7 @@ func reset_stroke_duration_slider():
 			slider_max_pos,
 			owner.min_stroke_duration,
 			owner.max_stroke_duration), 0.01)
-		get_parent().send_command()
+	get_parent().send_command()
 	update_stroke_duration_text()
 
 
@@ -260,7 +260,7 @@ func reset_stroke_duration_slider():
 		slider_max_pos,
 		owner.min_stroke_duration,
 		owner.max_stroke_duration), 0.01)
-		get_parent().send_command()
+	get_parent().send_command()
 	update_stroke_duration_text()
 
 
@@ -578,6 +578,18 @@ anchors_preset = 0
 self_modulate = Color(1, 0.384314, 0.47451, 1)
 position = Vector2(540, 960)
 texture = ExtResource("3_4fxdc")
+
+[node name="TimeLabel" type="Label" parent="PathDisplay"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -303.5
+offset_right = 303.5
+offset_bottom = 77.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 56
+text = "00:00"
 
 [node name="PositionControls" type="Control" parent="."]
 unique_name_in_owner = true
