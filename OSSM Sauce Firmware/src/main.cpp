@@ -13,7 +13,7 @@ StrokeCommand loopPush;
 StrokeCommand loopPull;
 
 QueueHandle_t moveQueue;
-const char moveQueueSize = 10;
+const char moveQueueSize = 50;
 bool moveQueueIsEmpty = true;
 
 QueueHandle_t positionQueue;
