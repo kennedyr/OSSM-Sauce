@@ -52,11 +52,14 @@ void moveStart() {
   short lastTargetDepth = activeMove.depth;
   if (!xQueueReceive(moveQueue, &activeMove, (TickType_t)10))
     Serial.println("ERROR: Queue empty.");
-  if (activeMove.endTimeMs == 0 && uxQueueSpacesAvailable(moveQueue) < moveQueueSize) { // start of next path
+
+  // start of next path
+  if (activeMove.endTimeMs == 0 && uxQueueSpacesAvailable(moveQueue) < moveQueueSize) {
     playTimeMs = 0;
     playStartTime = millis();
-  } else if (activeMove.endTimeMs == 0 || activeMove.depth == lastTargetDepth)
+  } else if (activeMove.endTimeMs == 0 || activeMove.depth == lastTargetDepth) {
     return;
+  }
 
   // if activeMove has already expired, recurse
   if (playTimeMs >= activeMove.endTimeMs) {
@@ -99,8 +102,12 @@ void parseMessage(esp_websocket_event_data_t *data) {
     case MOVE: {
       if (messageLength != 10)
         break;
-      if(!xQueueSend(moveQueue, &(message[1]), (TickType_t)10))
+
+      if(!xQueueSend(moveQueue, &(message[1]), (TickType_t)10)) {
         Serial.println("ERROR: Failed to add move command to queue. Is queue full?");
+        break;
+      }
+
       if (moveQueueIsEmpty)
         moveStart();
       moveQueueIsEmpty = false;
