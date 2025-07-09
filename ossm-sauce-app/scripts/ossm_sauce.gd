@@ -540,13 +540,15 @@ func load_path(file_name: String) -> bool:
 				var first_depth = round_to(clamp(actions_list[0].pos / 100, 0, 1), 4)
 				if inverted:
 					first_depth = round_to(1.0 - first_depth, 4)
-				file_data[0] = [first_depth, 1, 2, 0]
+				var trans: int = user_settings.get_value('stroke_settings', 'in_trans', 1)
+				var ease: int = user_settings.get_value('stroke_settings', 'in_ease', 2)
+				file_data[0] = [first_depth, trans, ease, 0]
 				for action in actions_list:
 					var frame: int = action.at / (1000.0 / 60.0)
 					var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
 					if inverted:
 						depth = round_to(1.0 - depth, 4)
-					file_data[frame] = [depth, 1, 2, 0]
+					file_data[frame] = [depth, trans, ease, 0]
 			else:
 				printerr("Failed to parse funscript JSON")
 		else:
