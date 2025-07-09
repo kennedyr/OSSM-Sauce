@@ -1,8 +1,9 @@
-[gd_scene load_steps=58 format=3 uid="uid://d3cq3b5o0feo0"]
+[gd_scene load_steps=59 format=3 uid="uid://d3cq3b5o0feo0"]
 
 [ext_resource type="Theme" uid="uid://dqhnc02ffxjr2" path="res://Theme.tres" id="1_2qx77"]
 [ext_resource type="Script" uid="uid://bcl1axbtw05ci" path="res://Scripts/OSSM Sauce.gd" id="2_7liag"]
 [ext_resource type="Texture2D" uid="uid://da3nxjs8pqcoy" path="res://Textures/Dot Small.svg" id="3_4fxdc"]
+[ext_resource type="Texture2D" uid="uid://ge4gxwchc2p7" path="res://Textures/Background.svg" id="4_dyutb"]
 [ext_resource type="Script" uid="uid://brrct0qmqq407" path="res://Scripts/Position Controls.gd" id="4_juubk"]
 [ext_resource type="Texture2D" uid="uid://du8j273r744tn" path="res://Textures/Straight.svg" id="5_assl3"]
 [ext_resource type="Texture2D" uid="uid://bm14gbhhm3uqb" path="res://Textures/Smooth.svg" id="6_w7w2d"]
@@ -31,7 +32,7 @@
 [ext_resource type="Texture2D" uid="uid://rcaxkukbqghe" path="res://Textures/Restart.svg" id="26_aqrhn"]
 [ext_resource type="Texture2D" uid="uid://bd8t1o4bylcx0" path="res://Textures/Trash.svg" id="27_jm1bm"]
 [ext_resource type="Texture2D" uid="uid://6v1hvd7m2vhs" path="res://Textures/t3.svg" id="28_wynws"]
-[ext_resource type="Script" uid="uid://ctf5xg6wcbhqx" path="res://Scripts/Playlist.gd" id="28_ycvea"]
+[ext_resource type="Script" uid="uid://7o6toqkkwp1" path="res://Scripts/Playlist.gd" id="28_ycvea"]
 [ext_resource type="Script" uid="uid://ccimjgty86f8v" path="res://Scripts/Settings.gd" id="29_ui4fx"]
 [ext_resource type="Script" uid="uid://qc06washnpwx" path="res://Scripts/Add File.gd" id="30_0ohdi"]
 [ext_resource type="Script" uid="uid://borvji2u3vb68" path="res://Scripts/File List.gd" id="31_476hc"]
@@ -140,7 +141,6 @@ func reset_stroke_duration_slider():
 			slider_max_pos,
 			owner.min_stroke_duration,
 			owner.max_stroke_duration), 0.01)
-	if owner.connected_to_server:
 		get_parent().send_command()
 	update_stroke_duration_text()
 
@@ -260,7 +260,6 @@ func reset_stroke_duration_slider():
 		slider_max_pos,
 		owner.min_stroke_duration,
 		owner.max_stroke_duration), 0.01)
-	if owner.connected_to_server:
 		get_parent().send_command()
 	update_stroke_duration_text()
 
@@ -561,6 +560,16 @@ metadata/_edit_use_anchors_ = true
 
 [node name="Timer" type="Timer" parent="PathDisplay/PathArea"]
 wait_time = 0.3
+
+[node name="TextureRect" type="TextureRect" parent="PathDisplay/PathArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("4_dyutb")
+expand_mode = 1
 
 [node name="Paths" type="Control" parent="PathDisplay"]
 anchors_preset = 0
