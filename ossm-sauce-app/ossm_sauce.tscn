@@ -3,6 +3,7 @@
 [ext_resource type="Theme" uid="uid://dqhnc02ffxjr2" path="res://theme.tres" id="1_g6hv1"]
 [ext_resource type="Script" uid="uid://bcl1axbtw05ci" path="res://scripts/ossm_sauce.gd" id="2_ru8sx"]
 [ext_resource type="Texture2D" uid="uid://da3nxjs8pqcoy" path="res://textures/dot_small.svg" id="3_3abtc"]
+[ext_resource type="Texture2D" uid="uid://ge4gxwchc2p7" path="res://textures/background.svg" id="4_dyutb"]
 [ext_resource type="Script" uid="uid://cxtahcwhofid1" path="res://scripts/path_area.gd" id="3_8ho8d"]
 [ext_resource type="Script" uid="uid://brrct0qmqq407" path="res://scripts/position_controls.gd" id="4_qnwk1"]
 [ext_resource type="Texture2D" uid="uid://du8j273r744tn" path="res://textures/straight.svg" id="5_hjbjw"]
@@ -386,6 +387,16 @@ metadata/_edit_use_anchors_ = true
 
 [node name="Timer" type="Timer" parent="PathDisplay/PathArea" unique_id=1492239332]
 wait_time = 0.3
+
+[node name="TextureRect" type="TextureRect" parent="PathDisplay/PathArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("4_dyutb")
+expand_mode = 1
 
 [node name="Paths" type="Control" parent="PathDisplay" unique_id=1983399160]
 anchors_preset = 0
