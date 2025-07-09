@@ -365,7 +365,7 @@ void loop() {
       playTimeMs = millis() - playStartTime;
       if (playTimeMs >= activeMove.endTimeMs)
         moveStart();
-      else if (activeMove.active)
+      if (activeMove.active)
         processStroke(&activeMove, playTimeMs - activeMove.playTimeStartedMs);
       break;
     }
