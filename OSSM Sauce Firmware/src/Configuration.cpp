@@ -1,5 +1,6 @@
 #include "Configuration.h"
 #include "MotorMovement.h"
+#include "secrets.h"
 
 // Global variables
 esp_websocket_client_config_t wsConfig;
@@ -366,7 +367,7 @@ void handleConfigMenu() {
         currentLEDStatus = LED_ERROR;
         delay(1000);
       }
-      
+
     } else if (choice == "3") {
       // Update WiFi credentials
       String newSSID = getSerialInput("Enter WiFi SSID:");
@@ -463,7 +464,7 @@ bool checkForConfigMode() {
   return false;
 }
 
-void connectToWiFi() {
+bool connectToWiFiInternal() {
   WiFi.mode(WIFI_STA);
   currentLEDStatus = LED_CONNECTING;
   
@@ -472,8 +473,14 @@ void connectToWiFi() {
   Serial.println("--     PLEASE WAIT    --");
   Serial.println("");
 
-  String ssid = preferences.getString("wifi_ssid");
-  String password = preferences.getString("wifi_pass");
+  String ssid = WIFI_SSID;
+  if (preferences.isKey("wifi_ssid"))
+    ssid = preferences.getString("wifi_ssid");
+
+  String password = WIFI_PASSWORD;
+  if (preferences.isKey("wifi_pass"))
+    password = preferences.getString("wifi_pass");
+
   WiFi.begin(ssid.c_str(), password.c_str());
   
   for (int i = 0; i < 10 && WiFi.status() != WL_CONNECTED; i++) {
@@ -485,18 +492,10 @@ void connectToWiFi() {
   if (WiFi.status() != WL_CONNECTED) {
     currentLEDStatus = LED_ERROR;
     Serial.println("");
-    Serial.println("No WiFi connection. Please enter WiFi credentials:");
+    Serial.println("No WiFi connection.");
+    Serial.println(WiFi.status());
     Serial.println("");
-
-    String newSSID = getSerialInput("Enter WiFi SSID:");
-    String newPassword = getSerialInput("Enter WiFi password:");
-    
-    preferences.putString("wifi_ssid", newSSID);
-    preferences.putString("wifi_pass", newPassword);
-
-    Serial.println("WiFi credentials saved. Restarting...");
-    delay(1000);
-    ESP.restart();
+    return false;
   }
 
   currentLEDStatus = LED_CONNECTED;
@@ -506,6 +505,29 @@ void connectToWiFi() {
   Serial.println("");
   delay(500);
   currentLEDStatus = LED_OFF;
+
+  return true;
+}
+
+void connectToWiFi() {
+  bool success = connectToWiFiInternal();
+
+  if (!success) {
+    // Offer to enter config mode on connection failure
+    Serial.println("Would you like to update the Wifi connection? (y/n)");
+    delay(4000);
+    
+    if (Serial.available()) {
+      String input = Serial.readString();
+      input.trim();
+      input.toLowerCase();
+      if (input == "y") {
+        handleConfigMenu();
+        // Try connecting again after config
+        connectToWiFiInternal();
+      }
+    }
+  }
 }
 
 String constructWebSocketAddress() {
@@ -522,7 +544,7 @@ String constructWebSocketAddress() {
       serverAddress += preferences.getString("ws_server");
     } else {
       Serial.println("No server configured, using localhost with port 8008");
-      serverAddress += "127.0.0.1:8008";  // Fallback
+      serverAddress += WS_SERVER;  // Fallback
     }
   }
   
