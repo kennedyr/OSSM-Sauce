@@ -469,16 +469,13 @@ func load_path(file_name:String) -> bool:
 			var actions_data = JSON.parse_string(actions_text)
 			if actions_data:
 				var actions_list = actions_data[actions_data.keys()[0]]
-				#var path_data:Dictionary
-				#path_data[0] = [0, $TransitionType.get_selected_id(), 2, 0]
-				#path_data[0] = [0, 1, 2, 0]
-				file_data[0] = [0, 1, 2, 0]
+				var trans: int = user_settings.get_value('stroke_settings', 'in_trans', 0)
+				var ease: int = user_settings.get_value('stroke_settings', 'in_ease', 2)
+				file_data[0] = [0, trans, ease, 0]
 				for action in actions_list:
 					var frame:int = action.at / 16.66666
 					var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
-					#var trans = $TransitionType.get_selected_id()
-					var trans = 1
-					var ease = 2
+
 					var aux = 0
 					file_data[frame] = [depth, trans, ease, aux]
 			else:
