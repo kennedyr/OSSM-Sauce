@@ -141,11 +141,17 @@ func _physics_process(delta) -> void:
 			marker_index += 1
 	
 	var depth: float = paths[active_path_index][frame]
+	var ms_timing: int = round((float(frame) / 50) * 1000)
+	var minutes: int = floori(ms_timing / 60000.0)
+	var seconds: int = floori((ms_timing % 60000) / 1000)
 	$PathDisplay/Paths.get_child(active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
+	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
+
 	if not _seek_dragging:
 		$SeekSlider.set_value_no_signal(float(frame) / (total_frames - 1))
 		update_time_display()
+
 	frame += 1
 
 
@@ -788,6 +794,7 @@ func activate_move_mode():
 	%ActionPanel/Pause.hide()
 	%PathDisplay/PathArea.show()
 	%PathDisplay/Paths.show()
+	%PathDisplay/TimeLabel.show()
 	%PathDisplay/Ball.show()
 	$SeekSlider.show()
 	$TimeDisplay.show()
@@ -809,6 +816,7 @@ func deactivate_move_mode():
 	%PathDisplay.hide()
 	%PathDisplay/Paths.hide()
 	%PathDisplay/PathArea.hide()
+	%PathDisplay/TimeLabel.hide()
 	%PathDisplay/Ball.hide()
 	$SeekSlider.hide()
 	$TimeDisplay.hide()
