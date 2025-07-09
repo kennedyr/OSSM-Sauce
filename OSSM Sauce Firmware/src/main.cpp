@@ -57,6 +57,13 @@ void moveStart() {
     playStartTime = millis();
   } else if (activeMove.endTimeMs == 0 || activeMove.depth == lastTargetDepth)
     return;
+
+  // if activeMove has already expired, recurse
+  if (playTimeMs >= activeMove.endTimeMs) {
+    Serial.println("WARN: Queued move already expired.");
+    moveStart();
+  }
+
   short constrainedPosition = constrain(activeMove.depth, 0, 10000);
   activeMove.targetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
   activeMove.playTimeStartedMs = playTimeMs;
