@@ -44,15 +44,20 @@ func _init():
 	max_speed = 25000
 	max_acceleration = 500000
 
-#func vid_play():
-	#print("playing")
-	#var command = r'echo { "command": ["set_property", "pause", false] } > \\.\pipe\mpv-pipe'
-	#OS.execute("cmd", ["/c", command])
+func vid_play():
+	print("playing")
+	var command = r'echo { "command": ["set_property", "pause", false] } > \\.\pipe\mpv-launcher-pipe'
+	OS.execute("cmd", ["/c", command])
 
-#func vid_pause():
-	#print("pausing")
-	#var command = r'echo { "command": ["set_property", "pause", true] } > \\.\pipe\mpv-pipe'
-	#OS.execute("cmd", ["/c", command])
+func vid_pause():
+	print("pausing")
+	var command = r'echo { "command": ["set_property", "pause", true] } > \\.\pipe\mpv-launcher-pipe'
+	OS.execute("cmd", ["/c", command])
+
+func vid_restart():
+	print("restarting")
+	var command = r'echo { "command": ["seek", 0, "absolute"] } > \\.\pipe\mpv-launcher-pipe'
+	OS.execute("cmd", ["/c", command])
 
 
 func _ready():
@@ -61,7 +66,7 @@ func _ready():
 	#var path =  "C:/Users/clbhu/Desktop/Splendid/bxe.mp4"
 	#var path1 = "D:/v2/BounceX Vol 2 (Ultra Quality - Uncompressed Audio).mov"
 	#var p2 = "C:/Users/clbhu/BounceX/mpv/bxe.mp4"
-	#var command = r'mpv --input-ipc-server=\\.\pipe\mpv-pipe ' + p1
+	#var command = r'mpv --input-ipc-server=\\.\pipe\mpvsocket ' + p1
 	#var command2 = 'mpv --input-ipc-server=\\\\.\\pipe\\mpv-pipe bxe.mp4'
 	#OS.create_process("cmd", ["/c", command])
 	#OS.create_process()
@@ -442,15 +447,15 @@ func round_to(value: float, decimals: int) -> float:
 	return round(value * factor) / factor
 
 
-func load_path(file_name:String) -> bool:
-	var file = FileAccess.open(paths_dir + file_name, FileAccess.READ)
+func load_path(filePath:String) -> bool:
+	var file = FileAccess.open(filePath, FileAccess.READ)
 	if not file:
 		printerr("Error: Failed to read file.")
 		return false
 	
 	var file_data:Dictionary
 	
-	if file_name.ends_with(".funscript"):
+	if filePath.ends_with(".funscript"):
 		var file_text = file.get_as_text()
 		
 		file_text = file_text.replace("\n", "")
