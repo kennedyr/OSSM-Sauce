@@ -2,6 +2,7 @@ extends Panel
 
 
 func _on_play_button_pressed():
+	owner.vid_play()
 	flash_button($Play)
 	$Timer.start()
 	match AppMode.active:
@@ -29,6 +30,7 @@ func _on_play_button_pressed():
 
 
 func _on_pause_button_pressed():
+	owner.vid_pause()
 	flash_button($Pause)
 	$Timer.stop()
 	match AppMode.active:

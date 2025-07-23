@@ -31,6 +31,7 @@ func _on_down_pressed():
 
 
 func _on_play_pressed():
+	owner.vid_play()
 	flash_button($PathControls/HBox/Play)
 	tween(false)
 	%ActionPanel.clear_selections()
@@ -45,6 +46,7 @@ func _on_play_pressed():
 
 
 func _on_pause_pressed():
+	owner.vid_pause()
 	owner.pause()
 	%ActionPanel.clear_selections()
 	%ActionPanel/Play.show()
@@ -53,6 +55,7 @@ func _on_pause_pressed():
 
 
 func _on_restart_pressed():
+	owner.vid_restart()
 	hide()
 	%ActionPanel.show()
 	flash_button($PathControls/HBox/Restart)
