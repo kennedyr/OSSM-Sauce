@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="OSSM Sauce"
 config/description="WebSocket controller app for OSSM Sauce Firmware v1.4.3"
-config/version="1.5.1"
+config/version="1.5.3"
 run/main_scene="res://ossm_sauce.tscn"
 config/features=PackedStringArray("4.6", "Mobile")
 config/icon="res://s_curve.svg"

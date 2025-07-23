@@ -31,7 +31,7 @@ func _on_down_pressed():
 
 
 func _on_play_pressed():
-	owner.vid_play()
+	#owner.vid_play()
 	flash_button($PathControls/HBox/Play)
 	tween(false)
 	%ActionPanel.clear_selections()
