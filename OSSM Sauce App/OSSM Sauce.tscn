@@ -1,4 +1,4 @@
-[gd_scene load_steps=59 format=3 uid="uid://d3cq3b5o0feo0"]
+[gd_scene load_steps=57 format=3 uid="uid://d3cq3b5o0feo0"]
 
 [ext_resource type="Theme" uid="uid://dqhnc02ffxjr2" path="res://Theme.tres" id="1_2qx77"]
 [ext_resource type="Script" uid="uid://bcl1axbtw05ci" path="res://Scripts/OSSM Sauce.gd" id="2_7liag"]
@@ -32,10 +32,9 @@
 [ext_resource type="Texture2D" uid="uid://rcaxkukbqghe" path="res://Textures/Restart.svg" id="26_aqrhn"]
 [ext_resource type="Texture2D" uid="uid://bd8t1o4bylcx0" path="res://Textures/Trash.svg" id="27_jm1bm"]
 [ext_resource type="Texture2D" uid="uid://6v1hvd7m2vhs" path="res://Textures/t3.svg" id="28_wynws"]
-[ext_resource type="Script" uid="uid://7o6toqkkwp1" path="res://Scripts/Playlist.gd" id="28_ycvea"]
+[ext_resource type="Script" uid="uid://ctf5xg6wcbhqx" path="res://Scripts/Playlist.gd" id="28_ycvea"]
 [ext_resource type="Script" uid="uid://ccimjgty86f8v" path="res://Scripts/Settings.gd" id="29_ui4fx"]
 [ext_resource type="Script" uid="uid://qc06washnpwx" path="res://Scripts/Add File.gd" id="30_0ohdi"]
-[ext_resource type="Script" uid="uid://borvji2u3vb68" path="res://Scripts/File List.gd" id="31_476hc"]
 [ext_resource type="Script" uid="uid://c7byjwheu5qbc" path="res://Scripts/Circle Selection.gd" id="32_6g672"]
 [ext_resource type="Texture2D" uid="uid://8r6wnojlpyb2" path="res://Textures/Circle Selection.svg" id="33_onotn"]
 [ext_resource type="Texture2D" uid="uid://ceigu0byvwpor" path="res://Textures/Play Large.svg" id="34_0psch"]
@@ -496,20 +495,6 @@ func _on_no_button_pressed() -> void:
 	else:
 		%Settings/HomingTrigger/SpinBox.set_value_no_signal(1.5)
 	hide()
-"
-
-[sub_resource type="GDScript" id="GDScript_rckrg"]
-script/source = "extends Panel
-
-func select():
-	$Label.self_modulate = Color.SANDY_BROWN
-	self_modulate = Color.SLATE_GRAY
-
-func deselect():
-	$Label.self_modulate = Color.WHITE
-	$Label.self_modulate.a = 0.765
-	self_modulate.a = 0.7
-	self_modulate = Color.WHITE
 "
 
 [sub_resource type="GDScript" id="GDScript_dqjk0"]
@@ -2356,6 +2341,22 @@ theme_override_font_sizes/font_size = 48
 clip_text = true
 text_overrun_behavior = 3
 
+[node name="FilePath" type="Label" parent="Menu/Playlist/Scroll/VBox/Item"]
+visible = false
+self_modulate = Color(1, 1, 1, 0.764706)
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 8.0
+offset_top = -37.0
+offset_right = 988.0
+offset_bottom = 37.0
+grow_vertical = 2
+theme_override_font_sizes/font_size = 48
+clip_text = true
+text_overrun_behavior = 3
+
 [node name="Icon" type="TextureRect" parent="Menu/Playlist/Scroll/VBox/Item"]
 visible = false
 layout_mode = 1
@@ -2969,62 +2970,13 @@ grow_vertical = 2
 theme_override_font_sizes/font_size = 54
 metadata/_edit_use_anchors_ = true
 
-[node name="FileList" type="Panel" parent="AddFile"]
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.139583
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("31_476hc")
-metadata/_edit_use_anchors_ = true
-
-[node name="Scroll" type="ScrollContainer" parent="AddFile/FileList"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VBox" type="VBoxContainer" parent="AddFile/FileList/Scroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 2
-
-[node name="Item" type="Panel" parent="AddFile/FileList/Scroll/VBox"]
-self_modulate = Color(1, 1, 1, 0.701961)
-custom_minimum_size = Vector2(0, 80)
-layout_mode = 2
-script = SubResource("GDScript_rckrg")
-
-[node name="Label" type="Label" parent="AddFile/FileList/Scroll/VBox/Item"]
-self_modulate = Color(1, 1, 1, 0.764706)
-layout_mode = 1
-anchors_preset = 4
-anchor_top = 0.5
-anchor_bottom = 0.5
-offset_left = 8.0
-offset_top = -37.0
-offset_right = 988.0
-offset_bottom = 37.0
-grow_vertical = 2
-theme_override_font_sizes/font_size = 48
-clip_text = true
-text_overrun_behavior = 3
-
-[node name="Button" type="TextureButton" parent="AddFile/FileList/Scroll/VBox/Item"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="Timer" type="Timer" parent="AddFile/FileList/Scroll/VBox/Item"]
-wait_time = 0.5
-one_shot = true
+[node name="FileDialog" type="FileDialog" parent="AddFile"]
+title = "Open a File"
+position = Vector2i(0, 36)
+size = Vector2i(1066, 1871)
+ok_button_text = "Open"
+file_mode = 0
+access = 2
 
 [node name="WiFi" type="Sprite2D" parent="."]
 unique_name_in_owner = true

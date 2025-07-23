@@ -39,9 +39,10 @@ func _on_item_selected(item):
 		double_tap_timer.start()
 
 
-func add_item(item_text:String):
+func add_item(item_text:String, item_path:String):
 	var item = Item.duplicate()
 	item.get_node('Label').text = item_text
+	item.get_node('FilePath').text = item_path
 	$Scroll/VBox.add_child(item)
 	var item_button = item.get_node('Button')
 	item_button.connect('pressed', _on_item_selected.bind(item))
@@ -76,7 +77,7 @@ func move_item(current_index, new_index):
 func get_items() -> Array:
 	var items:Array
 	for item in $Scroll/VBox.get_children():
-		items.append(item.get_node('Label').text)
+		items.append(item.get_node('FilePath').text)
 	return items
 
 

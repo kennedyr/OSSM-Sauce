@@ -1,57 +1,59 @@
 extends Panel
 
+var mode = "PATH";
 
-func create_file_list(directory:String, file_types:PackedStringArray):
-	var dir = DirAccess.open(directory)
-	for file_name in dir.get_files():
-		for type in file_types:
-			if file_name.ends_with(type):
-				$FileList.add_item(file_name)
+func _ready() -> void:
+	$FileDialog.file_selected.connect(_on_file_selected)
+	$FileDialog.canceled.connect(_on_cancel)
 
 
 func show_paths():
 	show()
-	$FileList.clear()
-	$FileList.mode = $FileList.Mode.PATH
+	mode = "PATH"
+	$FileDialog.clear_filters()
 	$HBox/AddPath.disabled = true
 	$HBox/AddPath.show()
 	$HBox/LoadPlaylist.hide()
-	create_file_list(owner.paths_dir, [".bx", ".funscript"])
-	if OS.get_name() == 'Android':
-		$Label.text = "Internal Storage/OSSM Sauce/Paths"
-	else:
-		$Label.text = "Documents/OSSM Sauce/Paths"
+	$FileDialog.current_dir = owner.paths_dir
+	$FileDialog.filename_filter = "*.funscript"
+	$FileDialog.show()
 
 
 func show_playlists():
 	show()
-	$FileList.clear()
-	$FileList.mode = $FileList.Mode.PLAYLIST
+	mode = "PLAYLIST"
+	$FileDialog.clear_filters()
 	$HBox/LoadPlaylist.disabled = true
 	$HBox/LoadPlaylist.show()
 	$HBox/AddPath.hide()
-	create_file_list(owner.playlists_dir, [".bxpl"])
-	if OS.get_name() == 'Android':
-		$Label.text = "Internal Storage/OSSM Sauce/Playlists"
-	else:
-		$Label.text = "Documents/OSSM Sauce/Playlists"
+	$FileDialog.current_dir = owner.playlists_dir
+	$FileDialog.filename_filter = "*.bxpl"
+	$FileDialog.show()
 
 
-func _on_path_list_item_selected(index):
+func _on_cancel():
 	$HBox/AddPath.disabled = false
-
-
-func _on_add_path_pressed():
-	var file_name:String = $FileList.get_item_text($FileList.selected_index)
-	if owner.load_path(file_name):
-		%Menu/Playlist.add_item(file_name)
 	%Menu.show()
 	hide()
 
 
-func _on_load_playlist_pressed():
-	var file_name:String = $FileList.get_item_text($FileList.selected_index)
-	var file = FileAccess.open(owner.playlists_dir + file_name, FileAccess.READ)
+func _on_file_selected(path: String):
+	$HBox/AddPath.disabled = false
+	if mode == "PLAYLIST":
+		_on_load_playlist(path)
+	else:
+		_on_add_path(path)
+	%Menu.show()
+	hide()
+
+
+func _on_add_path(file_path: String):
+	if owner.load_path(file_path):
+		%Menu/Playlist.add_item(file_path.get_file(), file_path)
+
+
+func _on_load_playlist(file_path: String):
+	var file = FileAccess.open(file_path, FileAccess.READ)
 	if not file:
 		return
 	%Menu/Playlist.clear()
@@ -63,13 +65,11 @@ func _on_load_playlist_pressed():
 			var delay_duration = float(line.substr(begin_index, end_index))
 			owner.create_delay(delay_duration)
 		elif owner.load_path(line):
-			%Menu/Playlist.add_item(line)
+			%Menu/Playlist.add_item(line.get_file(), line)
 	owner.send_command(OSSM.Command.RESET)
-	
-	%Menu.show()
-	hide()
 
 
 func _on_back_pressed():
+	$FileDialog.hide()
 	%Menu.show()
 	hide()

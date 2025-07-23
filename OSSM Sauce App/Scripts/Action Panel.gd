@@ -1,7 +1,7 @@
 extends Panel
 
 func _on_play_button_pressed():
-	#owner.vid_play()
+	owner.vid_play()
 	clear_selections()
 	self_modulate.a = 1.2
 	%CircleSelection.hide_and_reset()
@@ -35,7 +35,7 @@ func _on_play_button_pressed():
 			$Pause.show()
 
 func _on_pause_button_pressed():
-	#owner.vid_pause()
+	owner.vid_pause()
 	match AppMode.active:
 		AppMode.MOVE:
 			clear_selections()
