@@ -40,6 +40,8 @@ signal homing_complete
 
 @onready var ossm_connection_timeout:Timer = $Settings/Network/ConnectionTimeout
 
+#var buttplug_bridge: Node = null
+
 func _init():
 	max_speed = 25000
 	max_acceleration = 500000
@@ -101,7 +103,7 @@ func _ready():
 	
 	user_settings.load(cfg_path)
 	apply_user_settings()
-	
+
 	%WebSocket.start_server()
 	
 	if OS.get_name() != 'Android':
@@ -382,7 +384,6 @@ func apply_user_settings():
 	if user_settings.has_section_key('app_settings', 'mode'):
 		$Menu.select_mode(user_settings.get_value('app_settings', 'mode'))
 	else:
-		print("SETTING TO APP MODE POSITION")
 		$Menu.select_mode(1)
 
 

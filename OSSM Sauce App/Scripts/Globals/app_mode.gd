@@ -9,4 +9,5 @@ enum {
 	POSITION,
 	LOOP,
 	VIBRATE,
+	BRIDGE,
 }

@@ -29,6 +29,7 @@ func _on_play_button_pressed():
 			$Pause/Selection.show()
 			$Pause.show()
 		AppMode.VIBRATE:
+			%VibrationControls.paused = false
 			owner.play()
 			$Play.hide()
 			$Pause/Selection.show()
@@ -62,6 +63,7 @@ func _on_pause_button_pressed():
 			$Play/Selection.show()
 			$Pause.hide()
 		AppMode.VIBRATE:
+			%VibrationControls.paused = true
 			owner.pause()
 			$Play.show()
 			$Play/Selection.show()

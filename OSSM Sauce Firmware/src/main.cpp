@@ -38,7 +38,7 @@ enum CommandType:byte {
   SET_RANGE_LIMIT,
   SET_HOMING_SPEED,
   SET_HOMING_TRIGGER,
-  SMOOTH_MOVE,
+  SMOOTH_MOVE,  // 0x0F
 };
 
 struct Response {
@@ -117,18 +117,25 @@ void parseMessage(esp_websocket_event_data_t *data) {
     case LOOP: {
       if (messageLength != 19)
         break;
+      
       memcpy(&loopPush, message + 1, 9);
       memcpy(&loopPull, message + 10, 9);
+      
       if (loopPush.endTimeMs != 0) {
+        short constrainedPosition = constrain(loopPush.depth, 0, 10000);
+        //loopPush.targetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
         loopPush.targetPosition = rangeLimitUserMax;
         loopPush.durationReciprocal = 1.0 / loopPush.endTimeMs;
         loopPush.baseSpeedHz = getMoveBaseSpeedHz(loopPush, loopPush.endTimeMs, true);
       }
       if (loopPull.endTimeMs != 0) {
+        short constrainedPosition = constrain(loopPull.depth, 0, 10000);
+        //loopPull.targetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
         loopPull.targetPosition = rangeLimitUserMin;
         loopPull.durationReciprocal = 1.0 / loopPull.endTimeMs;
         loopPull.baseSpeedHz = getMoveBaseSpeedHz(loopPull, loopPull.endTimeMs, true);
       }
+      movementMode = MODE_LOOP;
       break;
     }
 
@@ -188,8 +195,9 @@ void parseMessage(esp_websocket_event_data_t *data) {
 
     case PLAY: {
       memcpy(&movementMode, message + 1, 1);
-      if (messageLength == 6)
+      if (messageLength == 6) {
         memcpy(&playTimeMs, message + 2, 4);
+      }
       playStartTime = millis() - playTimeMs;
       break;
     }
@@ -281,29 +289,15 @@ void parseMessage(esp_websocket_event_data_t *data) {
     case SMOOTH_MOVE: {
       if (messageLength != 10)
         break;
-      Serial.println("SMOOTH_MOVE COMMAND");
-      
-      // Parse the command data (same structure as MOVE)
       memcpy(&smoothMoveCommand, message + 1, 9);
-      
-      // Convert position to motor range
       short constrainedPosition = constrain(smoothMoveCommand.depth, 0, 10000);
       smoothMoveCommand.targetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
-      
-      // Calculate timing parameters
+      smoothMoveCommand.endTimeMs = constrain(smoothMoveCommand.endTimeMs, 20, 3600000);
       smoothMoveCommand.durationReciprocal = 1.0 / smoothMoveCommand.endTimeMs;
       smoothMoveCommand.baseSpeedHz = getMoveBaseSpeedHz(smoothMoveCommand, smoothMoveCommand.endTimeMs);
-      
-      // Start the movement immediately
       smoothMoveStartTime = millis();
       smoothMoveActive = true;
       movementMode = MODE_SMOOTH_MOVE;
-      
-      Serial.print("Smooth move to position: ");
-      Serial.print(smoothMoveCommand.targetPosition);
-      Serial.print(" over ");
-      Serial.print(smoothMoveCommand.endTimeMs);
-      Serial.println(" ms");
       break;
     }
   }
@@ -353,7 +347,7 @@ void setup() {
   Serial.println("/ __)  /__\\  (  )(  )/ __)( ___) ");
   Serial.println("\\__ \\ /(__)\\  )(__)(( (__  )__)");
   Serial.println("(___/(__)(__)(______)\\___)(____) ");
-  Serial.println(" Firmware v1.4");
+  Serial.println(" Firmware v1.4.3");
   Serial.println("");
 
   moveQueue = xQueueCreate(moveQueueSize, 9);
@@ -374,7 +368,6 @@ void loop() {
   updateLED();
 
   switch (movementMode) {
-
     case MODE_MOVE: {
       playTimeMs = millis() - playStartTime;
       if (playTimeMs >= activeMove.endTimeMs)
@@ -387,8 +380,9 @@ void loop() {
     case MODE_LOOP: {
       playTimeMs = millis() - playStartTime;
       StrokeCommand* loopPhase = (activeLoopPhase == PUSH) ? &loopPush : &loopPull;
-      if (playTimeMs <= loopPhase->endTimeMs)
+      if (playTimeMs <= loopPhase->endTimeMs) {
         processStroke(loopPhase, playTimeMs);
+      }
       else {
         activeLoopPhase = (activeLoopPhase == PUSH) ? PULL : PUSH;
         playStartTime = millis();
@@ -420,19 +414,14 @@ void loop() {
       break;
     }
 
-    case MODE_SMOOTH_MOVE: {  // Experimental
+    case MODE_SMOOTH_MOVE: {
       if (smoothMoveActive) {
         unsigned long elapsed = millis() - smoothMoveStartTime;
-        
         if (elapsed >= smoothMoveCommand.endTimeMs) {
-          // Movement complete - ensure we reach exact target
-          stepper->moveTo(smoothMoveCommand.targetPosition);
           smoothMoveActive = false;
           movementMode = MODE_IDLE;
-          Serial.println("Smooth move completed");
-          sendResponse(SMOOTH_MOVE);  // Send completion response
+          sendResponse(SMOOTH_MOVE);
         } else {
-          // Process the smooth movement
           processStroke(&smoothMoveCommand, elapsed);
         }
       }

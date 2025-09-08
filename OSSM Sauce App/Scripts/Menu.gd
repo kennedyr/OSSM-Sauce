@@ -234,6 +234,34 @@ func select_mode(index):
 	_on_mode_selected(index)
 
 
+func _on_bridge_mode_selected(index: int) -> void:
+	var bpio = %Menu/BridgeSettings/BPIO
+	var xtoys = %Menu/BridgeSettings/XToys
+	var mcp = %Menu/BridgeSettings/MCP
+	match index:
+		0:  # Buttplug.io
+			bpio.show()
+			xtoys.hide()
+			mcp.hide()
+			%BridgeControls/Smoothing/Label.self_modulate.a = 1
+			%BridgeControls/Smoothing/TransType.disabled = false
+		1:  # XToys
+			bpio.hide()
+			xtoys.show()
+			mcp.hide()
+			%BridgeControls/Smoothing/Label.self_modulate.a = 1
+			%BridgeControls/Smoothing/TransType.disabled = false
+		2:  # MCP
+			bpio.hide()
+			xtoys.hide()
+			mcp.show()
+			%BridgeControls/Smoothing/Label.self_modulate.a = 0.4
+			%BridgeControls/Smoothing/TransType.disabled = true
+	
+	%BridgeControls/Controls/Enable.button_pressed = false
+	%BridgeControls.activate()
+
+
 func _on_mode_selected(index:int):
 	var mode_id:int = $Main/Mode.get_item_id(index)
 	AppMode.active = mode_id
@@ -250,26 +278,45 @@ func _on_mode_selected(index:int):
 	%ActionPanel.clear_selections()
 	
 	match mode_id:
+		AppMode.IDLE:
+			owner.deactivate_move_mode()
+			%BridgeControls.deactivate()
+			%PositionControls.deactivate()
+			%LoopControls.deactivate()
+			%VibrationControls.deactivate()
+		AppMode.HOMING:
+			owner.deactivate_move_mode()
+			%BridgeControls.deactivate()
+			%PositionControls.deactivate()
+			%LoopControls.deactivate()
+			%VibrationControls.deactivate()
 		AppMode.MOVE:
+			%BridgeControls.deactivate()
 			%PositionControls.deactivate()
 			%LoopControls.deactivate()
 			%VibrationControls.deactivate()
 			owner.activate_move_mode()
-		
 		AppMode.POSITION:
 			owner.deactivate_move_mode()
+			%BridgeControls.deactivate()
 			%LoopControls.deactivate()
 			%VibrationControls.deactivate()
 			%PositionControls.activate()
-		
 		AppMode.LOOP:
 			owner.deactivate_move_mode()
+			%BridgeControls.deactivate()
 			%VibrationControls.deactivate()
 			%PositionControls.deactivate()
 			%LoopControls.activate()
-		
 		AppMode.VIBRATE:
 			owner.deactivate_move_mode()
+			%BridgeControls.deactivate()
 			%PositionControls.deactivate()
 			%LoopControls.deactivate()
 			%VibrationControls.activate()
+		AppMode.BRIDGE:
+			owner.deactivate_move_mode()
+			%BridgeControls.activate()
+			%PositionControls.deactivate()
+			%LoopControls.deactivate()
+			%VibrationControls.deactivate()

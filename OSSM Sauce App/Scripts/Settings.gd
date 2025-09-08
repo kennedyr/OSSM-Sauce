@@ -1,7 +1,15 @@
 extends Panel
 
 @onready var address_input = $Network/Address/TextEdit
+@onready var buttplug_ip_textedit = $Network/ButtplugIP/TextEdit if has_node("Network/ButtplugIP/TextEdit") else null
+@onready var buttplug_ip_button = $Network/ButtplugIP/SetButton if has_node("Network/ButtplugIP/SetButton") else null
+@onready var buttplug_main_port_textedit = $Network/ButtplugMainPort/TextEdit if has_node("Network/ButtplugMainPort/TextEdit") else null
+@onready var buttplug_wsdm_port_textedit = $Network/ButtplugWSDMPort/TextEdit if has_node("Network/ButtplugWSDMPort/TextEdit") else null
+@onready var xtoys_panel = $XtoysSettings if has_node("XtoysSettings") else null
+@onready var buttplug_panel = $ButtplugSettings if has_node("ButtplugSettings") else self
+@onready var xtoys_bridge = %XtoysBridge if has_node("../XtoysBridge") else null
 
+var debug_log_enabled: bool = false
 
 func _ready():
 	if OS.get_name() == "Android":
@@ -16,6 +24,70 @@ func _ready():
 	
 	$Network/Address/TextEdit.text = get_primary_ip()
 
+	# Add Buttplug IP input if not present
+	var buttplug_address = "127.0.0.1"
+	var buttplug_main_port = "12345"
+	var buttplug_wsdm_port = "54817"
+	if has_node("../BPIOBridge"):
+		var bpio_bridge = get_node("../BPIOBridge")
+		if bpio_bridge.has_method("get_buttplug_address"):
+			buttplug_address = bpio_bridge.buttplug_address
+			buttplug_main_port = str(bpio_bridge.buttplug_server_port)
+			buttplug_wsdm_port = str(bpio_bridge.wsdm_port)
+
+	if xtoys_panel:
+		xtoys_panel.hide()
+		xtoys_panel.get_node("EnableCheckbox").toggled.connect(_on_xtoys_enable_toggled)
+		xtoys_panel.get_node("PortLineEdit").text = str(xtoys_bridge.get_port())
+		xtoys_panel.get_node("PortApplyButton").pressed.connect(_on_xtoys_port_apply)
+		xtoys_panel.get_node("DebugCheckbox").toggled.connect(_on_xtoys_debug_toggled)
+		xtoys_panel.get_node("AutoReconnectCheckbox").toggled.connect(_on_xtoys_auto_reconnect_toggled)
+
+	if not has_node("XtoysSettings"):
+		var panel = Panel.new()
+		panel.name = "XtoysSettings"
+		panel.visible = false
+		var vbox = VBoxContainer.new()
+		panel.add_child(vbox)
+		var enable = CheckBox.new()
+		enable.name = "EnableCheckbox"
+		enable.text = "Enable xtoys bridge"
+		enable.button_pressed = xtoys_bridge.enabled if xtoys_bridge else false
+		vbox.add_child(enable)
+		var hbox = HBoxContainer.new()
+		var port_label = Label.new()
+		port_label.text = "Port:"
+		hbox.add_child(port_label)
+		var port_edit = LineEdit.new()
+		port_edit.name = "PortLineEdit"
+		port_edit.text = str(xtoys_bridge.get_port()) if xtoys_bridge else "8080"
+		hbox.add_child(port_edit)
+		var port_btn = Button.new()
+		port_btn.name = "PortApplyButton"
+		port_btn.text = "Apply"
+		hbox.add_child(port_btn)
+		vbox.add_child(hbox)
+		var debug = CheckBox.new()
+		debug.name = "DebugCheckbox"
+		debug.text = "Debug logging"
+		debug.button_pressed = xtoys_bridge.debug_log if xtoys_bridge else false
+		vbox.add_child(debug)
+		var auto = CheckBox.new()
+		auto.name = "AutoReconnectCheckbox"
+		auto.text = "Auto-reconnect"
+		auto.button_pressed = xtoys_bridge.auto_reconnect if xtoys_bridge else true
+		vbox.add_child(auto)
+		add_child(panel)
+		xtoys_panel = panel
+
+	if has_node("DebugLogCheckBox"):
+		var debug_enabled = false
+		if owner.user_settings.has_section_key('app_settings', 'debug_log_enabled'):
+			debug_enabled = owner.user_settings.get_value('app_settings', 'debug_log_enabled')
+		$DebugLogCheckBox.button_pressed = debug_enabled
+		debug_log_enabled = debug_enabled
+		$DebugLogCheckBox.toggled.connect(_on_debug_log_toggled)
+
 
 func _on_numeric_input_changed(input_node:Node):
 	var regex = RegEx.new()
@@ -29,7 +101,7 @@ func _on_numeric_input_changed(input_node:Node):
 func get_primary_ip() -> String:
 	var addresses = IP.get_local_addresses()
 	for addr in addresses:
-		if is_private_ip(addr) and not addr.begins_with("127."):  # Skip localhost
+		if is_private_ip(addr) and not addr.begins_with("127."):
 			return addr
 	return "No WiFi IP found"
 
@@ -139,3 +211,69 @@ func _on_always_on_top_toggled(toggled):
 func _on_transparent_background_toggled(toggled):
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_TRANSPARENT, toggled)
 	owner.user_settings.set_value('window', 'transparent_background', toggled)
+
+
+func _on_buttplug_ip_set_pressed():
+	var address = buttplug_ip_textedit.text.strip_edges()
+	var main_port = buttplug_main_port_textedit.text.strip_edges() if buttplug_main_port_textedit else "12345"
+	var wsdm_port = buttplug_wsdm_port_textedit.text.strip_edges() if buttplug_wsdm_port_textedit else "54817"
+	if %BPIOBridge != null:
+		%BPIOBridge.buttplug_address = address
+		%BPIOBridge.buttplug_server_port = int(main_port)
+		%BPIOBridge.wsdm_port = int(wsdm_port)
+		%BPIOBridge.stop_client()
+		%BPIOBridge.stop_device()
+		# Bridge Controls will handle reconnection when enabled
+		# Save to user settings
+		owner.user_settings.set_value('buttplug', 'address', address)
+		owner.user_settings.set_value('buttplug', 'main_port', int(main_port))
+		owner.user_settings.set_value('buttplug', 'wsdm_port', int(wsdm_port))
+	buttplug_ip_textedit.text = address
+	if buttplug_main_port_textedit:
+		buttplug_main_port_textedit.text = main_port
+	if buttplug_wsdm_port_textedit:
+		buttplug_wsdm_port_textedit.text = wsdm_port
+
+
+func _on_xtoys_tab_pressed():
+	if buttplug_panel:
+		buttplug_panel.hide()
+	if xtoys_panel:
+		xtoys_panel.show()
+
+
+func _on_buttplug_tab_pressed():
+	if xtoys_panel:
+		xtoys_panel.hide()
+	if buttplug_panel:
+		buttplug_panel.show()
+
+
+func _on_xtoys_enable_toggled(pressed):
+	if xtoys_bridge:
+		xtoys_bridge.set_enabled(pressed)
+
+
+func _on_xtoys_port_apply():
+	if xtoys_bridge and xtoys_panel:
+		var port = int(xtoys_panel.get_node("PortLineEdit").text)
+		if port >= 1024 and port <= 49151:
+			xtoys_bridge.set_port(port)
+		else:
+			xtoys_panel.get_node("PortLineEdit").text = str(xtoys_bridge.get_port())
+
+
+func _on_xtoys_debug_toggled(pressed):
+	if xtoys_bridge:
+		xtoys_bridge.set_debug_log(pressed)
+
+
+func _on_xtoys_auto_reconnect_toggled(pressed):
+	if xtoys_bridge:
+		xtoys_bridge.auto_reconnect = pressed
+
+
+func _on_debug_log_toggled(checked: bool):
+	debug_log_enabled = checked
+	owner.user_settings.set_value('app_settings', 'debug_log_enabled', checked)
+	owner.user_settings.save(owner.cfg_path)
