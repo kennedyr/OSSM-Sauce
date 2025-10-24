@@ -14,7 +14,7 @@ config/name="OSSM Sauce"
 config/description="WebSocket controller for OSSM hardware"
 config/version="1.4.2"
 run/main_scene="res://OSSM Sauce.tscn"
-config/features=PackedStringArray("4.4", "Mobile")
+config/features=PackedStringArray("4.5", "Mobile")
 config/icon="res://S-curve.svg"
 config/windows_native_icon="res://S-curve.ico"
 

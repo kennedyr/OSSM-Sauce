@@ -1,4 +1,4 @@
-[gd_scene load_steps=67 format=3 uid="uid://d3cq3b5o0feo0"]
+[gd_scene load_steps=66 format=3 uid="uid://d3cq3b5o0feo0"]
 
 [ext_resource type="Theme" uid="uid://dqhnc02ffxjr2" path="res://Theme.tres" id="1_2qx77"]
 [ext_resource type="Script" uid="uid://bcl1axbtw05ci" path="res://Scripts/OSSM Sauce.gd" id="2_7liag"]
