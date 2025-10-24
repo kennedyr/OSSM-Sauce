@@ -1,7 +1,40 @@
 extends Panel
 
+var increment = 0.05
+
+func _input(event):
+	if Input.is_action_just_pressed("PauseResume"):
+		if $Play.visible:
+			_on_play_button_pressed()
+		else:
+			_on_pause_button_pressed()
+
+	if Input.is_action_just_pressed("IncreaseSpeed"):
+		var current_pos = %SpeedPanel.get_speed_slider_pos()
+		%SpeedPanel.set_speed_slider_pos(current_pos + increment)
+
+	if Input.is_action_just_pressed("DecreaseSpeed"):
+		var current_pos = %SpeedPanel.get_speed_slider_pos()
+		%SpeedPanel.set_speed_slider_pos(current_pos - increment)
+
+	if Input.is_action_just_pressed("IncreaseMaxRange"):
+		var current_pos = %RangePanel.get_max_slider_pos()
+		%RangePanel.set_max_slider_pos(current_pos + increment)
+
+	if Input.is_action_just_pressed("DecreaseMaxRange"):
+		var current_pos = %RangePanel.get_max_slider_pos()
+		%RangePanel.set_max_slider_pos(current_pos - increment)
+
+	if Input.is_action_just_pressed("IncreaseMinRange"):
+		var current_pos = %RangePanel.get_min_slider_pos()
+		%RangePanel.set_min_slider_pos(current_pos + increment)
+
+	if Input.is_action_just_pressed("DecreaseMinRange"):
+		var current_pos = %RangePanel.get_max_slider_pos()
+		%RangePanel.set_min_slider_pos(current_pos - increment)
+
+
 func _on_play_button_pressed():
-	owner.vid_play()
 	clear_selections()
 	self_modulate.a = 1.2
 	%CircleSelection.hide_and_reset()
@@ -34,6 +67,7 @@ func _on_play_button_pressed():
 			$Play.hide()
 			$Pause/Selection.show()
 			$Pause.show()
+	owner.vid_play()
 
 func _on_pause_button_pressed():
 	owner.vid_pause()

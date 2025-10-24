@@ -89,6 +89,10 @@ func update_max_range(label_only:bool = false):
 	$LabelTop.text = "Max Position:\n" + text_value + "%"
 
 
+func get_min_slider_pos():
+	return min_slider.position.y
+
+
 func set_min_slider_pos(percent):
 	var slider_map = remap(
 			percent,
@@ -98,6 +102,10 @@ func set_min_slider_pos(percent):
 			max_range_pos)
 	min_slider.position.y = slider_map
 	update_min_range()
+
+
+func get_max_slider_pos():
+	return max_slider.position.y
 
 
 func set_max_slider_pos(percent):

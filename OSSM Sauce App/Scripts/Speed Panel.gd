@@ -26,6 +26,10 @@ func _ready():
 	accel_slider_min_pos = acceleration_bottom.position.y
 
 
+func get_speed_slider_pos():
+	return speed_slider.position.y
+
+
 func set_speed_slider_pos(percent):
 	var slider_map = remap(
 			percent,

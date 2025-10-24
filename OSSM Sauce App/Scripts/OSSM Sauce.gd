@@ -47,6 +47,8 @@ func _init():
 	max_acceleration = 500000
 
 func vid_play():
+	# Sleep for 0.2s to sync
+	await get_tree().create_timer(0.2).timeout
 	print("playing")
 	var command = r'echo { "command": ["set_property", "pause", false] } > \\.\pipe\mpv-launcher-pipe'
 	OS.execute("cmd", ["/c", command])
