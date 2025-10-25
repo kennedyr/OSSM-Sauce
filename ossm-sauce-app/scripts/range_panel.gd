@@ -88,7 +88,9 @@ func send_range_limits():
 
 
 func get_min_slider_pos():
-	return min_slider.position.y
+	var slider_pos = min_slider.position.y
+	var percent = remap(slider_pos, min_range_pos, max_range_pos, 0, 1)
+	return percent
 
 
 func set_min_slider_pos(percent):
@@ -103,7 +105,9 @@ func set_min_slider_pos(percent):
 
 
 func get_max_slider_pos():
-	return max_slider.position.y
+	var slider_pos = max_slider.position.y
+	var percent = remap(slider_pos, min_range_pos, max_range_pos, 0, 1)
+	return percent
 
 
 func set_max_slider_pos(percent):

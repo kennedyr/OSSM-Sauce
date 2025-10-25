@@ -1259,7 +1259,7 @@ alignment = 1
 
 [node name="OnTime" type="SpinBox" parent="VibrationControls/PulseControl/Timers" unique_id=495120690]
 custom_minimum_size = Vector2(420, 0)
-layout_mode = 2
+layout_mode = 0
 max_value = 99950.0
 step = 50.0
 prefix = "ON"
@@ -1267,7 +1267,7 @@ suffix = "ms"
 
 [node name="OffTime" type="SpinBox" parent="VibrationControls/PulseControl/Timers" unique_id=677084025]
 custom_minimum_size = Vector2(435, 0)
-layout_mode = 2
+layout_mode = 0
 max_value = 99950.0
 step = 50.0
 prefix = "OFF"
@@ -2006,7 +2006,7 @@ theme_override_constants/separation = 42
 
 [node name="Mode" type="OptionButton" parent="Menu/Main" unique_id=1215641101]
 unique_name_in_owner = true
-layout_mode = 2
+layout_mode = 0
 theme_override_colors/font_color = Color(1, 0.498039, 0.313726, 1)
 alignment = 1
 expand_icon = true
@@ -2024,7 +2024,7 @@ popup/item_4/text = "Protocol Bridge Mode"
 popup/item_4/id = 6
 
 [node name="PlaylistButtons" type="HBoxContainer" parent="Menu/Main" unique_id=483721368]
-layout_mode = 2
+layout_mode = 0
 theme_override_constants/separation = 117
 alignment = 1
 
@@ -2040,7 +2040,7 @@ disabled = true
 text = "Save Playlist"
 
 [node name="PathButtons" type="HBoxContainer" parent="Menu/Main" unique_id=589001713]
-layout_mode = 2
+layout_mode = 0
 theme_override_constants/separation = 175
 alignment = 1
 
@@ -3620,7 +3620,7 @@ wait_time = 0.3
 one_shot = true
 
 [node name="HomingTrigger" type="HBoxContainer" parent="Settings/VBox" unique_id=321405889]
-layout_mode = 2
+layout_mode = 0
 theme_override_constants/separation = 18
 
 [node name="Label" type="Label" parent="Settings/VBox/HomingTrigger" unique_id=1098382437]
@@ -3650,14 +3650,14 @@ text = "Reverse motor direction"
 layout_mode = 2
 
 [node name="AlwaysOnTop" type="CheckBox" parent="Settings/VBox" unique_id=680577138]
-layout_mode = 2
+layout_mode = 0
 focus_mode = 1
 theme_override_font_sizes/font_size = 54
 text = "Keep app on top of other windows"
 
 [node name="TransparentBackground" type="CheckBox" parent="Settings/VBox" unique_id=597515866]
 visible = false
-layout_mode = 2
+layout_mode = 0
 focus_mode = 1
 theme_override_font_sizes/font_size = 54
 text = "Transparent app background"
@@ -4106,7 +4106,7 @@ It's up to YOU to understand how this app behaves before using it in a live envi
 -Opti"
 
 [node name="DontShowAgain" type="CheckBox" parent="Splash/VBox" unique_id=721201867]
-layout_mode = 2
+layout_mode = 0
 theme_override_font_sizes/font_size = 54
 text = "Don't show again "
 

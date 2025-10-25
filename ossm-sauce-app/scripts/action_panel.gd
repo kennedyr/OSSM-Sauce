@@ -30,7 +30,7 @@ func _input(event):
 		%RangePanel.set_min_slider_pos(current_pos + increment)
 
 	if Input.is_action_just_pressed("DecreaseMinRange"):
-		var current_pos = %RangePanel.get_max_slider_pos()
+		var current_pos = %RangePanel.get_min_slider_pos()
 		%RangePanel.set_min_slider_pos(current_pos - increment)
 
 
