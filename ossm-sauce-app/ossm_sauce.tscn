@@ -3893,6 +3893,7 @@ size = Vector2i(1066, 1871)
 ok_button_text = "Open"
 file_mode = 0
 access = 2
+use_native_dialog = true
 
 [node name="CircleSelection" type="Control" parent="." unique_id=808786019]
 unique_name_in_owner = true

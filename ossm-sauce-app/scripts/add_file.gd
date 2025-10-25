@@ -1,5 +1,8 @@
 extends Panel
 
+var lastPath = null;
+var lastPlaylist = null;
+
 
 func _ready() -> void:
 	self_modulate.a = 2
@@ -22,8 +25,8 @@ func show_paths():
 	create_file_list("paths", [".bx", ".funscript"])
 	$Label.text = owner.get_storage_label("paths")
 
-	$FileDialog.current_dir = owner.paths_dir
-	$FileDialog.filename_filter = "*.funscript"
+	$FileDialog.current_dir = lastPath if lastPath else owner.paths_dir
+	$FileDialog.filters = ["*.funscript"]
 	$FileDialog.show()
 
 
@@ -38,8 +41,8 @@ func show_playlists():
 	create_file_list("playlists", [".bxpl"])
 	$Label.text = owner.get_storage_label("playlists")
 
-	$FileDialog.current_dir = owner.playlists_dir
-	$FileDialog.filename_filter = "*.bxpl"
+	$FileDialog.current_dir = lastPlaylist if lastPlaylist else owner.playlists_dir
+	$FileDialog.filters = ["*.bxpl"]
 	$FileDialog.show()
 
 
@@ -54,7 +57,7 @@ func _on_add_path_pressed():
 func _on_cancel():
 	$HBox/AddPath.disabled = false
 	%Menu.show()
-	hide()
+	# hide() 
 
 
 func _on_load_playlist_pressed():
@@ -69,10 +72,11 @@ func _on_file_selected(path: String):
 	else:
 		_on_add_path(path)
 	%Menu.show()
-	hide()
+	# hide()
 
 
 func _on_add_path(file_path: String):
+	lastPath = file_path.get_base_dir()
 	if owner.load_path(file_path):
 		%Menu/Playlist.add_item(file_path.get_file(), file_path)
 
@@ -83,6 +87,7 @@ func _on_load_playlist(file_path: String):
 
 	if not file:
 		return
+	lastPlaylist = file_path.get_base_dir()
 	%Menu/Playlist.clear()
 	while file.get_position() < file.get_length():
 		var line: String = file.get_line()
@@ -101,4 +106,4 @@ func _on_load_playlist(file_path: String):
 func _on_back_pressed():
 	$FileDialog.hide()
 	%Menu.show()
-	hide()
+	# hide()
