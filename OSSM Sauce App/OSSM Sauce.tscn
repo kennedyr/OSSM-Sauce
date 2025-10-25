@@ -3434,6 +3434,7 @@ size = Vector2i(1066, 1871)
 ok_button_text = "Open"
 file_mode = 0
 access = 2
+use_native_dialog = true
 
 [node name="WiFi" type="Sprite2D" parent="."]
 unique_name_in_owner = true
