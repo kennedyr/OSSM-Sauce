@@ -46,23 +46,6 @@ func _init():
 	max_speed = 25000
 	max_acceleration = 500000
 
-func vid_play():
-	# Sleep for 0.2s to sync
-	await get_tree().create_timer(0.2).timeout
-	print("playing")
-	var command = r'echo { "command": ["set_property", "pause", false] } > \\.\pipe\mpv-launcher-pipe'
-	OS.execute("cmd", ["/c", command])
-
-func vid_pause():
-	print("pausing")
-	var command = r'echo { "command": ["set_property", "pause", true] } > \\.\pipe\mpv-launcher-pipe'
-	OS.execute("cmd", ["/c", command])
-
-func vid_restart():
-	print("restarting")
-	var command = r'echo { "command": ["seek", 0, "absolute"] } > \\.\pipe\mpv-launcher-pipe'
-	OS.execute("cmd", ["/c", command])
-
 
 func _ready():
 	#get_tree().get_root().set_transparent_background(true)
@@ -260,9 +243,13 @@ func play(play_time_ms = null):
 	%OSSMCommand.play(play_time_ms)
 	if AppMode.active == AppMode.MOVE and active_path_index != null:
 		paused = false
+		%MPV.play()
+		
 
 
 func pause():
+	if AppMode.active == AppMode.MOVE and active_path_index != null:
+		%MPV.pause()
 	%OSSMCommand.pause()
 	paused = true
 
@@ -552,6 +539,8 @@ func create_delay(duration:float):
 
 
 func display_active_path_index(pause := true, send_buffer := true):
+	if pause:
+		%MPV.restart()
 	paused = pause
 	frame = 0
 	marker_index = 0

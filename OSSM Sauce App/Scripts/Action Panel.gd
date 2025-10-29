@@ -67,10 +67,8 @@ func _on_play_button_pressed():
 			$Play.hide()
 			$Pause/Selection.show()
 			$Pause.show()
-	owner.vid_play()
 
 func _on_pause_button_pressed():
-	owner.vid_pause()
 	match AppMode.active:
 		AppMode.MOVE:
 			clear_selections()
