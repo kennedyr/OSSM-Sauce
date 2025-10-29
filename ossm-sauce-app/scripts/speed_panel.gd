@@ -53,8 +53,9 @@ func update_speed():
 	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
 	speed_limit = Util.safe_map_slider_value(percent, 0, owner.max_speed)
 
+	owner.user_settings.set_value('speed_slider', 'position_percent', percent)
 	#$LabelTop.text = "Max Speed:\n" + str(speed_limit) + " steps/sec"
-	var text_value = str(percent * 100)
+	var text_value = str(round(percent * 100))
 	$LabelTop.text = "Max Speed:\n" + str(text_value) + "%"
 	if $DebounceTimer.is_stopped():
 		$DebounceTimer.start()
@@ -65,25 +66,18 @@ func update_acceleration():
 	var percent = Util.safe_map_slider_percent(slider_pos, accel_slider_min_pos, accel_slider_max_pos)
 	acceleration_limit = Util.safe_map_slider_value(percent, 1000, owner.max_acceleration)
 
-	# $LabelBot.text = "Acceleration:\n" + str(acceleration_limit) + " steps/sec²"
-	var text_value = str(percent * 100)
+	owner.user_settings.set_value('accel_slider', 'position_percent', percent)
+	#$LabelBot.text = "Acceleration:\n" + str(acceleration) + " steps/sec²"
+	var text_value = str(round(percent * 100))
 	$LabelBot.text = "Acceleration:\n" + text_value + "%"
 	if $DebounceTimer.is_stopped():
 		$DebounceTimer.start()
 
 
 func send_speed_limits():
+	%OSSMCommand.set_speed_limit(speed_limit)
+	%OSSMCommand.set_acceleration_limit(acceleration_limit)
 	if %WebSocket.ossm_connected:
-		var command: PackedByteArray
-		command.resize(5)
-		command.encode_u8(0, OSSM.Command.SET_SPEED_LIMIT)
-		command.encode_u32(1, speed_limit)
-		%WebSocket.server.broadcast_binary(command)
-		command = PackedByteArray()
-		command.resize(5)
-		command.encode_u8(0, OSSM.Command.SET_GLOBAL_ACCELERATION)
-		command.encode_u32(1, acceleration_limit)
-		%WebSocket.server.broadcast_binary(command)
 		if AppMode.active == AppMode.VIBRATE:
 			%VibrationControls.send_vibrate_command()
 
@@ -92,11 +86,11 @@ func _on_speed_slider_gui_input(event):
 	if 'relative' in event and event is InputEventMouseMotion:
 		if event.button_mask & MOUSE_BUTTON_LEFT:
 			var drag_pos = speed_slider.position.y + event.relative.y
-			var new_slider_pos = clamp(
-					drag_pos,
-					speed_slider_max_pos,
-					speed_slider_min_pos)
-			speed_slider.position.y = new_slider_pos
+			var new_slider_position = clamp(drag_pos, speed_slider_max_pos, speed_slider_min_pos)
+			if(new_slider_position == speed_slider.position.y):
+				return
+
+			speed_slider.position.y = new_slider_position
 			update_speed()
 
 
@@ -104,11 +98,11 @@ func _on_acceleration_slider_gui_input(event):
 	if 'relative' in event and event is InputEventMouseMotion:
 		if event.button_mask & MOUSE_BUTTON_LEFT:
 			var drag_pos = acceleration_slider.position.y + event.relative.y
-			var new_slider_pos = clamp(
-					drag_pos,
-					accel_slider_max_pos,
-					accel_slider_min_pos)
-			acceleration_slider.position.y = new_slider_pos
+			var new_slider_position = clamp(drag_pos, accel_slider_max_pos, accel_slider_min_pos)
+			if(new_slider_position == acceleration_slider.position.y):
+				return
+
+			acceleration_slider.position.y = new_slider_position
 			update_acceleration()
 			var slider_position_percent = remap(
 					new_slider_pos,

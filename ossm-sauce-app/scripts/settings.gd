@@ -56,13 +56,8 @@ func _on_syncing_speed_changed():
 
 
 func _on_syncing_speed_debounce_timer_timeout() -> void:
-	if %WebSocket.ossm_connected:
-		var command:PackedByteArray
-		command.resize(5)
-		command.encode_u32(0, OSSM.Command.SET_HOMING_SPEED)
-		command.encode_u32(1, $VBox/SyncingSpeed/Input.value)
-		%WebSocket.server.broadcast_binary(command)
 	var new_syncing_speed: int = $VBox/SyncingSpeed/Input.value
+	%OSSMCommand.set_homing_speed(new_syncing_speed)
 	owner.user_settings.set_value('device_settings', 'syncing_speed', new_syncing_speed)
 
 

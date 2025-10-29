@@ -130,7 +130,7 @@ func _physics_process(delta) -> void:
 			transition_to_path(0)
 		else:
 			paused = true
-			send_command(OSSM.Command.PAUSE)
+			%OSSMCommand.pause()
 			%VideoPlayer.pause_player()
 			$Menu.show_play()
 			$CircleSelection.show_restart()
@@ -188,14 +188,6 @@ func transition_to_path(next_index: int):
 	path_list.get_child(next_index).set_active()
 
 
-func send_command(value: int):
-	if %WebSocket.ossm_connected:
-		var command:PackedByteArray
-		command.resize(1)
-		command[0] = value
-		%WebSocket.server.broadcast_binary(command)
-
-
 func home_to(target_position: int):
 	if %WebSocket.ossm_connected:
 		%CircleSelection.show_hourglass()
@@ -213,30 +205,17 @@ func home_to(target_position: int):
 			%Menu]
 		for display in displays:
 			display.modulate.a = 0.05
-		var command: PackedByteArray
-		command.resize(5)
-		command.encode_u8(0, OSSM.Command.HOMING)
-		command.encode_s32(1, abs(motor_direction * 10000 - target_position))
-		%WebSocket.server.broadcast_binary(command)
+		%OSSMCommand.home_to(abs(motor_direction * 10000 - target_position))
 
 
 func play():
-	var command: PackedByteArray
 	if AppMode.active == AppMode.MOVE and active_path_index != null:
 		paused = false
 		play_offset_ms = int(frame * 1000.0 / ticks_per_second)
-	command.resize(6)
-	command.encode_u8(0, OSSM.Command.PLAY)
-	command.encode_u8(1, AppMode.active)
-	command.encode_u32(2, play_offset_ms)
 	if %WebSocket.ossm_connected:
 		if AppMode.active == AppMode.MOVE:
-			var safe_accel: PackedByteArray
-			safe_accel.resize(5)
-			safe_accel.encode_u8(0, OSSM.Command.SET_GLOBAL_ACCELERATION)
-			safe_accel.encode_u32(1, 60000)
-			%WebSocket.server.broadcast_binary(safe_accel)
-		%WebSocket.server.broadcast_binary(command)
+			%OSSMCommand.set_acceleration_limit(60000)
+		%OSSMCommand.play(play_offset_ms)
 		# Restore user's acceleration after a comfortable ramp-up
 		$PathDisplay/AccelTimer.start(0.8)
 
@@ -245,7 +224,7 @@ func pause():
 	paused = true
 	if not %WebSocket.ossm_connected:
 		return
-	send_command(OSSM.Command.PAUSE)
+	%OSSMCommand.pause()
 	
 	if active_path_index == null:
 		return
@@ -254,7 +233,7 @@ func pause():
 	
 	# Sync OSSM to current path position
 	var current_depth: float = paths[active_path_index][frame]
-	send_command(OSSM.Command.RESET)
+	%OSSMCommand.reset()
 	home_to(round(current_depth * 10000))
 	await homing_complete
 	if not %WebSocket.ossm_connected:
@@ -506,15 +485,7 @@ func apply_device_settings():
 
 
 func create_move_command(ms_timing: int, depth: float, trans: int, ease: int, auxiliary: int):
-	var network_packet: PackedByteArray
-	network_packet.resize(10)
-	network_packet.encode_u8(0, OSSM.Command.MOVE)
-	network_packet.encode_u32(1, ms_timing)
-	network_packet.encode_u16(5, round(remap(abs(motor_direction - depth), 0, 1, 0, 10000)))
-	network_packet.encode_u8(7, trans)
-	network_packet.encode_u8(8, ease)
-	network_packet.encode_u8(9, auxiliary)
-	return network_packet
+	return %OSSMCommand.create_move_command(ms_timing, round(remap(abs(motor_direction - depth), 0, 1, 0, 10000)), trans, ease, auxiliary)
 
 
 func round_to(value: float, decimals: int) -> float:
@@ -594,7 +565,11 @@ func load_path(filePath: String) -> bool:
 	for marker_frame in sorted_keys:
 		var marker = marker_data[marker_frame]
 		var ms_timing := int(round((float(marker_frame) / 60) * 1000))
-		network_packets.append(create_move_command(ms_timing, marker[0], marker[1], marker[2], marker[3]))
+		var depth = marker[0]
+		var trans = marker[1]
+		var ease = marker[2]
+		var auxiliary:int = marker[3]
+		network_packets.append(create_move_command(ms_timing, depth, trans, ease, auxiliary))
 		# Adjust for physics tick rate change from BounceX (60Hz to 50Hz)
 		marker_data[round(int(marker_frame) / 1.2)] = marker
 		marker_data.erase(marker_frame)
@@ -668,7 +643,7 @@ func display_active_path_index(pause := true, send_buffer := true):
 	update_time_display()
 	if send_buffer:
 		if %WebSocket.ossm_connected:
-			send_command(OSSM.Command.RESET)
+			%OSSMCommand.reset()
 			var start_depth:float = paths[active_path_index][0]
 			home_to(round(start_depth * 10000))
 			await homing_complete
@@ -705,7 +680,7 @@ func seek() -> void:
 	_seeking = true
 	if not paused:
 		paused = true
-		send_command(OSSM.Command.PAUSE)
+		%OSSMCommand.pause()
 		%ActionPanel.clear_selections()
 		%ActionPanel/Pause.hide()
 		%ActionPanel/Play.show()
@@ -742,7 +717,7 @@ func seek() -> void:
 	update_time_display()
 	
 	if %WebSocket.ossm_connected:
-		send_command(OSSM.Command.RESET)
+		OSSMCommand.reset()
 		home_to(round(target_depth * 10000))
 		await homing_complete
 		if not %WebSocket.ossm_connected:
@@ -887,15 +862,11 @@ func exit():
 	%XToysBridge.stop_xtoys()
 	if %WebSocket.ossm_connected:
 		paused = true
-		send_command(OSSM.Command.PAUSE)
-		const MIN_RANGE = 0
-		const MAX_RANGE = 1
-		var command: PackedByteArray
-		command.resize(4)
-		command.encode_u8(0, OSSM.Command.SET_RANGE_LIMIT)
-		command.encode_u8(1, MIN_RANGE if motor_direction == 0 else MAX_RANGE)
-		command.encode_u16(2, motor_direction * 10000)
-		%WebSocket.server.broadcast_binary(command)
+		%OSSMCommand.pause()
+		if motor_direction == 0:
+			%OSSMCommand.set_range_limit_min(motor_direction * 10000)
+		else:
+			%OSSMCommand.set_range_limit_max(motor_direction * 10000)
 		home_to(1500)
 
 

@@ -25,7 +25,11 @@ func _on_min_slider_gui_input(event):
 		if event.button_mask & MOUSE_BUTTON_LEFT:
 			var drag_pos = min_slider.position.y + event.relative.y
 			var max_range = max_slider.position.y + max_slider.size.y
-			min_slider.position.y = clamp(drag_pos, max_range, min_range_pos)
+			var new_slider_position = clamp(drag_pos, max_range, min_range_pos)
+			if(new_slider_position == min_slider.position.y):
+				return
+
+			min_slider.position.y = new_slider_position
 			if AppMode.active == AppMode.POSITION:
 				update_min_range(true)
 			else:
@@ -37,7 +41,11 @@ func _on_max_slider_gui_input(event):
 		if event.button_mask & MOUSE_BUTTON_LEFT:
 			var drag_pos = max_slider.position.y + event.relative.y
 			var min_range = min_slider.position.y - min_slider.size.y
-			max_slider.position.y = clamp(drag_pos, max_range_pos, min_range)
+			var new_slider_position = clamp(drag_pos, max_range_pos, min_range)
+			if(new_slider_position == max_slider.position.y):
+				return
+
+			max_slider.position.y = new_slider_position
 			if AppMode.active == AppMode.POSITION:
 				update_max_range(true)
 			else:
@@ -67,19 +75,16 @@ func update_max_range(label_only := false):
 
 
 func send_range_limits():
+	min_range = abs(owner.motor_direction * 10000 - min_range_limit)
+	max_range = abs(owner.motor_direction * 10000 - max_range_limit)
+	if owner.motor_direction == 0:
+		%OSSMCommand.set_range_limit_min(min_range)
+		%OSSMCommand.set_range_limit_max(max_range)
+	else:
+		%OSSMCommand.set_range_limit_min(max_range)
+		%OSSMCommand.set_range_limit_max(min_range)
+
 	if %WebSocket.ossm_connected:
-		var command:PackedByteArray
-		command.resize(4)
-		command.encode_u8(0, OSSM.Command.SET_RANGE_LIMIT)
-		command.encode_u8(1, MIN_RANGE if owner.motor_direction == 0 else MAX_RANGE)
-		command.encode_u16(2, abs(owner.motor_direction * 10000 - min_range_limit))
-		%WebSocket.server.broadcast_binary(command)
-		command = PackedByteArray()
-		command.resize(4)
-		command.encode_u8(0, OSSM.Command.SET_RANGE_LIMIT)
-		command.encode_u8(1, MAX_RANGE if owner.motor_direction == 0 else MIN_RANGE)
-		command.encode_u16(2, abs(owner.motor_direction * 10000 - max_range_limit))
-		%WebSocket.server.broadcast_binary(command)
 		if AppMode.active == AppMode.VIBRATE:
 			if %VibrationControls.pulse_active:
 				%VibrationControls.pulse_controller()

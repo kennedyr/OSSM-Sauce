@@ -277,7 +277,7 @@ func _on_bridge_mode_selected(index: int) -> void:
 func _on_mode_selected(index: int):
 	AppMode.active = $Main/Mode.get_item_id(index)
 	owner.user_settings.set_value('app_settings', 'mode', index)
-	owner.send_command(OSSM.Command.RESET)
+	%OSSMCommand.reset()
 	if AppMode.active == AppMode.VIBRATE:
 		owner.home_to(1500)
 	else:

@@ -23,9 +23,5 @@ func _on_no_button_pressed() -> void:
 
 
 func send_homing_trigger():
-	if %WebSocket.ossm_connected:
-		var command:PackedByteArray
-		command.resize(5)
-		command.encode_u32(0, OSSM.Command.SET_HOMING_TRIGGER)
-		command.encode_float(1, %Settings/VBox/HomingTrigger/Input.value)
-		%WebSocket.server.broadcast_binary(command)
+	var homing_trigger = %Settings/VBox/HomingTrigger/Input.value
+	%OSSMCommand.set_homing_trigger(homing_trigger)

@@ -22,12 +22,8 @@ func _physics_process(delta) -> void:
 	var pos = lerp(slider.position.y, touch_pos, delta * smoothing)
 	slider.position.y = clamp(pos, max_range, min_range)
 	var mapped_pos: int = abs(owner.motor_direction * 10000 - remap(slider.position.y, min_range, max_range, 0, 10000))
-	if %WebSocket.ossm_connected and last_position != mapped_pos:
-		var command: PackedByteArray
-		command.resize(5)
-		command.encode_u8(0, OSSM.Command.POSITION)
-		command.encode_u32(1, mapped_pos)
-		%WebSocket.server.broadcast_binary(command)
+	if last_position != mapped_pos:
+		%OSSMCommand.position(mapped_pos)
 		last_position = mapped_pos
 
 

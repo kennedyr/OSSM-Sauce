@@ -163,19 +163,9 @@ func _on_speed_timer_timeout():
 	push_stroke = !push_stroke
 
 
-func send_smooth_move(ms_duration: int, depth: int, trans: int, ease: int, auxiliary: int):
-	if not %WebSocket.ossm_connected:
-		return
+func send_smooth_move(ms_duration:int, depth:int, trans:int, ease:int, auxiliary:int):
 	_log("  → duration=%d, depth=%d, trans=%d, ease=%d" % [ms_duration, depth, trans, ease])
-	var command: PackedByteArray
-	command.resize(10)
-	command.encode_u8(0, OSSM.Command.SMOOTH_MOVE)
-	command.encode_u32(1, ms_duration)
-	command.encode_u16(5, abs(owner.motor_direction * 10000 - depth))
-	command.encode_u8(7, trans)
-	command.encode_u8(8, ease)
-	command.encode_u8(9, auxiliary)
-	%WebSocket.server.broadcast_binary(command)
+	%OSSMCommand.smooth_move(ms_duration, abs(owner.motor_direction * 10000 - depth), trans, ease, auxiliary)
 
 
 func _on_ping_timer_timeout():
