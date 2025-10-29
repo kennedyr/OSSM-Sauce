@@ -81,9 +81,7 @@ func _ready():
 		xtoys_panel = panel
 
 	if has_node("DebugLogCheckBox"):
-		var debug_enabled = false
-		if owner.user_settings.has_section_key('app_settings', 'debug_log_enabled'):
-			debug_enabled = owner.user_settings.get_value('app_settings', 'debug_log_enabled')
+		var debug_enabled = UserSettings.get_value(UserSettings.Section.app_settings, 'debug_log_enabled', false)
 		$DebugLogCheckBox.button_pressed = debug_enabled
 		debug_log_enabled = debug_enabled
 		$DebugLogCheckBox.toggled.connect(_on_debug_log_toggled)
@@ -143,7 +141,7 @@ func _on_change_port_pressed() -> void:
 	%WebSocket.server.stop()
 	%WebSocket.port = new_port
 	%WebSocket.start_server()
-	owner.user_settings.set_value('network', 'port', new_port)
+	UserSettings.set_value(UserSettings.Section.network, 'port', new_port)
 
 
 func set_max_speed(value):
@@ -160,14 +158,14 @@ func _on_speed_input_changed():
 	var value = int($Sliders/MaxSpeed/TextEdit.text)
 	value = clamp(value, 100, 200000)
 	owner.max_speed = value
-	owner.user_settings.set_value('speed_slider', 'max_speed', value)
+	UserSettings.set_value(UserSettings.Section.speed_slider, 'max_speed', value)
 
 
 func _on_acceleration_input_changed():
 	var value = int($Sliders/MaxAcceleration/TextEdit.text)
 	value = clamp(value, 5000, 9000000)
 	owner.max_acceleration = value
-	owner.user_settings.set_value('accel_slider', 'max_acceleration', value)
+	UserSettings.set_value(UserSettings.Section.accel_slider, 'max_acceleration', value)
 
 
 func set_syncing_speed(value = null):
@@ -184,7 +182,7 @@ func set_syncing_speed(value = null):
 func _on_syncing_speed_changed(value):
 	var homing_speed = value
 	set_syncing_speed(homing_speed)
-	owner.user_settings.set_value('device_settings', 'syncing_speed', homing_speed)
+	UserSettings.set_value(UserSettings.Section.device_settings, 'syncing_speed', homing_speed)
 
 
 func set_homing_trigger(value = null):
@@ -203,12 +201,10 @@ func _on_homing_trigger_changed(value: float) -> void:
 
 func accept_homing_trigger(value: float) -> void:
 	set_homing_trigger(value)
-	owner.user_settings.set_value('device_settings', 'homing_trigger', value)
+	UserSettings.set_value(UserSettings.Section.device_settings, 'homing_trigger', value)
 
 func cancel_homing_trigger() -> void:
-	var previous_value = 1.5
-	if owner.user_settings.has_section_key('device_settings', 'homing_trigger'):
-		previous_value = owner.user_settings.get_value('device_settings', 'homing_trigger')
+	var previous_value = UserSettings.get_value(UserSettings.Section.device_settings, 'homing_trigger', 1.5)
 	set_homing_trigger(previous_value)
 
 
@@ -220,12 +216,12 @@ func _on_homing_trigger_debounce_timer_timeout() -> void:
 
 func _on_always_on_top_toggled(toggled):
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_ALWAYS_ON_TOP, toggled)
-	owner.user_settings.set_value('window', 'always_on_top', toggled)
+	UserSettings.set_value(UserSettings.Section.window, 'always_on_top', toggled)
 
 
 func _on_transparent_background_toggled(toggled):
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_TRANSPARENT, toggled)
-	owner.user_settings.set_value('window', 'transparent_background', toggled)
+	UserSettings.set_value(UserSettings.Section.window, 'transparent_background', toggled)
 
 
 func _on_buttplug_ip_set_pressed():
@@ -240,9 +236,9 @@ func _on_buttplug_ip_set_pressed():
 		%BPIOBridge.stop_device()
 		# Bridge Controls will handle reconnection when enabled
 		# Save to user settings
-		owner.user_settings.set_value('buttplug', 'address', address)
-		owner.user_settings.set_value('buttplug', 'main_port', int(main_port))
-		owner.user_settings.set_value('buttplug', 'wsdm_port', int(wsdm_port))
+		UserSettings.set_value(UserSettings.Section.buttplug, 'address', address)
+		UserSettings.set_value(UserSettings.Section.buttplug, 'main_port', int(main_port))
+		UserSettings.set_value(UserSettings.Section.buttplug, 'wsdm_port', int(wsdm_port))
 	buttplug_ip_textedit.text = address
 	if buttplug_main_port_textedit:
 		buttplug_main_port_textedit.text = main_port
@@ -290,5 +286,5 @@ func _on_xtoys_auto_reconnect_toggled(pressed):
 
 func _on_debug_log_toggled(checked: bool):
 	debug_log_enabled = checked
-	owner.user_settings.set_value('app_settings', 'debug_log_enabled', checked)
-	owner.user_settings.save(owner.cfg_path)
+	UserSettings.set_value(UserSettings.Section.app_settings, 'debug_log_enabled', checked)
+	UserSettings.save()

@@ -66,7 +66,7 @@ func update_min_range(label_only:bool = false):
 	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
 	var range = Util.safe_map_physical_position(percent)
 	if not label_only:
-		owner.user_settings.set_value('range_slider_min', 'position_percent', percent)
+		UserSettings.set_value(UserSettings.Section.range_slider_min, 'position_percent', percent)
 		%OSSMCommand.set_range_limit_min(range)
 
 	var text_value = str(round(percent * 100))
@@ -78,7 +78,7 @@ func update_max_range(label_only:bool = false):
 	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
 	var range = Util.safe_map_physical_position(percent)
 	if not label_only:
-		owner.user_settings.set_value('range_slider_max', 'position_percent', percent)
+		UserSettings.set_value(UserSettings.Section.range_slider_max, 'position_percent', percent)
 		%OSSMCommand.set_range_limit_max(range)
 
 	var text_value = str(round(percent * 100))
@@ -92,7 +92,7 @@ func get_min_slider_percent():
 
 
 func set_min_slider_percent(percent):
-	min_slider.position.y = Util.safe_map_slider_value(percent, min_range_pos, max_range_pos)
+	min_slider.position.y = Util.safe_map_slider_position(percent, min_range_pos, max_range_pos)
 	update_min_range()
 
 
@@ -103,7 +103,7 @@ func get_max_slider_percent():
 
 
 func set_max_slider_percent(percent):
-	max_slider.position.y = Util.safe_map_slider_value(percent, min_range_pos, max_range_pos)
+	max_slider.position.y = Util.safe_map_slider_position(percent, min_range_pos, max_range_pos)
 	update_max_range()
 
 

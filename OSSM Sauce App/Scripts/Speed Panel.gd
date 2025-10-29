@@ -33,7 +33,7 @@ func get_speed_slider_percent():
 
 
 func set_speed_slider_percent(percent):
-	speed_slider.position.y = Util.safe_map_slider_value(percent, speed_slider_min_pos, speed_slider_max_pos)
+	speed_slider.position.y = Util.safe_map_slider_position(percent, speed_slider_min_pos, speed_slider_max_pos)
 	update_speed()
 
 
@@ -44,17 +44,17 @@ func get_acceleration_slider_percent():
 
 
 func set_acceleration_slider_percent(percent):
-	acceleration_slider.position.y = Util.safe_map_slider_value(percent, accel_slider_min_pos, accel_slider_max_pos)
+	acceleration_slider.position.y = Util.safe_map_slider_position(percent, accel_slider_min_pos, accel_slider_max_pos)
 	update_acceleration()
 
 
 func update_speed():
 	var slider_pos = speed_slider.position.y
 	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
-	var speed = Util.safe_map_slider_value(percent, 0, owner.max_speed)
+	var speed = Util.safe_map_value(percent, 0, owner.max_speed)
 
 	%OSSMCommand.set_speed_limit(speed)
-	owner.user_settings.set_value('speed_slider', 'position_percent', percent)
+	UserSettings.set_value(UserSettings.Section.speed_slider, 'position_percent', percent)
 	#$LabelTop.text = "Max Speed:\n" + str(speed) + " steps/sec"
 	var text_value = str(round(percent * 100))
 	$LabelTop.text = "Max Speed:\n" + text_value + "%"
@@ -63,10 +63,10 @@ func update_speed():
 func update_acceleration():
 	var slider_pos = acceleration_slider.position.y
 	var percent = Util.safe_map_slider_percent(slider_pos, accel_slider_min_pos, accel_slider_max_pos)
-	var acceleration = Util.safe_map_slider_value(percent, 1000, owner.max_acceleration)
+	var acceleration = Util.safe_map_value(percent, 1000, owner.max_acceleration)
 
 	%OSSMCommand.set_acceleration_limit(acceleration)
-	owner.user_settings.set_value('accel_slider', 'position_percent', percent)
+	UserSettings.set_value(UserSettings.Section.accel_slider, 'position_percent', percent)
 	#$LabelBot.text = "Acceleration:\n" + str(acceleration) + " steps/sec²"
 	var text_value = str(round(percent * 100))
 	$LabelBot.text = "Acceleration:\n" + text_value + "%"

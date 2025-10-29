@@ -212,17 +212,17 @@ func set_stroke_duration_display_mode(value):
 func _on_min_stroke_duration_changed(value):
 	owner.min_stroke_duration = value
 	%LoopControls.reset_stroke_duration_sliders()
-	owner.user_settings.set_value('stroke_settings', 'min_duration', value)
+	UserSettings.set_value(UserSettings.Section.stroke_settings, 'min_duration', value)
 
 
 func _on_max_stroke_duration_changed(value):
 	owner.max_stroke_duration = value
 	%LoopControls.reset_stroke_duration_sliders()
-	owner.user_settings.set_value('stroke_settings', 'max_duration', value)
+	UserSettings.set_value(UserSettings.Section.stroke_settings, 'max_duration', value)
 
 
 func _on_stroke_duration_display_mode_changed(index):
-	owner.user_settings.set_value('stroke_settings', 'display_mode', index)
+	UserSettings.set_value(UserSettings.Section.stroke_settings, 'display_mode', index)
 	%LoopControls.update_stroke_duration_text()
 
 
@@ -262,7 +262,7 @@ func _on_bridge_mode_selected(index: int) -> void:
 func _on_mode_selected(index:int):
 	var mode_id:int = $Main/Mode.get_item_id(index)
 	AppMode.active = mode_id
-	owner.user_settings.set_value('app_settings', 'mode', index)
+	UserSettings.set_value(UserSettings.Section.app_settings, 'mode', index)
 
 	%OSSMCommand.reset()
 	owner.home_to(0)

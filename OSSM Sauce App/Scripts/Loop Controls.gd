@@ -82,10 +82,10 @@ func send_command():
 	var out_trans:int = $Out/AccelerationControls/Transition.selected
 	var out_ease:int = $Out/AccelerationControls/Easing.selected
 	var out_auxiliary:int
-	owner.user_settings.set_value('stroke_settings', 'in_trans', in_trans)
-	owner.user_settings.set_value('stroke_settings', 'in_ease', in_ease)
-	owner.user_settings.set_value('stroke_settings', 'out_trans', out_trans)
-	owner.user_settings.set_value('stroke_settings', 'out_ease', out_ease)
+	UserSettings.set_value(UserSettings.Section.stroke_settings, 'in_trans', in_trans)
+	UserSettings.set_value(UserSettings.Section.stroke_settings, 'in_ease', in_ease)
+	UserSettings.set_value(UserSettings.Section.stroke_settings, 'out_trans', out_trans)
+	UserSettings.set_value(UserSettings.Section.stroke_settings, 'out_ease', out_ease)
 	
 	%OSSMCommand.loop(in_duration, in_trans, in_ease, out_duration, out_trans, out_ease)
 	if in_duration + out_duration == 0:

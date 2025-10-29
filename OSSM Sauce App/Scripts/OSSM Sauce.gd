@@ -9,8 +9,6 @@ var cfg_path:String
 
 const ANIM_TIME = 0.65
 
-var user_settings := ConfigFile.new()
-
 var ticks_per_second:int
 
 var path_speed:int = 30
@@ -77,7 +75,6 @@ func _ready():
 		storage_dir = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
 	paths_dir = storage_dir + "/OSSM Sauce/Paths/"
 	playlists_dir = storage_dir + "/OSSM Sauce/Playlists/"
-	cfg_path = storage_dir + "/OSSM Sauce/UserSettings.cfg"
 	
 	for node in [$Menu, $Settings, $SpeedPanel, $RangePanel]:
 		node.self_modulate.a = 1.65
@@ -86,7 +83,7 @@ func _ready():
 	
 	check_root_directory()
 	
-	user_settings.load(cfg_path)
+	UserSettings.initialize()
 	apply_user_settings()
 
 	%WebSocket.start_server()
@@ -252,6 +249,7 @@ func pause():
 		%MPV.pause()
 	%OSSMCommand.pause()
 	paused = true
+	Global.paused = true
 
 
 func check_root_directory():
@@ -265,126 +263,49 @@ func check_root_directory():
 
 
 func apply_user_settings():
-	var cfg_version_number = user_settings.get_value(
-			'app_settings',
-			'version_number',
-			"")
-	
+	var cfg_version_number = UserSettings.get_value(UserSettings.Section.app_settings, 'version_number')
 	if cfg_version_number != app_version_number:
-		user_settings.clear()
-		user_settings.set_value(
-				'app_settings',
-				'version_number',
-				app_version_number)
-		user_settings.save(cfg_path)
+		UserSettings.clear()
+		UserSettings.set_value(UserSettings.Section.app_settings, 'version_number', app_version_number)
+		UserSettings.save()
 	
 	if OS.get_name() != 'Android':
-		if user_settings.has_section_key('window', 'size'):
-			DisplayServer.window_set_size(
-					user_settings.get_value('window', 'size'))
-		else:
-			DisplayServer.window_set_size(Vector2(435, 774))
+		DisplayServer.window_set_size(UserSettings.get_value(UserSettings.Section.window, 'size', Vector2(435, 774)))
 		
-		if user_settings.has_section_key('window', 'always_on_top'):
-			var checkbox = $Settings/Window/AlwaysOnTop/CheckBox
-			checkbox.button_pressed = user_settings.get_value(
-					'window',
-					'always_on_top')
-		
-		if user_settings.has_section_key('window', 'transparent_background'):
-			var checkbox = $Settings/Window/TransparentBg/CheckBox
-			checkbox.button_pressed = user_settings.get_value(
-					'window',
-					'transparent_background')
-	
-	if user_settings.get_value('app_settings', 'show_splash', true):
+	$Settings/Window/AlwaysOnTop/CheckBox.button_pressed = UserSettings.get_value(UserSettings.Section.window, 'always_on_top', false)
+	$Settings/Window/TransparentBg/CheckBox.button_pressed = UserSettings.get_value(UserSettings.Section.window, 'transparent_background', false)
+	if UserSettings.get_value(UserSettings.Section.app_settings, 'show_splash', true):
 		$Splash.show()
 	
-	if user_settings.has_section_key('network', 'port'):
-		var port_number = user_settings.get_value('network', 'port')
-		$Settings/Network/Port/TextEdit.text = str(port_number)
-		%WebSocket.port = port_number
+	var port_number = UserSettings.get_value(UserSettings.Section.network, 'port', %WebSocket.port)
+	$Settings/Network/Port/TextEdit.text = str(port_number)
+	%WebSocket.port = port_number
 	
 	apply_device_settings()
 	
-	if user_settings.has_section_key('app_settings', 'smoothing_slider'):
-		$PositionControls/Smoothing/HSlider.set_value(
-				user_settings.get_value('app_settings', 'smoothing_slider'))
+	$PositionControls/Smoothing/HSlider.set_value(UserSettings.get_value(UserSettings.Section.app_settings, 'smoothing_slider', 16.0))
+	$Menu.set_min_stroke_duration(UserSettings.get_value(UserSettings.Section.stroke_settings, 'min_duration', 0.2))
+	$Menu.set_max_stroke_duration(UserSettings.get_value(UserSettings.Section.stroke_settings, 'max_duration', 10.0))
+	$Menu.set_stroke_duration_display_mode(UserSettings.get_value(UserSettings.Section.stroke_settings, 'display_mode', 0))
 	
-	if user_settings.has_section_key('stroke_settings', 'min_duration'):
-		$Menu.set_min_stroke_duration(
-				user_settings.get_value('stroke_settings', 'min_duration'))
-	
-	if user_settings.has_section_key('stroke_settings', 'max_duration'):
-		$Menu.set_max_stroke_duration(
-				user_settings.get_value('stroke_settings', 'max_duration'))
-	
-	if user_settings.has_section_key('stroke_settings', 'display_mode'):
-		$Menu.set_stroke_duration_display_mode(
-				user_settings.get_value('stroke_settings', 'display_mode'))
-	
-	if user_settings.has_section_key('stroke_settings', 'in_trans'):
-		$LoopControls/In/AccelerationControls/Transition.select(
-				user_settings.get_value('stroke_settings', 'in_trans'))
-	
-	if user_settings.has_section_key('stroke_settings', 'in_ease'):
-		$LoopControls/In/AccelerationControls/Easing.select(
-				user_settings.get_value('stroke_settings', 'in_ease'))
-	
-	if user_settings.has_section_key('stroke_settings', 'out_trans'):
-		$LoopControls/Out/AccelerationControls/Transition.select(
-				user_settings.get_value('stroke_settings', 'out_trans'))
-	
-	if user_settings.has_section_key('stroke_settings', 'out_ease'):
-		$LoopControls/Out/AccelerationControls/Easing.select(
-				user_settings.get_value('stroke_settings', 'out_ease'))
-	
+	$LoopControls/In/AccelerationControls/Transition.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 1))
+	$LoopControls/In/AccelerationControls/Easing.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2))
+	$LoopControls/Out/AccelerationControls/Transition.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'out_trans', 1))
+	$LoopControls/Out/AccelerationControls/Easing.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'out_ease', 2))
 	$LoopControls.draw_easing()
 	
-	if user_settings.has_section_key('app_settings', 'mode'):
-		$Menu.select_mode(user_settings.get_value('app_settings', 'mode'))
-	else:
-		$Menu.select_mode(1)
+	$Menu.select_mode(UserSettings.get_value(UserSettings.Section.app_settings, 'mode', 1))
 
 
 func apply_device_settings():
-	if user_settings.has_section_key('speed_slider', 'max_speed'):
-		$Settings.set_max_speed(
-				user_settings.get_value('speed_slider', 'max_speed'))
-	
-	if user_settings.has_section_key('accel_slider', 'max_acceleration'):
-		$Settings.set_max_acceleration(
-				user_settings.get_value('accel_slider', 'max_acceleration'))
-	
-	if user_settings.has_section_key('speed_slider', 'position_percent'):
-		$SpeedPanel.set_speed_slider_percent(
-				user_settings.get_value('speed_slider', 'position_percent'))
-	else:
-		$SpeedPanel.set_speed_slider_percent(0.6)
-	
-	if user_settings.has_section_key('accel_slider', 'position_percent'):
-		$SpeedPanel.set_acceleration_slider_percent(
-				user_settings.get_value('accel_slider', 'position_percent'))
-	else:
-		$SpeedPanel.set_acceleration_slider_percent(0.4)
-	
-	if user_settings.has_section_key('range_slider_min', 'position_percent'):
-		$RangePanel.set_min_slider_percent(
-				user_settings.get_value('range_slider_min', 'position_percent'))
-	else:
-		$RangePanel.set_min_slider_percent(0)
-	
-	if user_settings.has_section_key('range_slider_max', 'position_percent'):
-		$RangePanel.set_max_slider_percent(
-				user_settings.get_value('range_slider_max', 'position_percent'))
-	else:
-		$RangePanel.set_max_slider_percent(1)
-	
-	if user_settings.has_section_key('device_settings', 'syncing_speed'):
-		$Settings.set_syncing_speed(user_settings.get_value('device_settings', 'syncing_speed'))
-	
-	if user_settings.has_section_key('device_settings', 'homing_trigger'):
-		$Settings.set_homing_trigger(user_settings.get_value('device_settings', 'homing_trigger'))
+	$Settings.set_max_speed(UserSettings.get_value(UserSettings.Section.speed_slider, 'max_speed', 25000))
+	$Settings.set_max_acceleration(UserSettings.get_value(UserSettings.Section.accel_slider, 'max_acceleration', 500000))
+	$SpeedPanel.set_speed_slider_percent(UserSettings.get_value(UserSettings.Section.speed_slider, 'position_percent', 0.6))
+	$SpeedPanel.set_acceleration_slider_percent(UserSettings.get_value(UserSettings.Section.accel_slider, 'position_percent', 0.4))
+	$RangePanel.set_min_slider_percent(UserSettings.get_value(UserSettings.Section.range_slider_min, 'position_percent', 0))
+	$RangePanel.set_max_slider_percent(UserSettings.get_value(UserSettings.Section.range_slider_max, 'position_percent', 1))
+	$Settings.set_syncing_speed(UserSettings.get_value(UserSettings.Section.device_settings, 'syncing_speed', 1000))
+	$Settings.set_homing_trigger(UserSettings.get_value(UserSettings.Section.device_settings, 'homing_trigger', 1.5))
 
 
 func create_move_command(ms_timing:int, depth:float, trans:int, ease:int, auxiliary:int):
@@ -423,8 +344,8 @@ func load_path(filePath:String) -> bool:
 			var actions_data = JSON.parse_string(actions_text)
 			if actions_data:
 				var actions_list = actions_data[actions_data.keys()[0]]
-				var trans: int = user_settings.get_value('stroke_settings', 'in_trans', 0)
-				var ease: int = user_settings.get_value('stroke_settings', 'in_ease', 2)
+				var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 0)
+				var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
 				file_data[0] = [0, trans, ease, 0]
 				for action in actions_list:
 					var frame:int = action.at / 16.66666
@@ -606,7 +527,7 @@ func deactivate_move_mode():
 func _on_window_size_changed():
 	if OS.get_name() != "Android":
 		var window_size = DisplayServer.window_get_size()
-		user_settings.set_value('window', 'size', window_size)
+		UserSettings.set_value(UserSettings.Section.window, 'size', window_size)
 
 
 func _notification(what):
@@ -618,7 +539,7 @@ func _notification(what):
 
 
 func exit():
-	user_settings.save(cfg_path)
+	UserSettings.save()
 	if %WebSocket.ossm_connected:
 		pause()
 		%OSSMCommand.set_range_limit_min(0)
