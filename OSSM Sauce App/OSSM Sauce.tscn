@@ -1,4 +1,4 @@
-[gd_scene load_steps=66 format=3 uid="uid://d3cq3b5o0feo0"]
+[gd_scene load_steps=67 format=3 uid="uid://d3cq3b5o0feo0"]
 
 [ext_resource type="Theme" uid="uid://dqhnc02ffxjr2" path="res://Theme.tres" id="1_2qx77"]
 [ext_resource type="Script" uid="uid://bcl1axbtw05ci" path="res://Scripts/OSSM Sauce.gd" id="2_7liag"]
@@ -48,6 +48,7 @@
 [ext_resource type="Script" uid="uid://dtl7hvmljb1gb" path="res://Scripts/websocket_xtoys_bridge.gd" id="44_r8osj"]
 [ext_resource type="Script" uid="uid://4ocyantcsgu3" path="res://Scripts/mcp_command_server.gd" id="47_cxkw1"]
 [ext_resource type="Script" uid="uid://bblfppboahqc1" path="res://Scripts/websocket_mcp_bridge.gd" id="48_2hygl"]
+[ext_resource type="Script" uid="uid://b22ei68mm0444" path="res://Scripts/OSSMCommand.gd" id="49_2hygl"]
 
 [sub_resource type="GDScript" id="GDScript_o3urw"]
 script/source = "extends Control
@@ -532,18 +533,12 @@ func _ready() -> void:
 
 func _on_yes_button_pressed() -> void:
 	var new_value = %Settings/HomingTrigger/SpinBox.value
-	owner.user_settings.set_value('device_settings', 'homing_trigger', new_value)
-	%Settings.send_homing_trigger()
+	%Settings.accept_homing_trigger(new_value)
 	hide()
 
 
 func _on_no_button_pressed() -> void:
-	if owner.user_settings.has_section_key('device_settings', 'homing_trigger'):
-		var previous_value = owner.user_settings.get_value('device_settings', 'homing_trigger')
-		%Settings/HomingTrigger/SpinBox.set_value_no_signal(previous_value)
-		%Settings.send_homing_trigger()
-	else:
-		%Settings/HomingTrigger/SpinBox.set_value_no_signal(1.5)
+	%Settings.cancel_homing_trigger()
 	hide()
 "
 
@@ -3569,6 +3564,10 @@ script = ExtResource("48_2hygl")
 [node name="MCPCommandServer" type="Node" parent="MCPBridge"]
 unique_name_in_owner = true
 script = ExtResource("47_cxkw1")
+
+[node name="OSSMCommand" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("49_2hygl")
 
 [connection signal="gui_input" from="PathDisplay/PathArea" to="PathDisplay/PathArea" method="_on_gui_input"]
 [connection signal="timeout" from="PathDisplay/PathArea/Timer" to="PathDisplay/PathArea" method="_on_timer_timeout"]
