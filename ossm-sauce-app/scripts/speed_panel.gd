@@ -24,56 +24,50 @@ func _ready():
 	accel_slider_min_pos = acceleration_bottom.position.y
 
 
-func get_speed_slider_pos():
+func get_speed_slider_percent():
 	var slider_pos = speed_slider.position.y
-	var percent = remap(slider_pos, speed_slider_min_pos, speed_slider_max_pos, 0, 1)
+	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
 	return percent
 
 
-func set_speed_slider_pos(percent):
-	var slider_map = remap(
-			percent,
-			0,
-			1,
-			speed_slider_min_pos,
-			speed_slider_max_pos)
-	speed_slider.position.y = slider_map
+func set_speed_slider_percent(percent):
+	speed_slider.position.y = Util.safe_map_slider_value(percent, speed_slider_min_pos, speed_slider_max_pos)
 	owner.user_settings.set_value('speed_slider', 'position_percent', percent)
 	update_speed()
 
 
-func set_acceleration_slider_pos(percent):
-	var slider_map = remap(
-			percent,
-			0,
-			1,
-			accel_slider_min_pos,
-			accel_slider_max_pos)
-	acceleration_slider.position.y = slider_map
+func get_acceleration_slider_percent():
+	var slider_pos = acceleration_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, accel_slider_min_pos, accel_slider_max_pos)
+	return percent
+
+
+func set_acceleration_slider_percent(percent):
+	acceleration_slider.position.y = Util.safe_map_slider_value(percent, accel_slider_min_pos, accel_slider_max_pos)
 	owner.user_settings.set_value('accel_slider', 'position_percent', percent)
 	update_acceleration()
 
 
 func update_speed():
-	speed_limit = round(remap(
-			speed_slider.position.y,
-			speed_slider_min_pos,
-			speed_slider_max_pos,
-			0,
-			owner.max_speed))
-	$LabelTop.text = "Max Speed:\n" + str(speed_limit) + " steps/sec"
+	var slider_pos = speed_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
+	speed_limit = Util.safe_map_slider_value(percent, 0, owner.max_speed)
+
+	#$LabelTop.text = "Max Speed:\n" + str(speed_limit) + " steps/sec"
+	var text_value = str(percent * 100)
+	$LabelTop.text = "Max Speed:\n" + str(text_value) + "%"
 	if $DebounceTimer.is_stopped():
 		$DebounceTimer.start()
 
 
 func update_acceleration():
-	acceleration_limit = round(remap(
-			acceleration_slider.position.y,
-			accel_slider_min_pos,
-			accel_slider_max_pos,
-			1000,
-			owner.max_acceleration))
-	$LabelBot.text = "Acceleration:\n" + str(acceleration_limit) + " steps/sec²"
+	var slider_pos = acceleration_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, accel_slider_min_pos, accel_slider_max_pos)
+	acceleration_limit = Util.safe_map_slider_value(percent, 1000, owner.max_acceleration)
+
+	# $LabelBot.text = "Acceleration:\n" + str(acceleration_limit) + " steps/sec²"
+	var text_value = str(percent * 100)
+	$LabelBot.text = "Acceleration:\n" + text_value + "%"
 	if $DebounceTimer.is_stopped():
 		$DebounceTimer.start()
 
@@ -104,16 +98,6 @@ func _on_speed_slider_gui_input(event):
 					speed_slider_min_pos)
 			speed_slider.position.y = new_slider_pos
 			update_speed()
-			var slider_position_percent = remap(
-					new_slider_pos,
-					speed_slider_min_pos,
-					speed_slider_max_pos,
-					0,
-					1)
-			owner.user_settings.set_value(
-					'speed_slider',
-					'position_percent',
-					slider_position_percent)
 
 
 func _on_acceleration_slider_gui_input(event):

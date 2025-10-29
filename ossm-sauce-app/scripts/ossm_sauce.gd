@@ -470,28 +470,28 @@ func apply_device_settings():
 		$Settings/VBox/Sliders/MaxAcceleration/Input.value = int(value)
 	
 	if user_settings.has_section_key('speed_slider', 'position_percent'):
-		$SpeedPanel.set_speed_slider_pos(
+		$SpeedPanel.set_speed_slider_percent(
 				user_settings.get_value('speed_slider', 'position_percent', 0.6))
 	else:
-		$SpeedPanel.set_speed_slider_pos(0.6)
+		$SpeedPanel.set_speed_slider_percent(0.6)
 	
 	if user_settings.has_section_key('accel_slider', 'position_percent'):
-		$SpeedPanel.set_acceleration_slider_pos(
+		$SpeedPanel.set_acceleration_slider_percent(
 				user_settings.get_value('accel_slider', 'position_percent', 0.4))
 	else:
-		$SpeedPanel.set_acceleration_slider_pos(0.4)
+		$SpeedPanel.set_acceleration_slider_percent(0.4)
 	
 	if user_settings.has_section_key('range_slider_min', 'position_percent'):
-		$RangePanel.set_min_slider_pos(
+		$RangePanel.set_min_slider_percent(
 				user_settings.get_value('range_slider_min', 'position_percent', 0))
 	else:
-		$RangePanel.set_min_slider_pos(0)
+		$RangePanel.set_min_slider_percent(0)
 	
 	if user_settings.has_section_key('range_slider_max', 'position_percent'):
-		$RangePanel.set_max_slider_pos(
+		$RangePanel.set_max_slider_percent(
 				user_settings.get_value('range_slider_max', 'position_percent', 1))
 	else:
-		$RangePanel.set_max_slider_pos(1)
+		$RangePanel.set_max_slider_percent(1)
 	
 	if user_settings.has_section_key('device_settings', 'syncing_speed'):
 		$Settings/VBox/SyncingSpeed/Input.set_value_no_signal(

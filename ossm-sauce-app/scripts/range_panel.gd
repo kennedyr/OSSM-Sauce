@@ -46,8 +46,8 @@ func _on_max_slider_gui_input(event):
 
 func update_min_range(label_only := false):
 	var slider_pos = min_slider.position.y
-	min_range_limit = round(remap(slider_pos, min_range_pos, max_range_pos, 0, 10000))
-	var percent = remap(slider_pos, min_range_pos, max_range_pos, 0, 1)
+	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
+	min_range_limit = Util.safe_map_physical_position(percent)
 	if not label_only:
 		owner.user_settings.set_value('range_slider_min', 'position_percent', percent)
 		if $DebounceTimer.is_stopped():
@@ -57,8 +57,8 @@ func update_min_range(label_only := false):
 
 func update_max_range(label_only := false):
 	var slider_pos = max_slider.position.y
-	max_range_limit = round(remap(slider_pos, min_range_pos, max_range_pos, 0, 10000))
-	var percent = remap(slider_pos, min_range_pos, max_range_pos, 0, 1)
+	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
+	max_range_limit = Util.safe_map_physical_position(percent)
 	if not label_only:
 		owner.user_settings.set_value('range_slider_max', 'position_percent', percent)
 		if $DebounceTimer.is_stopped():
@@ -87,38 +87,26 @@ func send_range_limits():
 				%VibrationControls.send_vibrate_command()
 
 
-func get_min_slider_pos():
+func get_min_slider_percent():
 	var slider_pos = min_slider.position.y
-	var percent = remap(slider_pos, min_range_pos, max_range_pos, 0, 1)
+	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
 	return percent
 
 
-func set_min_slider_pos(percent):
-	var slider_map = remap(
-			percent,
-			0,
-			1,
-			min_range_pos,
-			max_range_pos)
-	min_slider.position.y = slider_map
-	update_min_range(true)
+func set_min_slider_percent(percent):
+	min_slider.position.y = Util.safe_map_slider_value(percent, min_range_pos, max_range_pos)
+	update_min_range()
 
 
-func get_max_slider_pos():
+func get_max_slider_percent():
 	var slider_pos = max_slider.position.y
-	var percent = remap(slider_pos, min_range_pos, max_range_pos, 0, 1)
+	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
 	return percent
 
 
-func set_max_slider_pos(percent):
-	var slider_map = remap(
-			percent,
-			0,
-			1,
-			min_range_pos,
-			max_range_pos)
-	max_slider.position.y = slider_map
-	update_max_range(true)
+func set_max_slider_percent(percent):
+	max_slider.position.y = Util.safe_map_slider_value(percent, min_range_pos, max_range_pos)
+	update_max_range()
 
 
 func tween(activating:bool = true):

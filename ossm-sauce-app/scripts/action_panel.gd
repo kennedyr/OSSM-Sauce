@@ -10,28 +10,28 @@ func _input(event):
 			_on_pause_button_pressed()
 
 	if Input.is_action_just_pressed("IncreaseSpeed"):
-		var current_pos = %SpeedPanel.get_speed_slider_pos()
-		%SpeedPanel.set_speed_slider_pos(current_pos + increment)
+		var current_pos = %SpeedPanel.get_speed_slider_percent()
+		%SpeedPanel.set_speed_slider_percent(current_pos + increment)
 
 	if Input.is_action_just_pressed("DecreaseSpeed"):
-		var current_pos = %SpeedPanel.get_speed_slider_pos()
-		%SpeedPanel.set_speed_slider_pos(current_pos - increment)
+		var current_pos = %SpeedPanel.get_speed_slider_percent()
+		%SpeedPanel.set_speed_slider_percent(current_pos - increment)
 
 	if Input.is_action_just_pressed("IncreaseMaxRange"):
-		var current_pos = %RangePanel.get_max_slider_pos()
-		%RangePanel.set_max_slider_pos(current_pos + increment)
+		var current_pos = %RangePanel.get_max_slider_percent()
+		%RangePanel.set_max_slider_percent(current_pos + increment)
 
 	if Input.is_action_just_pressed("DecreaseMaxRange"):
-		var current_pos = %RangePanel.get_max_slider_pos()
-		%RangePanel.set_max_slider_pos(current_pos - increment)
+		var current_pos = %RangePanel.get_max_slider_percent()
+		%RangePanel.set_max_slider_percent(current_pos - increment)
 
 	if Input.is_action_just_pressed("IncreaseMinRange"):
-		var current_pos = %RangePanel.get_min_slider_pos()
-		%RangePanel.set_min_slider_pos(current_pos + increment)
+		var current_pos = %RangePanel.get_min_slider_percent()
+		%RangePanel.set_min_slider_percent(current_pos + increment)
 
 	if Input.is_action_just_pressed("DecreaseMinRange"):
-		var current_pos = %RangePanel.get_min_slider_pos()
-		%RangePanel.set_min_slider_pos(current_pos - increment)
+		var current_pos = %RangePanel.get_min_slider_percent()
+		%RangePanel.set_min_slider_percent(current_pos - increment)
 
 
 func _on_play_button_pressed():
