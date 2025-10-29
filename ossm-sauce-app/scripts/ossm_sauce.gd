@@ -54,23 +54,6 @@ func _init():
 	max_speed = 25000
 	max_acceleration = 500000
 
-func vid_play():
-	# Sleep for 0.2s to sync
-	await get_tree().create_timer(0.2).timeout
-	print("playing")
-	var command = r'echo { "command": ["set_property", "pause", false] } > \\.\pipe\mpv-launcher-pipe'
-	OS.execute("cmd", ["/c", command])
-
-func vid_pause():
-	print("pausing")
-	var command = r'echo { "command": ["set_property", "pause", true] } > \\.\pipe\mpv-launcher-pipe'
-	OS.execute("cmd", ["/c", command])
-
-func vid_restart():
-	print("restarting")
-	var command = r'echo { "command": ["seek", 0, "absolute"] } > \\.\pipe\mpv-launcher-pipe'
-	OS.execute("cmd", ["/c", command])
-
 func _ready():
 	set_process(false)
 	OS.request_permissions()
@@ -212,6 +195,7 @@ func play():
 	if AppMode.active == AppMode.MOVE and active_path_index != null:
 		paused = false
 		play_offset_ms = int(frame * 1000.0 / ticks_per_second)
+		%MPV.play()
 	if %WebSocket.ossm_connected:
 		if AppMode.active == AppMode.MOVE:
 			%OSSMCommand.set_acceleration_limit(60000)
@@ -221,6 +205,7 @@ func play():
 
 
 func pause():
+	%MPV.pause()
 	paused = true
 	if not %WebSocket.ossm_connected:
 		return
@@ -635,6 +620,8 @@ func create_delay(duration: float):
 
 
 func display_active_path_index(pause := true, send_buffer := true):
+	if pause:
+		%MPV.restart()
 	paused = pause
 	frame = 0
 	marker_index = 0

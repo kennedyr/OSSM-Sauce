@@ -59,11 +59,9 @@ func _on_play_button_pressed():
 		%VideoPlayer.sync_play()
 	else:
 		owner.play()
-	owner.vid_play()
 
 
 func _on_pause_button_pressed():
-	owner.vid_pause()
 	flash_button($Pause)
 	$Timer.stop()
 	match AppMode.active:
