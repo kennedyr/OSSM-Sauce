@@ -26,66 +26,62 @@ func _ready():
 	accel_slider_min_pos = acceleration_bottom.position.y
 
 
-func get_speed_slider_pos():
+func get_speed_slider_percent():
 	var slider_pos = speed_slider.position.y
-	var percent = remap(slider_pos, speed_slider_min_pos, speed_slider_max_pos, 0, 1)
+	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
 	return percent
 
 
-func set_speed_slider_pos(percent):
-	var slider_map = remap(
-			percent,
-			0,
-			1,
-			speed_slider_min_pos,
-			speed_slider_max_pos)
-	speed_slider.position.y = slider_map
-	owner.user_settings.set_value('speed_slider', 'position_percent', percent)
+func set_speed_slider_percent(percent):
+	speed_slider.position.y = Util.safe_map_slider_value(percent, speed_slider_min_pos, speed_slider_max_pos)
 	update_speed()
 
 
-func set_acceleration_slider_pos(percent):
-	var slider_map = remap(
-			percent,
-			0,
-			1,
-			accel_slider_min_pos,
-			accel_slider_max_pos)
-	acceleration_slider.position.y = slider_map
-	owner.user_settings.set_value('accel_slider', 'position_percent', percent)
+func get_acceleration_slider_percent():
+	var slider_pos = acceleration_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, accel_slider_min_pos, accel_slider_max_pos)
+	return percent
+
+
+func set_acceleration_slider_percent(percent):
+	acceleration_slider.position.y = Util.safe_map_slider_value(percent, accel_slider_min_pos, accel_slider_max_pos)
 	update_acceleration()
 
 
 func update_speed():
-	var speed_map = round(remap(
-			speed_slider.position.y,
-			speed_slider_min_pos,
-			speed_slider_max_pos,
-			0,
-			owner.max_speed))
+	var slider_pos = speed_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
+	var speed = Util.safe_map_slider_value(percent, 0, owner.max_speed)
+
 	if %WebSocket.ossm_connected:
 		var command:PackedByteArray
 		command.resize(5)
 		command.encode_u8(0, OSSM.Command.SET_SPEED_LIMIT)
-		command.encode_u32(1, speed_map)
+		command.encode_u32(1, speed)
 		%WebSocket.server.broadcast_binary(command)
-	$LabelTop.text = "Max Speed:\n" + str(speed_map) + " steps/sec"
+
+	owner.user_settings.set_value('speed_slider', 'position_percent', percent)
+	#$LabelTop.text = "Max Speed:\n" + str(speed) + " steps/sec"
+	var text_value = str(percent * 100)
+	$LabelTop.text = "Max Speed:\n" + text_value + "%"
 
 
 func update_acceleration():
-	var acceleration_map = round(remap(
-			acceleration_slider.position.y,
-			accel_slider_min_pos,
-			accel_slider_max_pos,
-			1000,
-			owner.max_acceleration))
+	var slider_pos = acceleration_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, accel_slider_min_pos, accel_slider_max_pos)
+	var acceleration = Util.safe_map_slider_value(percent, 1000, owner.max_acceleration)
+
 	if %WebSocket.ossm_connected:
 		var command:PackedByteArray
 		command.resize(5)
 		command.encode_u8(0, OSSM.Command.SET_GLOBAL_ACCELERATION)
-		command.encode_u32(1, acceleration_map)
+		command.encode_u32(1, acceleration)
 		%WebSocket.server.broadcast_binary(command)
-	$LabelBot.text = "Acceleration:\n" + str(acceleration_map) + " steps/sec²"
+
+	owner.user_settings.set_value('accel_slider', 'position_percent', percent)
+	#$LabelBot.text = "Acceleration:\n" + str(acceleration) + " steps/sec²"
+	var text_value = str(percent * 100)
+	$LabelBot.text = "Acceleration:\n" + text_value + "%"
 
 
 func speed_slider_gui_input(event):
@@ -98,16 +94,6 @@ func speed_slider_gui_input(event):
 					speed_slider_min_pos)
 			speed_slider.position.y = new_slider_pos
 			update_speed()
-			var slider_position_percent = remap(
-					new_slider_pos,
-					speed_slider_min_pos,
-					speed_slider_max_pos,
-					0,
-					1)
-			owner.user_settings.set_value(
-					'speed_slider',
-					'position_percent',
-					slider_position_percent)
 
 
 func acceleration_slider_gui_input(event):
@@ -120,16 +106,6 @@ func acceleration_slider_gui_input(event):
 					accel_slider_min_pos)
 			acceleration_slider.position.y = new_slider_pos
 			update_acceleration()
-			var slider_position_percent = remap(
-					new_slider_pos,
-					speed_slider_min_pos,
-					speed_slider_max_pos,
-					0,
-					1)
-			owner.user_settings.set_value(
-					'accel_slider',
-					'position_percent',
-					slider_position_percent)
 
 
 func tween(activating:bool = true):
