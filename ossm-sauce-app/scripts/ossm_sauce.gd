@@ -17,8 +17,6 @@ var _saf_file_subdirs: Dictionary = {}
 
 const ANIM_TIME = 0.65
 
-var user_settings := ConfigFile.new()
-
 var ticks_per_second: int
 
 var path_speed: int = 30
@@ -64,15 +62,6 @@ func _ready():
 	min_stroke_duration = $Menu/LoopSettings/MinStrokeDuration/Input.value
 	max_stroke_duration = $Menu/LoopSettings/MaxStrokeDuration/Input.value
 	
-	if OS.get_name() == 'Android':
-		#storage_dir = OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP)
-		cfg_path = "user://UserSettings.cfg"
-	else:
-		storage_dir = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
-		cfg_path = storage_dir + "/OSSM Sauce/UserSettings.cfg"
-	paths_dir = storage_dir + "/OSSM Sauce/Paths/"
-	playlists_dir = storage_dir + "/OSSM Sauce/Playlists/"
-	
 	for node in [$Menu, $Settings, $SpeedPanel, $RangePanel]:
 		node.self_modulate.a = 1.65
 	
@@ -80,7 +69,7 @@ func _ready():
 	
 	check_root_directory()
 	
-	user_settings.load(cfg_path)
+	UserSettings.initialize()
 	apply_user_settings()
 	
 	$Menu/VersionLabel.text = "v" + app_version_number
@@ -207,6 +196,7 @@ func play():
 func pause():
 	%MPV.pause()
 	paused = true
+	Global.paused = true
 	if not %WebSocket.ossm_connected:
 		return
 	%OSSMCommand.pause()
@@ -284,187 +274,108 @@ func check_root_directory():
 
 
 func apply_user_settings():
-	var cfg_version_number = user_settings.get_value(
-			'app_settings',
-			'version_number',
-			"")
-	
+	var cfg_version_number = UserSettings.get_value(UserSettings.Section.app_settings, 'version_number')
 	if cfg_version_number.naturalcasecmp_to("1.5") < 0:
-		user_settings.clear()
-		user_settings.set_value(
-				'app_settings',
-				'version_number',
-				app_version_number)
-		user_settings.save(cfg_path)
-	
+		UserSettings.clear()
+		UserSettings.set_value(UserSettings.Section.app_settings, 'version_number', app_version_number)
+		UserSettings.save()
+
 	if OS.get_name() != 'Android':
-		if user_settings.has_section_key('window', 'size'):
-			DisplayServer.window_set_size(
-					user_settings.get_value('window', 'size'))
-		else:
-			DisplayServer.window_set_size(Vector2(435, 774))
+		DisplayServer.window_set_size(UserSettings.get_value(UserSettings.Section.window, 'size', Vector2(435, 774)))
 		
-		if user_settings.has_section_key('window', 'always_on_top'):
-			var checkbox = $Settings/VBox/AlwaysOnTop
-			checkbox.button_pressed = user_settings.get_value(
-					'window',
-					'always_on_top')
-		
-		#if user_settings.has_section_key('window', 'transparent_background'):
-			#var checkbox = $Settings/VBox/TransparentBg
-			#checkbox.button_pressed = user_settings.get_value(
-					#'window',
-					#'transparent_background')
-	
-	if user_settings.get_value('app_settings', 'show_splash', true):
+		$Settings/Window/AlwaysOnTop/CheckBox.button_pressed = UserSettings.get_value(UserSettings.Section.window, 'always_on_top', false)
+
+		# $Settings/Window/TransparentBg/CheckBox.button_pressed = UserSettings.get_value(UserSettings.Section.window, 'transparent_background', false)
+
+	if UserSettings.get_value(UserSettings.Section.app_settings, 'show_splash', true):
 		$Splash.show()
 	
 	_check_storage_setup()
 	
-	if user_settings.has_section_key('network', 'port'):
-		var port_number = user_settings.get_value('network', 'port')
-		$Settings/VBox/Network/Port/Input.value = port_number
-		%WebSocket.port = port_number
+	var port_number = UserSettings.get_value(UserSettings.Section.network, 'port', %WebSocket.port)
+	$Settings/VBox/Network/Port/Input.value = port_number
+	%WebSocket.port = port_number
 	
-	if user_settings.has_section_key('device_settings', 'motor_direction'):
-		var value = user_settings.get_value('device_settings', 'motor_direction', 0)
-		$Settings/VBox/ReverseMotorDirection.button_pressed = bool(value)
+	var motor_direction = UserSettings.get_value(UserSettings.Section.device_settings, 'motor_direction', 0)
+	$Settings/VBox/ReverseMotorDirection.button_pressed = bool(motor_direction)
 	
 	apply_device_settings()
 	
-	if user_settings.has_section_key('app_settings', 'smoothing_slider'):
-		$PositionControls/Smoothing/HSlider.set_value(
-				user_settings.get_value('app_settings', 'smoothing_slider'))
+	$PositionControls/Smoothing/HSlider.set_value(UserSettings.get_value(UserSettings.Section.app_settings, 'smoothing_slider', 16.0))
+	$Menu.set_min_stroke_duration(UserSettings.get_value(UserSettings.Section.stroke_settings, 'min_duration', 0.2))
+	$Menu.set_max_stroke_duration(UserSettings.get_value(UserSettings.Section.stroke_settings, 'max_duration', 10.0))
+	$Menu.set_stroke_duration_display_mode(UserSettings.get_value(UserSettings.Section.stroke_settings, 'display_mode', 0))
 	
-	if user_settings.has_section_key('stroke_settings', 'min_duration'):
-		$Menu.set_min_stroke_duration(
-				user_settings.get_value('stroke_settings', 'min_duration'))
-	if user_settings.has_section_key('stroke_settings', 'max_duration'):
-		$Menu.set_max_stroke_duration(
-				user_settings.get_value('stroke_settings', 'max_duration'))
-	if user_settings.has_section_key('stroke_settings', 'display_mode'):
-		$Menu.set_stroke_duration_display_mode(
-				user_settings.get_value('stroke_settings', 'display_mode'))
-	if user_settings.has_section_key('stroke_settings', 'in_trans'):
-		$LoopControls/In/AccelerationControls/Transition.select(
-				user_settings.get_value('stroke_settings', 'in_trans'))
-	if user_settings.has_section_key('stroke_settings', 'in_ease'):
-		$LoopControls/In/AccelerationControls/Easing.select(
-				user_settings.get_value('stroke_settings', 'in_ease'))
-	if user_settings.has_section_key('stroke_settings', 'out_trans'):
-		$LoopControls/Out/AccelerationControls/Transition.select(
-				user_settings.get_value('stroke_settings', 'out_trans'))
-	if user_settings.has_section_key('stroke_settings', 'out_ease'):
-		$LoopControls/Out/AccelerationControls/Easing.select(
-				user_settings.get_value('stroke_settings', 'out_ease'))
+	$LoopControls/In/AccelerationControls/Transition.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 1))
+	$LoopControls/In/AccelerationControls/Easing.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2))
+	$LoopControls/Out/AccelerationControls/Transition.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'out_trans', 1))
+	$LoopControls/Out/AccelerationControls/Easing.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'out_ease', 2))
+
 	$LoopControls.draw_easing()
 	
-	if user_settings.has_section_key('bridge_settings', 'min_move_duration') \
-			or user_settings.has_section_key('bridge_settings', 'max_move_duration'):
+	if UserSettings.get_value(UserSettings.Section.bridge_settings, 'min_move_duration') \
+			or UserSettings.get_value(UserSettings.Section.bridge_settings, 'max_move_duration'):
 		%BridgeControls.set_move_duration_limits(
-				user_settings.get_value('bridge_settings', 'min_move_duration', 500),
-				user_settings.get_value('bridge_settings', 'max_move_duration', 6000))
-	if user_settings.has_section_key('bridge_settings', 'bridge_mode'):
-		var bridge_mode = user_settings.get_value('bridge_settings', 'bridge_mode')
+				UserSettings.get_value(UserSettings.Section.bridge_settings, 'min_move_duration', 500),
+				UserSettings.get_value(UserSettings.Section.bridge_settings, 'max_move_duration', 6000))
+	if UserSettings.get_value(UserSettings.Section.bridge_settings, 'bridge_mode'):
+		var bridge_mode = UserSettings.get_value(UserSettings.Section.bridge_settings, 'bridge_mode')
 		%Menu/BridgeSettings/BridgeMode/ModeSelection.selected = bridge_mode
 		$Menu._on_bridge_mode_selected(bridge_mode)
-	if user_settings.has_section_key('bridge_settings', 'logging_enabled'):
-		%Menu/BridgeSettings/LoggingEnabled.button_pressed = user_settings.get_value(
-				'bridge_settings', 'logging_enabled')
+	if UserSettings.get_value(UserSettings.Section.bridge_settings, 'logging_enabled'):
+		%Menu/BridgeSettings/LoggingEnabled.button_pressed = UserSettings.get_value(UserSettings.Section.bridge_settings, 'logging_enabled')
 	
-	if user_settings.has_section_key('bpio_settings', 'server_address'):
-		%Menu/BridgeSettings/BPIO/ServerAddress/Input.text = user_settings.get_value(
-				'bpio_settings', 'server_address')
-	if user_settings.has_section_key('bpio_settings', 'server_port'):
-		%Menu/BridgeSettings/BPIO/Ports/ServerPort/Input.value = user_settings.get_value(
-				'bpio_settings', 'server_port')
-	if user_settings.has_section_key('bpio_settings', 'wsdm_port'):
-		%Menu/BridgeSettings/BPIO/Ports/WSDMPort/Input.value = user_settings.get_value(
-				'bpio_settings', 'wsdm_port')
-	if user_settings.has_section_key('bpio_settings', 'identifier'):
-		%Menu/BridgeSettings/BPIO/Identifier/Input.text = user_settings.get_value(
-				'bpio_settings', 'identifier')
-	if user_settings.has_section_key('bpio_settings', 'client_name'):
-		%Menu/BridgeSettings/BPIO/ClientName/Input.text = user_settings.get_value(
-				'bpio_settings', 'client_name')
-	if user_settings.has_section_key('bpio_settings', 'address'):
-		%Menu/BridgeSettings/BPIO/Address/Input.text = user_settings.get_value(
-				'bpio_settings', 'address')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'server_address'):
+		%Menu/BridgeSettings/BPIO/ServerAddress/Input.text = UserSettings.get_value(UserSettings.Section.bpio_settings, 'server_address')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'server_port'):
+		%Menu/BridgeSettings/BPIO/Ports/ServerPort/Input.value = UserSettings.get_value(UserSettings.Section.bpio_settings, 'server_port')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'wsdm_port'):
+		%Menu/BridgeSettings/BPIO/Ports/WSDMPort/Input.value = UserSettings.get_value(UserSettings.Section.bpio_settings, 'wsdm_port')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'identifier'):
+		%Menu/BridgeSettings/BPIO/Identifier/Input.text = UserSettings.get_value(UserSettings.Section.bpio_settings, 'identifier')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'client_name'):
+		%Menu/BridgeSettings/BPIO/ClientName/Input.text = UserSettings.get_value(UserSettings.Section.bpio_settings, 'client_name')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'address'):
+		%Menu/BridgeSettings/BPIO/Address/Input.text = UserSettings.get_value(UserSettings.Section.bpio_settings, 'address')
 	
-	if user_settings.has_section_key('xtoys_settings', 'port'):
-		%Menu/BridgeSettings/XToys/Port/Input.value = user_settings.get_value(
-				'xtoys_settings', 'port')
-	if user_settings.has_section_key('xtoys_settings', 'max_msg_frequency'):
+	if UserSettings.get_value(UserSettings.Section.xtoys_settings, 'port'):
+		%Menu/BridgeSettings/XToys/Port/Input.value = UserSettings.get_value(UserSettings.Section.xtoys_settings,, 'port')
+	if UserSettings.get_value(UserSettings.Section.xtoys_settings, 'max_msg_frequency'):
 		%Menu/BridgeSettings/XToys/MaxMsgFrequency/Input.set_value_no_signal(
-				user_settings.get_value('xtoys_settings', 'max_msg_frequency'))
-	if user_settings.has_section_key('xtoys_settings', 'use_command_duration'):
-		%Menu/BridgeSettings/XToys/UseCommandDuration.button_pressed = user_settings.get_value(
-				'xtoys_settings', 'use_command_duration')
+				UserSettings.get_value(UserSettings.Section.xtoys_settings, 'max_msg_frequency'))
+	if UserSettings.get_value(UserSettings.Section.xtoys_settings, 'use_command_duration'):
+		%Menu/BridgeSettings/XToys/UseCommandDuration.button_pressed = UserSettings.get_value(UserSettings.Section.xtoys_settings,, 'use_command_duration')
 	
-	if user_settings.has_section_key('video_player', 'player_address'):
-		%VideoPlayer.player_address = user_settings.get_value('video_player', 'player_address')
+	if UserSettings.get_value(UserSettings.Section.video_player, 'player_address'):
+		%VideoPlayer.player_address = UserSettings.get_value(UserSettings.Section.video_player, 'player_address')
 		%VideoPlayer/Main/PlayerAddress/Input.text = %VideoPlayer.player_address
-	if user_settings.has_section_key('video_player', 'vlc_password'):
-		%VideoPlayer.vlc_password = user_settings.get_value('video_player', 'vlc_password')
+	if UserSettings.get_value(UserSettings.Section.video_player, 'vlc_password'):
+		%VideoPlayer.vlc_password = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_password')
 		%VideoPlayer/Main/VLCPassword/Input.text = %VideoPlayer.vlc_password
-	if user_settings.has_section_key('video_player', 'video_offset_ms'):
-		%VideoPlayer/Main/VideoOffset/Input.value = user_settings.get_value('video_player', 'video_offset_ms')
-	if user_settings.has_section_key('video_player', 'vlc_seek_correction'):
-		%VideoPlayer/Main/VLCSeekCorrection/Input.value = user_settings.get_value('video_player', 'vlc_seek_correction')
-	if user_settings.has_section_key('video_player', 'player_type'):
-		var vp_type: int = user_settings.get_value('video_player', 'player_type')
+	if UserSettings.get_value(UserSettings.Section.video_player, 'video_offset_ms'):
+		%VideoPlayer/Main/VideoOffset/Input.value = UserSettings.get_value(UserSettings.Section.video_player, 'video_offset_ms')
+	if UserSettings.get_value(UserSettings.Section.video_player, 'vlc_seek_correction'):
+		%VideoPlayer/Main/VLCSeekCorrection/Input.value = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_seek_correction')
+	if UserSettings.get_value(UserSettings.Section.video_player, 'player_type'):
+		var vp_type: int = UserSettings.get_value(UserSettings.Section.video_player, 'player_type')
 		if OS.get_name() != "Android" and vp_type == 4:
 			vp_type = 0
 		%VideoPlayer/Main/PlayerSelection.select(vp_type)
 		%VideoPlayer._on_player_selection_item_selected(vp_type)
 	
-	if user_settings.has_section_key('app_settings', 'mode'):
-		$Menu.select_mode(user_settings.get_value('app_settings', 'mode'))
-	else:
-		$Menu.select_mode(1)
+	$Menu.select_mode(UserSettings.get_value(UserSettings.Section.app_settings, 'mode', 1))
 
 
 func apply_device_settings():
-	if user_settings.has_section_key('speed_slider', 'max_speed'):
-		var value = user_settings.get_value('speed_slider', 'max_speed', 25000)
-		$Settings/VBox/Sliders/MaxSpeed/Input.value = int(value)
-	
-	if user_settings.has_section_key('accel_slider', 'max_acceleration'):
-		var value = user_settings.get_value('accel_slider', 'max_acceleration', 500000)
-		$Settings/VBox/Sliders/MaxAcceleration/Input.value = int(value)
-	
-	if user_settings.has_section_key('speed_slider', 'position_percent'):
-		$SpeedPanel.set_speed_slider_percent(
-				user_settings.get_value('speed_slider', 'position_percent', 0.6))
-	else:
-		$SpeedPanel.set_speed_slider_percent(0.6)
-	
-	if user_settings.has_section_key('accel_slider', 'position_percent'):
-		$SpeedPanel.set_acceleration_slider_percent(
-				user_settings.get_value('accel_slider', 'position_percent', 0.4))
-	else:
-		$SpeedPanel.set_acceleration_slider_percent(0.4)
-	
-	if user_settings.has_section_key('range_slider_min', 'position_percent'):
-		$RangePanel.set_min_slider_percent(
-				user_settings.get_value('range_slider_min', 'position_percent', 0))
-	else:
-		$RangePanel.set_min_slider_percent(0)
-	
-	if user_settings.has_section_key('range_slider_max', 'position_percent'):
-		$RangePanel.set_max_slider_percent(
-				user_settings.get_value('range_slider_max', 'position_percent', 1))
-	else:
-		$RangePanel.set_max_slider_percent(1)
-	
-	if user_settings.has_section_key('device_settings', 'syncing_speed'):
-		$Settings/VBox/SyncingSpeed/Input.set_value_no_signal(
-				int(user_settings.get_value('device_settings', 'syncing_speed', 1000)))
-	
-	if user_settings.has_section_key('device_settings', 'homing_trigger'):
-		$Settings/VBox/HomingTrigger/Input.set_value_no_signal(
-				float(user_settings.get_value('device_settings', 'homing_trigger' , 1.5)))
-	
+	$Settings.set_max_speed(UserSettings.get_value(UserSettings.Section.speed_slider, 'max_speed', 25000))
+	$Settings.set_max_acceleration(UserSettings.get_value(UserSettings.Section.accel_slider, 'max_acceleration', 500000))
+	$SpeedPanel.set_speed_slider_percent(UserSettings.get_value(UserSettings.Section.speed_slider, 'position_percent', 0.6))
+	$SpeedPanel.set_acceleration_slider_percent(UserSettings.get_value(UserSettings.Section.accel_slider, 'position_percent', 0.4))
+	$RangePanel.set_min_slider_percent(UserSettings.get_value(UserSettings.Section.range_slider_min, 'position_percent', 0))
+	$RangePanel.set_max_slider_percent(UserSettings.get_value(UserSettings.Section.range_slider_max, 'position_percent', 1))
+	$Settings.set_syncing_speed(UserSettings.get_value(UserSettings.Section.device_settings, 'syncing_speed', 1000))
+	$Settings.set_homing_trigger(UserSettings.get_value(UserSettings.Section.device_settings, 'homing_trigger', 1.5))
+
 	$SpeedPanel.send_speed_limits()
 	$RangePanel.send_range_limits()
 
@@ -513,8 +424,8 @@ func load_path(filePath: String) -> bool:
 				var first_depth = round_to(clamp(actions_list[0].pos / 100, 0, 1), 4)
 				if inverted:
 					first_depth = round_to(1.0 - first_depth, 4)
-				var trans: int = user_settings.get_value('stroke_settings', 'in_trans', 1)
-				var ease: int = user_settings.get_value('stroke_settings', 'in_ease', 2)
+				var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 0)
+				var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
 				file_data[0] = [first_depth, trans, ease, 0]
 				for action in actions_list:
 					var frame: int = action.at / (1000.0 / 60.0)
@@ -831,7 +742,7 @@ func _input(event: InputEvent) -> void: # Handle ui element outside click
 func _on_window_size_changed():
 	if OS.get_name() != "Android":
 		var window_size = DisplayServer.window_get_size()
-		user_settings.set_value('window', 'size', window_size)
+		UserSettings.set_value(UserSettings.Section.window, 'size', window_size)
 
 
 func _notification(what):
@@ -843,7 +754,7 @@ func _notification(what):
 
 
 func exit():
-	user_settings.save(cfg_path)
+	UserSettings.save()
 	%BPIOBridge.stop_client()
 	%BPIOBridge.stop_device()
 	%XToysBridge.stop_xtoys()

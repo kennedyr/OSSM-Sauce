@@ -67,13 +67,13 @@ func _on_enable_toggled(toggled_on: bool) -> void:
 func _on_min_move_duration_value_changed(value: float) -> void:
 	min_move_duration = int(value)
 	%Menu/BridgeSettings/SpeedOverrides/Inputs/MaxMoveDuration/Input.min_value = maxf(value, 1)
-	owner.user_settings.set_value('bridge_settings', 'min_move_duration', min_move_duration)
+	UserSettings.set_value(UserSettings.Section.bridge_settings, 'min_move_duration', min_move_duration)
 
 
 func _on_max_move_duration_value_changed(value: float) -> void:
 	max_move_duration = int(value)
 	%Menu/BridgeSettings/SpeedOverrides/Inputs/MinMoveDuration/Input.max_value = minf(value, 99999)
-	owner.user_settings.set_value('bridge_settings', 'max_move_duration', max_move_duration)
+	UserSettings.set_value(UserSettings.Section.bridge_settings, 'max_move_duration', max_move_duration)
 
 
 func set_move_duration_limits(min_val: int, max_val: int) -> void:
@@ -90,47 +90,47 @@ func set_move_duration_limits(min_val: int, max_val: int) -> void:
 
 
 func _on_logging_enabled_toggled(toggled_on: bool) -> void:
-	owner.user_settings.set_value('bridge_settings', 'logging_enabled', toggled_on)
+	UserSettings.set_value(UserSettings.Section.bridge_settings, 'logging_enabled', toggled_on)
 
 
 func _on_bpio_server_address_changed(new_text: String) -> void:
-	owner.user_settings.set_value('bpio_settings', 'server_address', new_text)
+	UserSettings.set_value(UserSettings.Section.bpio_settings, 'server_address', new_text)
 
 
 func _on_bpio_server_port_changed(value: float) -> void:
-	owner.user_settings.set_value('bpio_settings', 'server_port', int(value))
+	UserSettings.set_value(UserSettings.Section.bpio_settings, 'server_port', int(value))
 
 
 func _on_bpio_wsdm_port_changed(value: float) -> void:
-	owner.user_settings.set_value('bpio_settings', 'wsdm_port', int(value))
+	UserSettings.set_value(UserSettings.Section.bpio_settings, 'wsdm_port', int(value))
 
 
 func _on_bpio_identifier_changed(new_text: String) -> void:
-	owner.user_settings.set_value('bpio_settings', 'identifier', new_text)
+	UserSettings.set_value(UserSettings.Section.bpio_settings, 'identifier', new_text)
 
 
 func _on_bpio_client_name_changed(new_text: String) -> void:
-	owner.user_settings.set_value('bpio_settings', 'client_name', new_text)
+	UserSettings.set_value(UserSettings.Section.bpio_settings, 'client_name', new_text)
 
 
 func _on_bpio_address_changed(new_text: String) -> void:
-	owner.user_settings.set_value('bpio_settings', 'address', new_text)
+	UserSettings.set_value(UserSettings.Section.bpio_settings, 'address', new_text)
 
 
 func _on_xtoys_port_changed(value: float) -> void:
-	owner.user_settings.set_value('xtoys_settings', 'port', value)
+	UserSettings.set_value(UserSettings.Section.xtoys_settings, 'port', value)
 
 
 func _on_xtoys_max_msg_frequency_changed(value: float) -> void:
-	owner.user_settings.set_value('xtoys_settings', 'max_msg_frequency', value)
+	UserSettings.set_value(UserSettings.Section.xtoys_settings, 'max_msg_frequency', value)
 
 
 func _on_xtoys_use_command_duration_toggled(toggled_on: bool) -> void:
-	owner.user_settings.set_value('xtoys_settings', 'use_command_duration', toggled_on)
+	UserSettings.set_value(UserSettings.Section.xtoys_settings, 'use_command_duration', toggled_on)
 
 
 func _on_mcp_port_changed(value: float) -> void:
-	owner.user_settings.set_value('mcp_settings', 'port', int(value))
+	UserSettings.set_value(UserSettings.Section.mcp_settings, 'port', int(value))
 
 
 func _on_bpio_help_button_pressed() -> void:

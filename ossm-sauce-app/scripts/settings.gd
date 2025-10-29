@@ -23,12 +23,12 @@ func _on_change_port_pressed() -> void:
 	#return
 	%WebSocket.port = new_port
 	%WebSocket.start_server()
-	owner.user_settings.set_value('network', 'port', new_port)
+	UserSettings.set_value(UserSettings.Section.network, 'port', new_port)
 
 
 func _on_reverse_motor_direction_toggled(toggled_on: bool) -> void:
 	var direction = 1 if toggled_on else 0
-	owner.user_settings.set_value('device_settings', 'motor_direction', direction)
+	UserSettings.set_value('device_settings', 'motor_direction', direction)
 	owner.motor_direction = direction
 	if not %WebSocket.ossm_connected:
 		return
@@ -43,12 +43,12 @@ func _on_reverse_motor_direction_toggled(toggled_on: bool) -> void:
 
 func _on_slider_max_speed_value_changed(value: float) -> void:
 	owner.max_speed = value
-	owner.user_settings.set_value('speed_slider', 'max_speed', value)
+	UserSettings.set_value(UserSettings.Section.speed_slider, 'max_speed', value)
 
 
 func _on_slider_max_acceleration_value_changed(value: float) -> void:
 	owner.max_acceleration = value
-	owner.user_settings.set_value('accel_slider', 'max_acceleration', value)
+	UserSettings.set_value(UserSettings.Section.accel_slider, 'max_acceleration', value)
 
 
 func _on_syncing_speed_changed():
@@ -58,7 +58,7 @@ func _on_syncing_speed_changed():
 func _on_syncing_speed_debounce_timer_timeout() -> void:
 	var new_syncing_speed: int = $VBox/SyncingSpeed/Input.value
 	%OSSMCommand.set_homing_speed(new_syncing_speed)
-	owner.user_settings.set_value('device_settings', 'syncing_speed', new_syncing_speed)
+	UserSettings.set_value(UserSettings.Section.device_settings, 'syncing_speed', new_syncing_speed)
 
 
 func _on_homing_trigger_changed() -> void:
@@ -73,12 +73,12 @@ func _on_homing_trigger_debounce_timer_timeout() -> void:
 
 func _on_always_on_top_toggled(toggled):
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_ALWAYS_ON_TOP, toggled)
-	owner.user_settings.set_value('window', 'always_on_top', toggled)
+	UserSettings.set_value(UserSettings.Section.window, 'always_on_top', toggled)
 
 
 #func _on_transparent_background_toggled(toggled):
 	#DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_TRANSPARENT, toggled)
-	#owner.user_settings.set_value('window', 'transparent_background', toggled)
+	#UserSettings.set_value(UserSettings.Section.window, 'transparent_background', toggled)
 
 
 const HOLD_TICKS_REQUIRED := 3

@@ -7,14 +7,14 @@ func _ready() -> void:
 
 func _on_yes_button_pressed() -> void:
 	var new_value: float = %Settings/VBox/HomingTrigger/Input.value
-	owner.user_settings.set_value('device_settings', 'homing_trigger', new_value)
+	UserSettings.set_value(UserSettings.Section.device_settings, 'homing_trigger', new_value)
 	send_homing_trigger()
 	hide()
 
 
 func _on_no_button_pressed() -> void:
-	if owner.user_settings.has_section_key('device_settings', 'homing_trigger'):
-		var previous_value = owner.user_settings.get_value('device_settings', 'homing_trigger', 1.5)
+	if UserSettings.get_value(UserSettings.Section.device_settings, 'homing_trigger'):
+		var previous_value = UserSettings.get_value(UserSettings.Section.device_settings, 'homing_trigger', 1.5)
 		%Settings/VBox/HomingTrigger/Input.set_value_no_signal(previous_value)
 		send_homing_trigger()
 	else:

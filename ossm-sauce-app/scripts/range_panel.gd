@@ -57,10 +57,12 @@ func update_min_range(label_only := false):
 	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
 	min_range_limit = Util.safe_map_physical_position(percent)
 	if not label_only:
-		owner.user_settings.set_value('range_slider_min', 'position_percent', percent)
+		UserSettings.set_value(UserSettings.Section.range_slider_min, 'position_percent', percent)
 		if $DebounceTimer.is_stopped():
 			$DebounceTimer.start()
-	$LabelBot.text = "Min Position:\n" + str(snapped(percent * 100, 0.01)) + "%"
+
+	var text_value = str(round(percent * 100))
+	$LabelBot.text = "Min Position:\n" + text_value + "%"
 
 
 func update_max_range(label_only := false):
@@ -68,7 +70,7 @@ func update_max_range(label_only := false):
 	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
 	max_range_limit = Util.safe_map_physical_position(percent)
 	if not label_only:
-		owner.user_settings.set_value('range_slider_max', 'position_percent', percent)
+		UserSettings.set_value(UserSettings.Section.range_slider_max, 'position_percent', percent)
 		if $DebounceTimer.is_stopped():
 			$DebounceTimer.start()
 	$LabelTop.text = "Max Position:\n" + str(snapped(percent * 100, 0.01)) + "%"
@@ -99,7 +101,7 @@ func get_min_slider_percent():
 
 
 func set_min_slider_percent(percent):
-	min_slider.position.y = Util.safe_map_slider_value(percent, min_range_pos, max_range_pos)
+	min_slider.position.y = Util.safe_map_slider_position(percent, min_range_pos, max_range_pos)
 	update_min_range()
 
 
@@ -110,7 +112,7 @@ func get_max_slider_percent():
 
 
 func set_max_slider_percent(percent):
-	max_slider.position.y = Util.safe_map_slider_value(percent, min_range_pos, max_range_pos)
+	max_slider.position.y = Util.safe_map_slider_position(percent, min_range_pos, max_range_pos)
 	update_max_range()
 
 

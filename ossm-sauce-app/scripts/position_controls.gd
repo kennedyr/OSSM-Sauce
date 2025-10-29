@@ -49,7 +49,7 @@ func _on_smoothing_slider_value_changed(value) -> void:
 	var min_value = $Smoothing/HSlider.min_value
 	var max_value = $Smoothing/HSlider.max_value
 	smoothing = max_value - (value - min_value)
-	owner.user_settings.set_value('app_settings', 'smoothing_slider', value)
+	UserSettings.set_value(UserSettings.Section.app_settings, 'smoothing_slider', value)
 
 
 func activate():

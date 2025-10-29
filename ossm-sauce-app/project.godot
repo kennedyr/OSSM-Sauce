@@ -26,7 +26,7 @@ config/windows_native_icon="res://s_curve.ico"
 
 OSSM="*res://scripts/globals/ossm.gd"
 AppMode="*res://scripts/globals/app_mode.gd"
-Util="*res://scripts/globals/util.gd"
+Global="*res://scripts/globals/global.gd"
 
 [debug]
 

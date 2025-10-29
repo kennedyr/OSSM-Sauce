@@ -139,10 +139,11 @@ func _persist_and_mirror(child: Node, suffix: String, dropdown_name: String, ind
 	var side: String = "in" if child.name == "In" else "out"
 	var other_side: String = "out" if side == "in" else "in"
 	var other_node: String = "Out" if side == "in" else "In"
-	owner.user_settings.set_value('stroke_settings', side + "_" + suffix, index)
+	UserSettings.set_value(UserSettings.Section.stroke_settings, side + "_" + suffix, index)
+	
 	if $LinkSpeedSliders.button_pressed:
 		get_node(other_node + "/AccelerationControls/" + dropdown_name).select(index)
-		owner.user_settings.set_value('stroke_settings', other_side + "_" + suffix, index)
+		UserSettings.set_value(UserSettings.Section.stroke_settings, other_side + "_" + suffix, index)
 	draw_easing()
 	request_send()
 
