@@ -277,15 +277,8 @@ func send_smooth_move_command(ms_duration:int, depth:int, trans:int, ease:int, a
 		depth = clamp(depth, int(root.min_stroke_duration), int(root.max_stroke_duration))
 	else:
 		depth = clamp(depth, 0, 10000)
-	var command:PackedByteArray
-	command.resize(10)
-	command.encode_u8(0, OSSM.Command.SMOOTH_MOVE)
-	command.encode_u32(1, ms_duration)
-	command.encode_u16(5, depth)
-	command.encode_u8(7, trans)
-	command.encode_u8(8, ease)
-	command.encode_u8(9, auxiliary)
-	%WebSocket.server.broadcast_binary(command)
+	
+	%OSSMCommand.smooth_move(ms_duration, depth, trans, ease, auxiliary)
 
 
 func _show_handshake_popup():

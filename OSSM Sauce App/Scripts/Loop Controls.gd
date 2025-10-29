@@ -87,28 +87,13 @@ func send_command():
 	owner.user_settings.set_value('stroke_settings', 'out_trans', out_trans)
 	owner.user_settings.set_value('stroke_settings', 'out_ease', out_ease)
 	
-	var loop_command:PackedByteArray
-	loop_command.resize(19)
-	
-	loop_command.encode_u8(0, OSSM.Command.LOOP)
-	loop_command.encode_u32(1, in_duration * 1000)
-	loop_command.encode_u16(5, 10000)
-	loop_command.encode_u8(7, in_trans)
-	loop_command.encode_u8(8, in_ease)
-	loop_command.encode_u8(9, in_auxiliary)
-	loop_command.encode_u32(10, out_duration * 1000)
-	loop_command.encode_u16(14, 0)
-	loop_command.encode_u8(16, out_trans)
-	loop_command.encode_u8(17, out_ease)
-	loop_command.encode_u8(18, out_auxiliary)
-	if %WebSocket.ossm_connected:
-		%WebSocket.server.broadcast_binary(loop_command)
-		if in_duration + out_duration == 0:
-			owner.pause()
-			active = false
-		elif not active:
-			owner.play()
-			active = true
+	%OSSMCommand.loop(in_duration, in_trans, in_ease, out_duration, out_trans, out_ease)
+	if in_duration + out_duration == 0:
+		owner.pause()
+		active = false
+	elif not active:
+		owner.play()
+		active = true
 
 
 func reset_stroke_duration_sliders():

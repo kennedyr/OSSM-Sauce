@@ -242,14 +242,6 @@ func _physics_process(delta):
 		#$Wifi.hide()
 
 
-func send_command(value:int):
-	if %WebSocket.ossm_connected:
-		var command:PackedByteArray
-		command.resize(1)
-		command[0] = value
-		%WebSocket.server.broadcast_binary(command)
-
-
 func home_to(target_position:int):
 	if %WebSocket.ossm_connected:
 		$CircleSelection.show_hourglass()
@@ -261,38 +253,17 @@ func home_to(target_position:int):
 			$Menu]
 		for display in displays:
 			display.modulate.a = 0.05
-		var command:PackedByteArray
-		command.resize(5)
-		command.encode_u8(0, OSSM.Command.HOMING)
-		command.encode_s32(1, target_position)
-		%WebSocket.server.broadcast_binary(command)
+		%OSSMCommand.home_to(target_position)
 
 
 func play(play_time_ms = null):
-	var command:PackedByteArray
+	%OSSMCommand.play(play_time_ms)
 	if AppMode.active == AppMode.MOVE and active_path_index != null:
 		paused = false
-		#if play_time_ms != null:
-			#command.resize(6)
-			#command.encode_u8(0, OSSM.Command.PLAY)
-			#command.encode_u8(1, AppMode.active)
-			#command.encode_u32(2, play_time_ms)
-			#if %WebSocket.ossm_connected:
-				#%WebSocket.send(command)
-			#return
-	command.resize(2)
-	command.encode_u8(0, OSSM.Command.PLAY)
-	command.encode_u8(1, AppMode.active)
-	if %WebSocket.ossm_connected:
-		%WebSocket.server.broadcast_binary(command)
 
 
 func pause():
-	if %WebSocket.ossm_connected:
-		var command:PackedByteArray
-		command.resize(1)
-		command[0] = OSSM.Command.PAUSE
-		%WebSocket.server.broadcast_binary(command)
+	%OSSMCommand.pause()
 	paused = true
 
 
@@ -423,26 +394,14 @@ func apply_device_settings():
 		$RangePanel.set_max_slider_percent(1)
 	
 	if user_settings.has_section_key('device_settings', 'syncing_speed'):
-		$Settings/SyncingSpeed/SpinBox.set_value(
-				user_settings.get_value('device_settings', 'syncing_speed'))
-		$Settings.send_syncing_speed()
+		$Settings.set_syncing_speed(user_settings.get_value('device_settings', 'syncing_speed'))
 	
 	if user_settings.has_section_key('device_settings', 'homing_trigger'):
-		$Settings/HomingTrigger/SpinBox.set_value_no_signal(
-				user_settings.get_value('device_settings', 'homing_trigger'))
-		$Settings.send_homing_trigger()
+		$Settings.set_homing_trigger(user_settings.get_value('device_settings', 'homing_trigger'))
 
 
 func create_move_command(ms_timing:int, depth:float, trans:int, ease:int, auxiliary:int):
-	var network_packet:PackedByteArray
-	network_packet.resize(10)
-	network_packet.encode_u8(0, OSSM.Command.MOVE)
-	network_packet.encode_u32(1, ms_timing)
-	network_packet.encode_u16(5, round(remap(depth, 0, 1, 0, 10000)))
-	network_packet.encode_u8(7, trans)
-	network_packet.encode_u8(8, ease)
-	network_packet.encode_u8(9, auxiliary)
-	return network_packet
+	return %OSSMCommand.create_move_command(ms_timing, Util.safe_map_physical_position(depth), trans, ease, auxiliary)
 
 
 func round_to(value: float, decimals: int) -> float:
@@ -509,7 +468,7 @@ func load_path(filePath:String) -> bool:
 		var ease = marker_data[marker_frame][2]
 		var auxiliary:int = marker_data[marker_frame][3]
 		
-		var network_packet:PackedByteArray
+		var network_packet = %OSSMCommand.create_move_command(ms_timing, Util.safe_map_physical_position(depth), trans, ease, auxiliary)
 		#if auxiliary & 1 << 1:
 			#network_packet.resize(13)
 			#network_packet.encode_u8(0, OSSM.Command.VIBRATE)
@@ -519,13 +478,6 @@ func load_path(filePath:String) -> bool:
 			#network_packet.encode_u8(11, 5)
 			#network_packet.encode_u8(12, 100)
 		#else:
-		network_packet.resize(10)
-		network_packet.encode_u8(0, OSSM.Command.MOVE)
-		network_packet.encode_u32(1, ms_timing)
-		network_packet.encode_u16(5, round(remap(depth, 0, 1, 0, 10000)))
-		network_packet.encode_u8(7, trans)
-		network_packet.encode_u8(8, ease)
-		network_packet.encode_u8(9, auxiliary)
 		network_packets.append(network_packet)
 		
 		#adjusting for physics tick rate change from BounceX (60Hz to 50Hz)
@@ -605,7 +557,7 @@ func display_active_path_index(pause := true, send_buffer := true):
 	marker_index = 0
 	if send_buffer:
 		if %WebSocket.ossm_connected:
-			send_command(OSSM.Command.RESET)
+			%OSSMCommand.reset()
 			while marker_index < 6:
 				%WebSocket.server.broadcast_binary(network_paths[active_path_index][marker_index])
 				marker_index += 1
@@ -680,11 +632,5 @@ func exit():
 	user_settings.save(cfg_path)
 	if %WebSocket.ossm_connected:
 		pause()
-		const MIN_RANGE = 0
-		var command:PackedByteArray
-		command.resize(4)
-		command.encode_u8(0, OSSM.Command.SET_RANGE_LIMIT)
-		command.encode_u8(1, MIN_RANGE)
-		command.encode_u16(2, 0)
-		%WebSocket.server.broadcast_binary(command)
+		%OSSMCommand.set_range_limit_min(0)
 		home_to(0)

@@ -67,7 +67,7 @@ func _on_load_playlist(file_path: String):
 			owner.create_delay(delay_duration)
 		elif owner.load_path(line):
 			%Menu/Playlist.add_item(line.get_file(), line)
-	owner.send_command(OSSM.Command.RESET)
+	%OSSMCommand.reset()
 
 
 func _on_back_pressed():

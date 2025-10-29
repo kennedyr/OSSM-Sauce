@@ -266,9 +266,8 @@ func _on_mode_selected(index:int):
 	var mode_id:int = $Main/Mode.get_item_id(index)
 	AppMode.active = mode_id
 	owner.user_settings.set_value('app_settings', 'mode', index)
-	
-	owner.send_command(OSSM.Command.RESET)
-	
+
+	%OSSMCommand.reset()
 	owner.home_to(0)
 	if %WebSocket.ossm_connected:
 		await owner.homing_complete

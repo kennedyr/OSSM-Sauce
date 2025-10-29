@@ -170,31 +170,46 @@ func _on_acceleration_input_changed():
 	owner.user_settings.set_value('accel_slider', 'max_acceleration', value)
 
 
-func send_syncing_speed():
-	if %WebSocket.ossm_connected:
-		var command:PackedByteArray
-		command.resize(5)
-		command.encode_u32(0, OSSM.Command.SET_HOMING_SPEED)
-		command.encode_u32(1, $SyncingSpeed/SpinBox.value)
-		%WebSocket.server.broadcast_binary(command)
+func set_syncing_speed(value = null):
+	var homing_speed
+	if value:
+		homing_speed = value
+		$SyncingSpeed/SpinBox.set_value_no_signal(value)
+	else:
+		homing_speed = $SyncingSpeed/SpinBox.value
+
+	%OSSMCommand.set_homing_speed(homing_speed)
 
 
 func _on_syncing_speed_changed(value):
-	send_syncing_speed()
-	owner.user_settings.set_value('device_settings', 'syncing_speed', value)
+	var homing_speed = value
+	set_syncing_speed(homing_speed)
+	owner.user_settings.set_value('device_settings', 'syncing_speed', homing_speed)
 
 
-func send_homing_trigger():
-	if %WebSocket.ossm_connected:
-		var command:PackedByteArray
-		command.resize(5)
-		command.encode_u32(0, OSSM.Command.SET_HOMING_TRIGGER)
-		command.encode_float(1, $HomingTrigger/SpinBox.value)
-		%WebSocket.server.broadcast_binary(command)
+func set_homing_trigger(value = null):
+	var homing_trigger
+	if value:
+		homing_trigger = value
+		$HomingTrigger/SpinBox.set_value_no_signal(value)
+	else:
+		homing_trigger = $HomingTrigger/SpinBox.value
+
+	%OSSMCommand.set_homing_trigger(homing_trigger)
 
 
 func _on_homing_trigger_changed(value: float) -> void:
 	$HomingTrigger/DebounceTimer.start()
+
+func accept_homing_trigger(value: float) -> void:
+	set_homing_trigger(value)
+	owner.user_settings.set_value('device_settings', 'homing_trigger', value)
+
+func cancel_homing_trigger() -> void:
+	var previous_value = 1.5
+	if owner.user_settings.has_section_key('device_settings', 'homing_trigger'):
+		previous_value = owner.user_settings.get_value('device_settings', 'homing_trigger')
+	set_homing_trigger(previous_value)
 
 
 func _on_homing_trigger_debounce_timer_timeout() -> void:
