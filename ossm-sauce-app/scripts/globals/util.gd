@@ -16,6 +16,6 @@ static func safe_map_slider_percent(slider_pos:float, min_pos:float, max_pos:flo
 
 
 static func safe_map_physical_position(percent:float):
-	var position_map = snappedf(percent * PHYSICAL_RANGE_MAX, 0.1)
+	var position_map = round(remap(percent, 0, 1, PHYSICAL_RANGE_MIN, PHYSICAL_RANGE_MAX))
 	var position = clamp(position_map, PHYSICAL_RANGE_MIN, PHYSICAL_RANGE_MAX)
 	return position
