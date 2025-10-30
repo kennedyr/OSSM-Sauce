@@ -1,6 +1,6 @@
 extends Control
 
-var app_version_number:String = "1.3.0"
+var app_version_number:String = "1.4.4"
 
 var storage_dir:String
 var paths_dir:String
