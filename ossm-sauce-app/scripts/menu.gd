@@ -268,7 +268,7 @@ func _on_bridge_mode_selected(index: int) -> void:
 			%Menu/BridgeSettings/SpeedOverrides/Inputs/MaxMoveDuration/Input.editable = false
 	
 	%BridgeControls.activate()
-	owner.user_settings.set_value('bridge_settings', 'bridge_mode', index)
+	UserSettings.set_value(UserSettings.Section.bridge_settings, 'bridge_mode', index)
 
 
 func _on_mode_selected(index:int):
