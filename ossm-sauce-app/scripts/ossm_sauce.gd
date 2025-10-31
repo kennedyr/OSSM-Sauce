@@ -95,12 +95,16 @@ func _physics_process(delta) -> void:
 		return
 	
 	var total_frames: int = paths[active_path_index].size()
+	# End of current path
 	if frame >= total_frames - 1:
+		# There is a next path in playlist
 		if active_path_index < network_paths.size() - 1:
 			transition_to_path(active_path_index + 1)
 		elif $Menu.loop_playlist:
+			# Loop the playlist
 			transition_to_path(0)
 		else:
+			# Nothing to do
 			paused = true
 			%OSSMCommand.pause()
 			%VideoPlayer.pause_player()
@@ -114,6 +118,7 @@ func _physics_process(delta) -> void:
 	if current_marker < frames.size() and frame == frames[current_marker]:
 		if %WebSocket.server_started:
 			if marker_index < active_path.size():
+				# send current frame to 
 				%WebSocket.server.broadcast_binary(active_path[marker_index])
 			elif active_path_index < network_paths.size() - 1:
 				var overreach_index = marker_index - active_path.size()
@@ -390,88 +395,111 @@ func round_to(value: float, decimals: int) -> float:
 
 
 func load_path(filePath: String) -> bool:
-	var file = FileAccess.open(filePath, FileAccess.READ)
-	# TODO: var file = paths_open_read(file_name)
-	if not file:
+	var marker_data: Dictionary = parse_file(filePath)
+	if not marker_data:
 		printerr("Error: Failed to read file.")
 		return false
-	var file_text := file.get_as_text()
-	file.close()
-	
-	var file_data: Dictionary
-	
-	if filePath.ends_with(".funscript"):
-		file_text = file_text.replace("\n", "")
-		var parsed_funscript = JSON.parse_string(file_text)
-		var inverted := false
-		if parsed_funscript is Dictionary and parsed_funscript.get("inverted", false):
-			inverted = true
-	
-		var actions_pattern = RegEx.new()
-		actions_pattern.compile('"[Aa]ctions":\\s*\\[.*?\\]')
-		var actions_regex = actions_pattern.search(file_text)
-		if not actions_regex:
-			actions_pattern.compile('"[Rr]aw[Aa]ctions":\\s*\\[.*?\\]')
-			actions_regex = actions_pattern.search(file_text)
-		if actions_regex:
-			var actions_text = actions_regex.get_string(0)
-			actions_text = actions_text.replace("'", '"')
-			actions_text = actions_text.insert(0, "{")
-			actions_text = actions_text.insert(actions_text.length(), "}")
-			var actions_data = JSON.parse_string(actions_text)
-			if actions_data:
-				var actions_list = actions_data[actions_data.keys()[0]]
-				var first_depth = round_to(clamp(actions_list[0].pos / 100, 0, 1), 4)
-				if inverted:
-					first_depth = round_to(1.0 - first_depth, 4)
-				var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 0)
-				var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
-				file_data[0] = [first_depth, trans, ease, 0]
-				for action in actions_list:
-					var frame: int = action.at / (1000.0 / 60.0)
-					var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
-					if inverted:
-						depth = round_to(1.0 - depth, 4)
-					file_data[frame] = [depth, trans, ease, 0]
-			else:
-				printerr("Failed to parse funscript JSON")
-		else:
-			printerr("No actions data found in the funscript")
-	else:
-		file_data = JSON.parse_string(file_text)
-		if not file_data:
-			printerr("Error: No JSON data found in file.")
-			return false
-		if file_data.has("meta"):
-			var meta = file_data["meta"]
-			if meta is Dictionary and meta.has("video_offset_ms"):
-				%VideoPlayer/Main/VideoOffset/Input.value = meta["video_offset_ms"]
-		if file_data.has("markers"):
-			file_data = file_data["markers"]
-	
-	var marker_data: Dictionary = file_data
+
 	if marker_data.size() < 6:
 		printerr("Error: Insufficient path data in file.")
 		return false
+
+	var network_packets = create_network_packets(marker_data)
+	network_paths.append(network_packets)
 	
+	create_path_lines(marker_data)
+	return true
+
+
+func parse_file(filePath: String) -> Dictionary:
+	var file_data:Dictionary
+	var file = FileAccess.open(filePath, FileAccess.READ)
+	var is_funscript = filePath.ends_with(".funscript")
+
+	var file_text := file.get_as_text()
+	file.close()
+	
+	if file:
+		if is_funscript:
+			file_text = file_text.replace("\n", "")
+			var parsed_funscript = JSON.parse_string(file_text)
+			var inverted := false
+			if parsed_funscript is Dictionary and parsed_funscript.get("inverted", false):
+				inverted = true
+		
+			var actions_pattern = RegEx.new()
+			actions_pattern.compile('"[Aa]ctions":\\s*\\[.*?\\]')
+			var actions_regex = actions_pattern.search(file_text)
+			if not actions_regex:
+				actions_pattern.compile('"[Rr]aw[Aa]ctions":\\s*\\[.*?\\]')
+				actions_regex = actions_pattern.search(file_text)
+			if actions_regex:
+				var actions_text = actions_regex.get_string(0)
+				actions_text = actions_text.replace("'", '"')
+				actions_text = actions_text.insert(0, "{")
+				actions_text = actions_text.insert(actions_text.length(), "}")
+				var actions_data = JSON.parse_string(actions_text)
+				if actions_data:
+					var actions_list = actions_data[actions_data.keys()[0]]
+					var first_depth = round_to(clamp(actions_list[0].pos / 100, 0, 1), 4)
+					if inverted:
+						first_depth = round_to(1.0 - first_depth, 4)
+					var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 0)
+					var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
+					file_data[0] = [first_depth, trans, ease, 0]
+					for action in actions_list:
+						var frame: int = action.at / (1000.0 / 60.0)
+						var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
+						if inverted:
+							depth = round_to(1.0 - depth, 4)
+						file_data[frame] = [depth, trans, ease, 0]
+				else:
+					printerr("Failed to parse funscript JSON")
+			else:
+				printerr("No actions data found in the funscript")
+		else:
+			file_data = JSON.parse_string(file_text)
+			if not file_data:
+				printerr("Error: No JSON data found in file.")
+				return false
+			if file_data.has("meta"):
+				var meta = file_data["meta"]
+				if meta is Dictionary and meta.has("video_offset_ms"):
+					%VideoPlayer/Main/VideoOffset/Input.value = meta["video_offset_ms"]
+			if file_data.has("markers"):
+				file_data = file_data["markers"]
+		
+	return file_data
+
+func create_network_packets(marker_data: Dictionary):
+	var previous_ms_timing:int
+	var network_packets: Array
+
 	var sorted_keys := marker_data.keys()
 	sorted_keys.sort_custom(func(a, b): return int(a) < int(b))
 	
-	var network_packets: Array
 	for marker_frame in sorted_keys:
 		var marker = marker_data[marker_frame]
 		var ms_timing := int(round((float(marker_frame) / 60) * 1000))
+		
+		# override trans type for very short transitions
+		if previous_ms_timing and ms_timing - previous_ms_timing <= 125:
+			marker[1] = 0
+
 		var depth = marker[0]
 		var trans = marker[1]
 		var ease = marker[2]
 		var auxiliary:int = marker[3]
-		network_packets.append(create_move_command(ms_timing, depth, trans, ease, auxiliary))
+		network_packets.append(%OSSMCommand.create_move_command(ms_timing, Util.safe_map_physical_position(depth), trans, ease, auxiliary))
 		# Adjust for physics tick rate change from BounceX (60Hz to 50Hz)
 		marker_data[round(int(marker_frame) / 1.2)] = marker
 		marker_data.erase(marker_frame)
+		previous_ms_timing = ms_timing
+
+	return network_packets
 	
-	network_paths.append(network_packets)
-	
+
+func create_path_lines(marker_data: Dictionary):
 	var previous_depth: float
 	var previous_frame: int
 	var marker_list: Array = marker_data.keys()
@@ -503,10 +531,10 @@ func load_path(filePath: String) -> bool:
 				path_line.add_point(Vector2(x_pos, y_pos))
 		previous_depth = depth
 		previous_frame = marker_frame
+
 	paths.append(path)
 	marker_frames.append(frames)
 	$PathDisplay/Paths.add_child(path_line)
-	return true
 
 
 func create_delay(duration: float):

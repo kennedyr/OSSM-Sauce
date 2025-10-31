@@ -23,7 +23,19 @@ func restart():
 	OS.execute("cmd", ["/c", commandSeek])
 
 
-func load(path:String):
+func try_load_video(file_path:String):
+	var extensionless_path = file_path.get_basename()
+	var filePath: String
+	var mp4Path = extensionless_path + ".mp4"
+	var mkvPath = extensionless_path + ".mkv"
+	if FileAccess.file_exists(mp4Path):
+		filePath = mp4Path
+	elif FileAccess.file_exists(mkvPath):
+		filePath = mkvPath
+	if filePath:
+		_load_video(filePath)	
+
+func _load_video(path:String):
 	print("loading ", path)
-	var command = r'echo { "command": ["loadfile", "' + path + r'"] } > \\.\pipe\mpv-launcher-pipe'
-	OS.execute("cmd", ["/c", command])
+	#var command = r'mpv "' + path + r'"'
+	#OS.execute("cmd", ["/c", command])
