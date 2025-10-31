@@ -86,9 +86,9 @@ func _on_data_received(client_id, data):
 					%Menu]
 				for node in display:
 					node.modulate.a = 1
-				owner.emit_signal("homing_complete")
+				Global.emit_signal("homing_complete")
 				if AppMode.active == AppMode.MOVE:
-					if owner.active_path_index != null:
+					if Global.active_path_index != null:
 						%CircleSelection.show_play()
 				elif AppMode.active == AppMode.POSITION:
 					owner.play()

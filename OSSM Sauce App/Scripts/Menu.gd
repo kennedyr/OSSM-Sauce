@@ -34,8 +34,8 @@ func _on_play_pressed():
 	tween(false)
 	%ActionPanel.clear_selections()
 	var index = $Playlist.selected_index
-	if not owner.active_path_index == index:
-		owner.active_path_index = index
+	if not Global.active_path_index == index:
+		Global.active_path_index = index
 		owner.display_active_path_index()
 		$Playlist/Scroll/VBox.get_child(index).set_active()
 		if %WebSocket.ossm_connected:
@@ -71,10 +71,10 @@ func _on_restart_pressed():
 func _on_delete_pressed():
 	flash_button($PathControls/HBox/Delete)
 	var selected_item = $Playlist.selected_index
-	if owner.active_path_index == selected_item:
-		owner.active_path_index = null
+	if Global.active_path_index == selected_item:
+		Global.active_path_index = null
 		$PathControls.hide()
-		if not owner.paused:
+		if not Global.paused:
 			_on_pause_pressed()
 	%PathDisplay/Paths.remove_child(%PathDisplay/Paths.get_child(selected_item))
 	var pl_item = $Playlist/Scroll/VBox.get_child(selected_item)
@@ -210,13 +210,13 @@ func set_stroke_duration_display_mode(value):
 
 
 func _on_min_stroke_duration_changed(value):
-	owner.min_stroke_duration = value
+	Global.min_stroke_duration = value
 	%LoopControls.reset_stroke_duration_sliders()
 	UserSettings.set_value(UserSettings.Section.stroke_settings, 'min_duration', value)
 
 
 func _on_max_stroke_duration_changed(value):
-	owner.max_stroke_duration = value
+	Global.max_stroke_duration = value
 	%LoopControls.reset_stroke_duration_sliders()
 	UserSettings.set_value(UserSettings.Section.stroke_settings, 'max_duration', value)
 
@@ -267,9 +267,9 @@ func _on_mode_selected(index:int):
 	%OSSMCommand.reset()
 	owner.home_to(0)
 	if %WebSocket.ossm_connected:
-		await owner.homing_complete
+		await Global.homing_complete
 	
-	owner.paused = true
+	Global.paused = true
 	
 	%ActionPanel.clear_selections()
 	

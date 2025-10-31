@@ -16,7 +16,7 @@ func show_paths():
 	$HBox/AddPath.disabled = true
 	$HBox/AddPath.show()
 	$HBox/LoadPlaylist.hide()
-	$FileDialog.current_dir = lastPath if lastPath else owner.paths_dir
+	$FileDialog.current_dir = lastPath if lastPath else Global.paths_dir
 	$FileDialog.filters = ["*.funscript"]
 	$FileDialog.show()
 
@@ -27,7 +27,7 @@ func show_playlists():
 	$HBox/LoadPlaylist.disabled = true
 	$HBox/LoadPlaylist.show()
 	$HBox/AddPath.hide()
-	$FileDialog.current_dir = lastPlaylist if lastPlaylist else owner.playlists_dir
+	$FileDialog.current_dir = lastPlaylist if lastPlaylist else Global.playlists_dir
 	$FileDialog.filters = ["*.bxpl"]
 	$FileDialog.show()
 

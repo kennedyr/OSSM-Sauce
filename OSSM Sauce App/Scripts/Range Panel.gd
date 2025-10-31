@@ -119,7 +119,7 @@ func tween(activating:bool = true):
 	var positions:Array = [outside_pos, inside_pos]
 	if not activating:
 		positions.reverse()
-	tween.tween_method(set_position, position, positions[1], owner.ANIM_TIME)
+	tween.tween_method(set_position, position, positions[1], Global.ANIM_TIME)
 	var back = $BackTexture
 	var start_color:Color = $BackTexture.self_modulate
 	var end_color:Color = start_color
@@ -129,7 +129,7 @@ func tween(activating:bool = true):
 	if not activating:
 		colors.reverse()
 		$BackButton.hide()
-		tween.tween_callback(anim_finished).set_delay(owner.ANIM_TIME)
+		tween.tween_callback(anim_finished).set_delay(Global.ANIM_TIME)
 	else:
 		$BackButton.show()
 	var visuals = [$BackTexture, $LabelBot, $LabelTop]
@@ -138,7 +138,7 @@ func tween(activating:bool = true):
 				node.set_self_modulate,
 				colors[0],
 				colors[1],
-				owner.ANIM_TIME)
+				Global.ANIM_TIME)
 
 
 func anim_finished():

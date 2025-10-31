@@ -235,12 +235,12 @@ func _translate_and_forward(tcode_cmd: String):
 
 		if type == "L":
 			# Linear move: map to OSSM SMOOTH_MOVE
-			var depth:int = remap(magnitude_str, 0, 100, 0, 10000)
+			var depth:int = clamp(remap(magnitude_str, 0, 100, 0, 10000), 0, 10000)
 			var ms_timing:int = interval if interval > 0 else 100 # Default timing
 			var trans:int = %BridgeControls.auto_smoothing
 			var ease:int = EASE_IN_OUT
 			var auxiliary:int = 0
-			var move_cmd = get_parent().create_move_command(ms_timing, float(depth) / 10000.0, trans, ease, auxiliary)
+			var move_cmd = %OSSMCommand.create_move_command(ms_timing, depth, trans, ease, auxiliary)
 			send_smooth_move_command(interval, depth, trans, ease, auxiliary)
 
 		elif type == "V":

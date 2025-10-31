@@ -2,60 +2,21 @@ extends Control
 
 var app_version_number:String = "1.4.4"
 
-var storage_dir:String
-var paths_dir:String
-var playlists_dir:String
-var cfg_path:String
-
-const ANIM_TIME = 0.65
-
 var ticks_per_second:int
 
 var path_speed:int = 30
 
-var paused:bool = true
-
-var active_path_index
-
 var paths:Array
 var markers:Array
 var network_paths:Array
-
-var frame:int
-
-#var app_active_mode:int
-
-var max_speed:int
-var max_acceleration:int
-
-var min_stroke_duration:float
-var max_stroke_duration:float
-
-signal homing_complete
 
 @onready var PATH_TOP = $PathDisplay/PathArea.position.y
 @onready var PATH_BOTTOM = PATH_TOP + $PathDisplay/PathArea.size.y
 
 @onready var ossm_connection_timeout:Timer = $Settings/Network/ConnectionTimeout
 
-#var buttplug_bridge: Node = null
 
-func _init():
-	max_speed = 25000
-	max_acceleration = 500000
-
-
-func _ready():
-	#get_tree().get_root().set_transparent_background(true)
-	#var p1 = "D:/v2/BloodMoon.mov"
-	#var path =  "C:/Users/clbhu/Desktop/Splendid/bxe.mp4"
-	#var path1 = "D:/v2/BounceX Vol 2 (Ultra Quality - Uncompressed Audio).mov"
-	#var p2 = "C:/Users/clbhu/BounceX/mpv/bxe.mp4"
-	#var command = r'mpv --input-ipc-server=\\.\pipe\mpvsocket ' + p1
-	#var command2 = 'mpv --input-ipc-server=\\\\.\\pipe\\mpv-pipe bxe.mp4'
-	#OS.create_process("cmd", ["/c", command])
-	#OS.create_process()
-	
+func _ready():	
 	OS.request_permissions()
 
 	var physics_ticks = "physics/common/physics_ticks_per_second"
@@ -63,18 +24,11 @@ func _ready():
 	set_process(false)
 	$PositionControls.set_physics_process(false)
 	
-	min_stroke_duration = $Menu/LoopSettings/MinStrokeDuration/SpinBox.value
-	max_stroke_duration = $Menu/LoopSettings/MaxStrokeDuration/SpinBox.value
+	Global.min_stroke_duration = $Menu/LoopSettings/MinStrokeDuration/SpinBox.value
+	Global.max_stroke_duration = $Menu/LoopSettings/MaxStrokeDuration/SpinBox.value
 	
-	max_speed = int($Settings/Sliders/MaxSpeed/TextEdit.text)
-	max_acceleration = int($Settings/Sliders/MaxAcceleration/TextEdit.text)
-	
-	if OS.get_name() == 'Android':
-		storage_dir = OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP)
-	else:
-		storage_dir = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
-	paths_dir = storage_dir + "/OSSM Sauce/Paths/"
-	playlists_dir = storage_dir + "/OSSM Sauce/Playlists/"
+	Global.max_speed = int($Settings/Sliders/MaxSpeed/TextEdit.text)
+	Global.max_acceleration = int($Settings/Sliders/MaxAcceleration/TextEdit.text)
 	
 	for node in [$Menu, $Settings, $SpeedPanel, $RangePanel]:
 		node.self_modulate.a = 1.65
@@ -99,33 +53,33 @@ func _ready():
 
 
 var marker_index:int
-func _physics_process(delta):
-	if paused or paths[active_path_index].is_empty():
+func _physics_process(_delta):
+	if Global.paused or paths[Global.active_path_index].is_empty():
 		return
 	
 	# End of current path
-	if frame >= paths[active_path_index].size() - 1:
+	if Global.frame >= paths[Global.active_path_index].size() - 1:
 		# There is a next path in playlist
-		if active_path_index < network_paths.size() - 1:
-			var overreach_index = marker_index - network_paths[active_path_index].size() + 1
-			var next_path = network_paths[active_path_index + 1]
+		if Global.active_path_index < network_paths.size() - 1:
+			var overreach_index = marker_index - network_paths[Global.active_path_index].size() + 1
+			var next_path = network_paths[Global.active_path_index + 1]
 			%WebSocket.server.broadcast_binary(next_path[overreach_index])
 			var path_list = $Menu/Playlist/Scroll/VBox
-			var next_index = active_path_index + 1
+			var next_index = Global.active_path_index + 1
 			var next_path_item = path_list.get_child(next_index) 
-			active_path_index = next_index
+			Global.active_path_index = next_index
 			display_active_path_index(false, false)
 			$Menu/Playlist._on_item_selected(next_path_item)
 			path_list.get_child(next_index).set_active()
 		else:
 			# Loop the playlist
 			if $Menu.loop_playlist:
-				var overreach_index = marker_index - network_paths[active_path_index].size() + 1
+				var overreach_index = marker_index - network_paths[Global.active_path_index].size() + 1
 				var next_path = network_paths[0]
 				%WebSocket.server.broadcast_binary(next_path[overreach_index])
 				var path_list = $Menu/Playlist/Scroll/VBox
 				var next_path_item = path_list.get_child(0) 
-				active_path_index = 0
+				Global.active_path_index = 0
 				display_active_path_index(false, false)
 				$Menu/Playlist._on_item_selected(next_path_item)
 				path_list.get_child(0).set_active()
@@ -133,23 +87,22 @@ func _physics_process(delta):
 			else:
 				pause()
 				$Menu.show_play()
-				$Menu
 				$CircleSelection.show_restart()
-				paused = true
+				Global.paused = true
 		return
 	
-	var marker_list = markers[active_path_index]
-	var active_path = network_paths[active_path_index]
+	var marker_list = markers[Global.active_path_index]
+	var active_path = network_paths[Global.active_path_index]
 	var current_marker = marker_index - 6
 	var current_marker_frame = int(marker_list.keys()[current_marker])
-	if frame == current_marker_frame:
+	if Global.frame == current_marker_frame:
 		if %WebSocket.server_started:
 			if marker_index < active_path.size():
 				# send current frame to 
 				%WebSocket.server.broadcast_binary(active_path[marker_index])
-			elif active_path_index < network_paths.size() - 1:
+			elif Global.active_path_index < network_paths.size() - 1:
 				var overreach_index = marker_index - active_path.size()
-				var next_path = network_paths[active_path_index + 1]
+				var next_path = network_paths[Global.active_path_index + 1]
 				%WebSocket.server.broadcast_binary(next_path[overreach_index])
 			elif $Menu.loop_playlist:
 				var overreach_index = marker_index - active_path.size()
@@ -158,73 +111,15 @@ func _physics_process(delta):
 		if current_marker < marker_list.size() - 1:
 			marker_index += 1
 	
-	var depth:float = paths[active_path_index][frame]
-	var ms_timing: int = round((float(frame) / 50) * 1000)
+	var depth:float = paths[Global.active_path_index][Global.frame]
+	var ms_timing: int = round((float(Global.frame) / 50) * 1000)
 	var minutes: int = floori(ms_timing / 60000.0)
-	var seconds: int = floori((ms_timing % 60000) / 1000)
-	frame += 1
+	var seconds: int = floori((ms_timing % 60000) / 1000.0)
+	Global.frame += 1
 
-	$PathDisplay/Paths.get_child(active_path_index).position.x -= path_speed
+	$PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
 	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
-
-#func _process22(delta):
-	#%WebSocket.poll()
-	#var state = %WebSocket.get_ready_state()
-	#if state == WebSocketPeer.STATE_OPEN:
-		#if not %WebSocket.ossm_connected:
-			#user_settings.set_value(
-				#'app_settings',
-				#'last_server_connection',
-				#$Settings/Network/Address/TextEdit.text)
-			#%WebSocket.ossm_connected = true
-			#send_command(OSSM.Command.CONNECTION)
-			#$Wifi.self_modulate = Color.WHITE
-			#$Wifi.show()
-		#while %WebSocket.get_available_packet_count():
-			#var packet:PackedByteArray = %WebSocket.get_packet()
-			#if packet.is_empty():
-				#return
-			#if packet[0] == OSSM.Command.RESPONSE:
-				#match packet[1]:
-					#OSSM.Command.CONNECTION:
-						#ossm_connected = true
-						#ossm_connection_timeout.emit_signal('timeout')
-						#ossm_connection_timeout.stop()
-						#$Wifi.self_modulate = Color.SEA_GREEN
-						#$SpeedPanel.update_speed()
-						#$SpeedPanel.update_acceleration()
-						#$RangePanel.update_min_range()
-						#$RangePanel.update_max_range()
-						#$Settings.send_syncing_speed()
-						#$Menu.select_mode(%Mode.selected)
-					#OSSM.Command.HOMING:
-						#$CircleSelection.hide()
-						#$CircleSelection.homing_lock = false
-						#var display = [
-							#$PositionControls,
-							#$LoopControls,
-							#$PathDisplay,
-							#$ActionPanel,
-							#$Menu]
-						#for node in display:
-							#node.modulate.a = 1
-						#emit_signal("homing_complete")
-						#if %Mode.selected == 0:
-							#if active_path_index != null:
-								#$CircleSelection.show_play()
-						#elif %Mode.selected == 1:
-							#play()
-	#elif state == WebSocketPeer.STATE_CLOSING:
-		#pass # Keep polling to achieve proper close.
-	#elif state == WebSocketPeer.STATE_CLOSED:
-		#var code = %WebSocket.get_close_code()
-		#var reason = %WebSocket.get_close_reason()
-		#var text = "Webwebsocket closed with code: %d, reason %s. Clean: %s"
-		#print(text % [code, reason, code != -1])
-		#%WebSocket.ossm_connected = false
-		#set_process(false)
-		#$Wifi.hide()
 
 
 func home_to(target_position:int):
@@ -243,22 +138,20 @@ func home_to(target_position:int):
 
 func play(play_time_ms = null):
 	%OSSMCommand.play(play_time_ms)
-	if AppMode.active == AppMode.MOVE and active_path_index != null:
-		paused = false
+	if AppMode.active == AppMode.MOVE and Global.active_path_index != null:
+		Global.paused = false
 		%MPV.play()
-		
 
 
 func pause():
-	if AppMode.active == AppMode.MOVE and active_path_index != null:
+	if AppMode.active == AppMode.MOVE and Global.active_path_index != null:
 		%MPV.pause()
 	%OSSMCommand.pause()
-	paused = true
 	Global.paused = true
 
 
 func check_root_directory():
-	var dir = DirAccess.open(storage_dir)
+	var dir = DirAccess.open(Global.storage_dir)
 	if not dir.dir_exists("OSSM Sauce"):
 		dir.make_dir("OSSM Sauce")
 	dir.change_dir("OSSM Sauce")
@@ -311,10 +204,6 @@ func apply_device_settings():
 	$RangePanel.set_max_slider_percent(UserSettings.get_value(UserSettings.Section.range_slider_max, 'position_percent', 1))
 	$Settings.set_syncing_speed(UserSettings.get_value(UserSettings.Section.device_settings, 'syncing_speed', 1000))
 	$Settings.set_homing_trigger(UserSettings.get_value(UserSettings.Section.device_settings, 'homing_trigger', 1.5))
-
-
-func create_move_command(ms_timing:int, depth:float, trans:int, ease:int, auxiliary:int):
-	return %OSSMCommand.create_move_command(ms_timing, Util.safe_map_physical_position(depth), trans, ease, auxiliary)
 
 
 func round_to(value: float, decimals: int) -> float:
@@ -469,10 +358,10 @@ func create_delay(duration:float):
 	var marker_path:Dictionary
 	var network_packets:Array
 	for timing in 6:
-		var move_command = create_move_command(timing, 0, 0, 0, 0)
+		var move_command = %OSSMCommand.create_move_command(timing, 0, 0, 0, 0)
 		network_packets.append(move_command)
 		marker_path[timing] = message
-	var end_move = create_move_command(duration * 1000, 0, 0, 0, 0)
+	var end_move = %OSSMCommand.create_move_command(duration * 1000, 0, 0, 0, 0)
 	network_packets.append(end_move)
 	network_paths.append(network_packets)
 	paths.append(delay_path)
@@ -484,14 +373,14 @@ func create_delay(duration:float):
 func display_active_path_index(pause := true, send_buffer := true):
 	if pause:
 		%MPV.restart()
-	paused = pause
-	frame = 0
+	Global.paused = pause
+	Global.frame = 0
 	marker_index = 0
 	if send_buffer:
 		if %WebSocket.ossm_connected:
 			%OSSMCommand.reset()
 			while marker_index < 6:
-				%WebSocket.server.broadcast_binary(network_paths[active_path_index][marker_index])
+				%WebSocket.server.broadcast_binary(network_paths[Global.active_path_index][marker_index])
 				marker_index += 1
 	else:
 		marker_index = 6
@@ -502,10 +391,10 @@ func display_active_path_index(pause := true, send_buffer := true):
 		$ActionPanel/Play.show()
 	for path in $PathDisplay/Paths.get_children():
 		path.hide()
-	var path = $PathDisplay/Paths.get_child(active_path_index)
+	var path = $PathDisplay/Paths.get_child(Global.active_path_index)
 	path.position.x = ($PathDisplay/PathArea.size.x / 2) + path_speed
 	path.show()
-	$PathDisplay/Ball.position.y = render_depth(paths[active_path_index][0])
+	$PathDisplay/Ball.position.y = render_depth(paths[Global.active_path_index][0])
 	$PathDisplay/Ball.show()
 	$PathDisplay.show()
 
@@ -527,7 +416,7 @@ func activate_move_mode():
 	%Menu/Main/LoopPlaylistButton.show()
 	%Menu/PathControls.show()
 	%Menu/Playlist.show()
-	if active_path_index != null:
+	if Global.active_path_index != null:
 		display_active_path_index()
 	%Menu.refresh_selection()
 

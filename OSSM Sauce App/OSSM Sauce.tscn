@@ -55,7 +55,7 @@
 script/source = "extends Control
 
 func _on_gui_input(event):
-	if event is InputEventMouseButton and owner.active_path_index != null:
+	if event is InputEventMouseButton and Global.active_path_index != null:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.is_pressed():
 				$Timer.start()
@@ -63,7 +63,7 @@ func _on_gui_input(event):
 				$Timer.stop()
 
 func _on_timer_timeout():
-	if owner.paused:
+	if Global.paused:
 		%CircleSelection.show_play()
 	else:
 		%CircleSelection.show_pause()
@@ -136,8 +136,8 @@ func map_stroke_duration():
 			slider.position.y,
 			slider_min_pos,
 			slider_max_pos,
-			owner.min_stroke_duration,
-			owner.max_stroke_duration), 0.01)
+			Global.min_stroke_duration,
+			Global.max_stroke_duration), 0.01)
 
 
 func reset_stroke_duration_slider():
@@ -146,8 +146,8 @@ func reset_stroke_duration_slider():
 			slider.position.y,
 			slider_min_pos,
 			slider_max_pos,
-			owner.min_stroke_duration,
-			owner.max_stroke_duration), 0.01)
+			Global.min_stroke_duration,
+			Global.max_stroke_duration), 0.01)
 	get_parent().send_command()
 	update_stroke_duration_text()
 
@@ -255,8 +255,8 @@ func map_stroke_duration():
 			slider.position.y,
 			slider_min_pos,
 			slider_max_pos,
-			owner.min_stroke_duration,
-			owner.max_stroke_duration), 0.01)
+			Global.min_stroke_duration,
+			Global.max_stroke_duration), 0.01)
 
 
 func reset_stroke_duration_slider():
@@ -265,8 +265,8 @@ func reset_stroke_duration_slider():
 		slider.position.y,
 		slider_min_pos,
 		slider_max_pos,
-		owner.min_stroke_duration,
-		owner.max_stroke_duration), 0.01)
+		Global.min_stroke_duration,
+		Global.max_stroke_duration), 0.01)
 	get_parent().send_command()
 	update_stroke_duration_text()
 
@@ -403,7 +403,7 @@ func select():
 func deselect():
 	self_modulate.a = 0.7
 	self_modulate = Color.WHITE
-	if get_index() == get_tree().get_root().get_node(\"OSSMSauce\").active_path_index:
+	if get_index() == Global.active_path_index:
 		$Label.self_modulate = Color.BURLYWOOD
 	else:
 		$Label.self_modulate = Color.WHITE
@@ -498,7 +498,7 @@ func _on_text_edit_text_changed():
 
 func _on_save_pressed():
 	var filename:String = $TextEdit.text
-	var path:String = owner.playlists_dir + \"/\" + filename + \".bxpl\"
+	var path:String = Global.playlists_dir + \"/\" + filename + \".bxpl\"
 	var file = FileAccess.open(path, FileAccess.WRITE)
 	for path_name in %Menu/Playlist.get_items():
 		file.store_line(path_name)

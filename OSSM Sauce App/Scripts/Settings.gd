@@ -157,14 +157,14 @@ func set_max_acceleration(value):
 func _on_speed_input_changed():
 	var value = int($Sliders/MaxSpeed/TextEdit.text)
 	value = clamp(value, 100, 200000)
-	owner.max_speed = value
+	Global.max_speed = value
 	UserSettings.set_value(UserSettings.Section.speed_slider, 'max_speed', value)
 
 
 func _on_acceleration_input_changed():
 	var value = int($Sliders/MaxAcceleration/TextEdit.text)
 	value = clamp(value, 5000, 9000000)
-	owner.max_acceleration = value
+	Global.max_acceleration = value
 	UserSettings.set_value(UserSettings.Section.accel_slider, 'max_acceleration', value)
 
 
