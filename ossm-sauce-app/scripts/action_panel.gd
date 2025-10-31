@@ -39,7 +39,7 @@ func _on_play_button_pressed():
 	$Timer.start()
 	match AppMode.active:
 		AppMode.MOVE:
-			if owner.active_path_index == null:
+			if Global.active_path_index == null:
 				return
 		AppMode.POSITION:
 			%PositionControls.set_physics_process(true)

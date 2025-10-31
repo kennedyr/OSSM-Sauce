@@ -22,12 +22,12 @@ func _on_item_selected(item):
 	selected_index = index
 	
 	var restart_button = %Menu/PathControls/HBox/Restart
-	if owner.active_path_index == index and owner.frame > 0:
+	if Global.active_path_index == index and Global.frame > 0:
 		restart_button.show()
 	else:
 		restart_button.hide()
 	
-	if not owner.paused and owner.active_path_index == index:
+	if not Global.paused and Global.active_path_index == index:
 		%Menu.show_pause()
 	else:
 		%Menu.show_play()
@@ -68,10 +68,10 @@ func move_item(current_index, new_index):
 	owner.network_paths.remove_at(current_index)
 	owner.network_paths.insert(new_index, network_data)
 	
-	if owner.active_path_index == current_index:
-		owner.active_path_index = new_index
-	elif owner.active_path_index == new_index:
-		owner.active_path_index = current_index
+	if Global.active_path_index == current_index:
+		Global.active_path_index = new_index
+	elif Global.active_path_index == new_index:
+		Global.active_path_index = current_index
 
 
 func get_items() -> Array:
@@ -96,10 +96,10 @@ func deselect_all():
 
 
 func clear():
-	if owner.active_path_index != null:
-		owner.active_path_index = null
+	if Global.active_path_index != null:
+		Global.active_path_index = null
 		%Menu/PathControls.hide()
-		if not owner.paused:
+		if not Global.paused:
 			%Menu._on_pause_pressed()
 	owner.paths.clear()
 	owner.marker_frames.clear()

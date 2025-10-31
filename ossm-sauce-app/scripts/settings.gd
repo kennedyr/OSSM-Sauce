@@ -29,7 +29,7 @@ func _on_change_port_pressed() -> void:
 func _on_reverse_motor_direction_toggled(toggled_on: bool) -> void:
 	var direction = 1 if toggled_on else 0
 	UserSettings.set_value('device_settings', 'motor_direction', direction)
-	owner.motor_direction = direction
+	Global.motor_direction = direction
 	if not %WebSocket.ossm_connected:
 		return
 	# Stop fast processes for safety
@@ -42,12 +42,12 @@ func _on_reverse_motor_direction_toggled(toggled_on: bool) -> void:
 
 
 func _on_slider_max_speed_value_changed(value: float) -> void:
-	owner.max_speed = value
+	Global.max_speed = value
 	UserSettings.set_value(UserSettings.Section.speed_slider, 'max_speed', value)
 
 
 func _on_slider_max_acceleration_value_changed(value: float) -> void:
-	owner.max_acceleration = value
+	Global.max_acceleration = value
 	UserSettings.set_value(UserSettings.Section.accel_slider, 'max_acceleration', value)
 
 

@@ -49,7 +49,7 @@ func set_acceleration_slider_percent(percent):
 func update_speed():
 	var slider_pos = speed_slider.position.y
 	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
-	speed_limit = Util.safe_map_value(percent, 0, owner.max_speed)
+	speed_limit = Util.safe_map_value(percent, 0, Global.max_speed)
 
 	UserSettings.set_value(UserSettings.Section.speed_slider, 'position_percent', percent)
 	#$LabelTop.text = "Max Speed:\n" + str(speed_limit) + " steps/sec"
@@ -62,10 +62,10 @@ func update_speed():
 func update_acceleration():
 	var slider_pos = acceleration_slider.position.y
 	var percent = Util.safe_map_slider_percent(slider_pos, accel_slider_min_pos, accel_slider_max_pos)
-	acceleration_limit = Util.safe_map_value(percent, 1000, owner.max_acceleration)
+	acceleration_limit = Util.safe_map_value(percent, 1000, Global.max_acceleration)
 
 	UserSettings.set_value(UserSettings.Section.accel_slider, 'position_percent', percent)
-	#$LabelBot.text = "Acceleration:\n" + str(acceleration) + " steps/sec²"
+	#$LabelBot.text = "Acceleration:\n" + str(acceleration_limit) + " steps/sec²"
 	var text_value = str(round(percent * 100))
 	$LabelBot.text = "Acceleration:\n" + text_value + "%"
 	if $DebounceTimer.is_stopped():
@@ -121,7 +121,7 @@ func tween(activating := true):
 	var positions: Array = [outside_pos, inside_pos]
 	if not activating:
 		positions.reverse()
-	tween.tween_method(set_position, position, positions[1], owner.ANIM_TIME)
+	tween.tween_method(set_position, position, positions[1], Global.ANIM_TIME)
 	var start_color: Color = $BackTexture.self_modulate
 	var end_color: Color = start_color
 	start_color.a = 0
@@ -130,7 +130,7 @@ func tween(activating := true):
 	if not activating:
 		colors.reverse()
 		$BackButton.hide()
-		tween.tween_callback(anim_finished).set_delay(owner.ANIM_TIME)
+		tween.tween_callback(anim_finished).set_delay(Global.ANIM_TIME)
 	else:
 		$BackButton.show()
 	var visuals = [$BackTexture, $LabelTop, $LabelBot]
@@ -139,7 +139,7 @@ func tween(activating := true):
 			node.set_self_modulate,
 			colors[0],
 			colors[1],
-			owner.ANIM_TIME)
+			Global.ANIM_TIME)
 
 
 func anim_finished():

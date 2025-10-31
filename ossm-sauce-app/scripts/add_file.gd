@@ -25,7 +25,7 @@ func show_paths():
 	create_file_list("paths", [".bx", ".funscript"])
 	$Label.text = owner.get_storage_label("paths")
 
-	$FileDialog.current_dir = lastPath if lastPath else owner.paths_dir
+	$FileDialog.current_dir = lastPath if lastPath else Global.paths_dir
 	$FileDialog.filters = ["*.funscript"]
 	$FileDialog.show()
 
@@ -41,7 +41,7 @@ func show_playlists():
 	create_file_list("playlists", [".bxpl"])
 	$Label.text = owner.get_storage_label("playlists")
 
-	$FileDialog.current_dir = lastPlaylist if lastPlaylist else owner.playlists_dir
+	$FileDialog.current_dir = lastPlaylist if lastPlaylist else Global.playlists_dir
 	$FileDialog.filters = ["*.bxpl"]
 	$FileDialog.show()
 

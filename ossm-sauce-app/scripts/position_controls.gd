@@ -21,7 +21,7 @@ func _ready():
 func _physics_process(delta) -> void:
 	var pos = lerp(slider.position.y, touch_pos, delta * smoothing)
 	slider.position.y = clamp(pos, max_range, min_range)
-	var mapped_pos: int = abs(owner.motor_direction * 10000 - remap(slider.position.y, min_range, max_range, 0, 10000))
+	var mapped_pos: int = abs(Global.motor_direction * 10000 - remap(slider.position.y, min_range, max_range, 0, 10000))
 	if last_position != mapped_pos:
 		%OSSMCommand.position(mapped_pos)
 		last_position = mapped_pos
@@ -55,7 +55,7 @@ func _on_smoothing_slider_value_changed(value) -> void:
 func activate():
 	touch_pos = min_range
 	$MovementBar/Slider.position.y = min_range
-	last_position = owner.motor_direction * 10000  # slider starts at min (app pos 0), flip-adjusted
+	last_position = Global.motor_direction * 10000  # slider starts at min (app pos 0), flip-adjusted
 	set_physics_process(true)
 	set_process_input(true)
 	owner.play()

@@ -2,11 +2,6 @@ extends Control
 
 var app_version_number: String = ProjectSettings.get_setting("application/config/version")
 
-var storage_dir: String
-var paths_dir: String
-var playlists_dir: String
-var cfg_path: String
-
 const SAF_CONFIG_PATH := "user://saf_storage.cfg"
 var saf_storage := ConfigFile.new()
 var saf_paths_uri: String = ""
@@ -15,42 +10,24 @@ var _saf_paths_subdir_exists: bool = false
 var _saf_playlists_subdir_exists: bool = false
 var _saf_file_subdirs: Dictionary = {}
 
-const ANIM_TIME = 0.65
-
 var ticks_per_second: int
 
 var path_speed: int = 30
 
-var paused := true
 var _seek_dragging := false
-
-var active_path_index
 
 var paths: Array
 var marker_frames: Array
 var network_paths: Array
 
-var frame: int
 var buffer_sent: int
 var play_offset_ms: int
 var _seeking: bool
 
-var max_speed: int
-var max_acceleration: int
-var motor_direction: int = 0
-
-var min_stroke_duration: float
-var max_stroke_duration: float
-
-signal homing_complete
 
 @onready var PATH_TOP = $PathDisplay/PathArea.position.y
 @onready var PATH_BOTTOM = PATH_TOP + $PathDisplay/PathArea.size.y
 
-
-func _init():
-	max_speed = 25000
-	max_acceleration = 500000
 
 func _ready():
 	set_process(false)
@@ -59,8 +36,8 @@ func _ready():
 	var physics_ticks = "physics/common/physics_ticks_per_second"
 	ticks_per_second = ProjectSettings.get_setting(physics_ticks)
 	
-	min_stroke_duration = $Menu/LoopSettings/MinStrokeDuration/Input.value
-	max_stroke_duration = $Menu/LoopSettings/MaxStrokeDuration/Input.value
+	Global.min_stroke_duration = $Menu/LoopSettings/MinStrokeDuration/Input.value
+	Global.max_stroke_duration = $Menu/LoopSettings/MaxStrokeDuration/Input.value
 	
 	for node in [$Menu, $Settings, $SpeedPanel, $RangePanel]:
 		node.self_modulate.a = 1.65
@@ -91,38 +68,38 @@ func _ready():
 
 var marker_index: int
 func _physics_process(delta) -> void:
-	if paused or paths[active_path_index].is_empty():
+	if Global.paused or paths[Global.active_path_index].is_empty():
 		return
 	
-	var total_frames: int = paths[active_path_index].size()
+	var total_frames: int = paths[Global.active_path_index].size()
 	# End of current path
-	if frame >= total_frames - 1:
+	if Global.frame >= total_frames - 1:
 		# There is a next path in playlist
-		if active_path_index < network_paths.size() - 1:
-			transition_to_path(active_path_index + 1)
+		if Global.active_path_index < network_paths.size() - 1:
+			transition_to_path(Global.active_path_index + 1)
 		elif $Menu.loop_playlist:
 			# Loop the playlist
 			transition_to_path(0)
 		else:
 			# Nothing to do
-			paused = true
+			Global.paused = true
 			%OSSMCommand.pause()
 			%VideoPlayer.pause_player()
 			$Menu.show_play()
 			$CircleSelection.show_restart()
 		return
 	
-	var frames = marker_frames[active_path_index]
-	var active_path = network_paths[active_path_index]
+	var frames = marker_frames[Global.active_path_index]
+	var active_path = network_paths[Global.active_path_index]
 	var current_marker = marker_index - buffer_sent
-	if current_marker < frames.size() and frame == frames[current_marker]:
+	if current_marker < frames.size() and Global.frame == frames[current_marker]:
 		if %WebSocket.server_started:
 			if marker_index < active_path.size():
 				# send current frame to 
 				%WebSocket.server.broadcast_binary(active_path[marker_index])
-			elif active_path_index < network_paths.size() - 1:
+			elif Global.active_path_index < network_paths.size() - 1:
 				var overreach_index = marker_index - active_path.size()
-				var next_path = network_paths[active_path_index + 1]
+				var next_path = network_paths[Global.active_path_index + 1]
 				if overreach_index < next_path.size():
 					%WebSocket.server.broadcast_binary(next_path[overreach_index])
 			elif $Menu.loop_playlist:
@@ -133,25 +110,25 @@ func _physics_process(delta) -> void:
 		if current_marker < frames.size() - 1:
 			marker_index += 1
 	
-	var depth: float = paths[active_path_index][frame]
-	var ms_timing: int = round((float(frame) / 50) * 1000)
+	var depth: float = paths[Global.active_path_index][Global.frame]
+	var ms_timing: int = round((float(Global.frame) / 50) * 1000)
 	var minutes: int = floori(ms_timing / 60000.0)
 	var seconds: int = floori((ms_timing % 60000) / 1000)
-	$PathDisplay/Paths.get_child(active_path_index).position.x -= path_speed
+	$PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
 	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
 
 	if not _seek_dragging:
-		$SeekSlider.set_value_no_signal(float(frame) / (total_frames - 1))
+		$SeekSlider.set_value_no_signal(float(Global.frame) / (total_frames - 1))
 		update_time_display()
 
-	frame += 1
+	Global.frame += 1
 
 
 func transition_to_path(next_index: int):
-	var overreach_sent = maxi(marker_index - network_paths[active_path_index].size(), 0)
+	var overreach_sent = maxi(marker_index - network_paths[Global.active_path_index].size(), 0)
 	var next_path = network_paths[next_index]
-	active_path_index = next_index
+	Global.active_path_index = next_index
 	display_active_path_index(false, false)
 	# Top up buffer if overreach didn't cover it
 	marker_index = overreach_sent
@@ -182,13 +159,13 @@ func home_to(target_position: int):
 			%Menu]
 		for display in displays:
 			display.modulate.a = 0.05
-		%OSSMCommand.home_to(abs(motor_direction * 10000 - target_position))
+		%OSSMCommand.home_to(abs(Global.motor_direction * 10000 - target_position))
 
 
 func play():
-	if AppMode.active == AppMode.MOVE and active_path_index != null:
-		paused = false
-		play_offset_ms = int(frame * 1000.0 / ticks_per_second)
+	if AppMode.active == AppMode.MOVE and Global.active_path_index != null:
+		Global.paused = false
+		play_offset_ms = int(Global.frame * 1000.0 / ticks_per_second)
 		%MPV.play()
 	if %WebSocket.ossm_connected:
 		if AppMode.active == AppMode.MOVE:
@@ -200,19 +177,18 @@ func play():
 
 func pause():
 	%MPV.pause()
-	paused = true
 	Global.paused = true
 	if not %WebSocket.ossm_connected:
 		return
 	%OSSMCommand.pause()
 	
-	if active_path_index == null:
+	if Global.active_path_index == null:
 		return
-	if AppMode.active != AppMode.MOVE or paths[active_path_index].is_empty():
+	if AppMode.active != AppMode.MOVE or paths[Global.active_path_index].is_empty():
 		return
 	
 	# Sync OSSM to current path position
-	var current_depth: float = paths[active_path_index][frame]
+	var current_depth: float = paths[Global.active_path_index][Global.frame]
 	%OSSMCommand.reset()
 	home_to(round(current_depth * 10000))
 	await homing_complete
@@ -220,22 +196,22 @@ func pause():
 		return
 	
 	# Find cascade and buffer start for current frame
-	var frames = marker_frames[active_path_index]
+	var frames = marker_frames[Global.active_path_index]
 	var buffer_start := 0
 	var cascade_index := 0
 	for i in frames.size():
-		if frames[i] <= frame:
+		if frames[i] <= Global.frame:
 			cascade_index = i
 			buffer_start = i + 1
 		else:
 			break
 	
 	# Send cascade packet + buffer
-	%WebSocket.server.broadcast_binary(network_paths[active_path_index][cascade_index])
+	%WebSocket.server.broadcast_binary(network_paths[Global.active_path_index][cascade_index])
 	marker_index = buffer_start
 	buffer_sent = 0
-	while buffer_sent < 6 and marker_index < network_paths[active_path_index].size():
-		%WebSocket.server.broadcast_binary(network_paths[active_path_index][marker_index])
+	while buffer_sent < 6 and marker_index < network_paths[Global.active_path_index].size():
+		%WebSocket.server.broadcast_binary(network_paths[Global.active_path_index][marker_index])
 		marker_index += 1
 		buffer_sent += 1
 	
@@ -245,7 +221,7 @@ func pause():
 	safe_accel.encode_u8(0, OSSM.Command.SET_GLOBAL_ACCELERATION)
 	safe_accel.encode_u32(1, 60000)
 	%WebSocket.server.broadcast_binary(safe_accel)
-	var depth_val:int = abs(motor_direction * 10000 - round(current_depth * 10000))
+	var depth_val:int = abs(Global.motor_direction * 10000 - round(current_depth * 10000))
 	var nudge: PackedByteArray
 	nudge.resize(10)
 	nudge.encode_u8(0, OSSM.Command.SMOOTH_MOVE)
@@ -269,7 +245,7 @@ func pause():
 func check_root_directory():
 	if OS.get_name() == 'Android':
 		return
-	var dir = DirAccess.open(storage_dir)
+	var dir = DirAccess.open(Global.storage_dir)
 	if not dir.dir_exists("OSSM Sauce"):
 		dir.make_dir("OSSM Sauce")
 	dir.change_dir("OSSM Sauce")
@@ -386,7 +362,7 @@ func apply_device_settings():
 
 
 func create_move_command(ms_timing: int, depth: float, trans: int, ease: int, auxiliary: int):
-	return %OSSMCommand.create_move_command(ms_timing, round(remap(abs(motor_direction - depth), 0, 1, 0, 10000)), trans, ease, auxiliary)
+	return %OSSMCommand.create_move_command(ms_timing, round(remap(abs(Global.motor_direction - depth), 0, 1, 0, 10000)), trans, ease, auxiliary)
 
 
 func round_to(value: float, decimals: int) -> float:
@@ -561,8 +537,8 @@ func create_delay(duration: float):
 func display_active_path_index(pause := true, send_buffer := true):
 	if pause:
 		%MPV.restart()
-	paused = pause
-	frame = 0
+	Global.paused = pause
+	Global.frame = 0
 	marker_index = 0
 	play_offset_ms = 0
 	$SeekSlider.set_value_no_signal(0)
@@ -570,14 +546,14 @@ func display_active_path_index(pause := true, send_buffer := true):
 	if send_buffer:
 		if %WebSocket.ossm_connected:
 			%OSSMCommand.reset()
-			var start_depth:float = paths[active_path_index][0]
+			var start_depth:float = paths[Global.active_path_index][0]
 			home_to(round(start_depth * 10000))
-			await homing_complete
+			await Global.homing_complete
 			if not %WebSocket.ossm_connected:
 				return
 			buffer_sent = 0
-			while buffer_sent < 6 and marker_index < network_paths[active_path_index].size():
-				%WebSocket.server.broadcast_binary(network_paths[active_path_index][marker_index])
+			while buffer_sent < 6 and marker_index < network_paths[Global.active_path_index].size():
+				%WebSocket.server.broadcast_binary(network_paths[Global.active_path_index][marker_index])
 				marker_index += 1
 				buffer_sent += 1
 	else:
@@ -590,10 +566,10 @@ func display_active_path_index(pause := true, send_buffer := true):
 		$ActionPanel/Play.show()
 	for path in $PathDisplay/Paths.get_children():
 		path.hide()
-	var path = $PathDisplay/Paths.get_child(active_path_index)
+	var path = $PathDisplay/Paths.get_child(Global.active_path_index)
 	path.position.x = ($PathDisplay/PathArea.size.x / 2) + path_speed
 	path.show()
-	$PathDisplay/Ball.position.y = render_depth(paths[active_path_index][0])
+	$PathDisplay/Ball.position.y = render_depth(paths[Global.active_path_index][0])
 	$PathDisplay/Ball.show()
 	$PathDisplay.show()
 	if %VideoPlayer.is_active() and AppMode.active == AppMode.MOVE:
@@ -601,18 +577,18 @@ func display_active_path_index(pause := true, send_buffer := true):
 
 
 func seek() -> void:
-	if active_path_index == null or _seeking:
+	if Global.active_path_index == null or _seeking:
 		return
 	_seeking = true
-	if not paused:
-		paused = true
+	if not Global.paused:
+		Global.paused = true
 		%OSSMCommand.pause()
 		%ActionPanel.clear_selections()
 		%ActionPanel/Pause.hide()
 		%ActionPanel/Play.show()
 		%CircleSelection.hide()
 	
-	var active_path = paths[active_path_index]
+	var active_path = paths[Global.active_path_index]
 	if active_path.is_empty():
 		_seeking = false
 		return
@@ -625,7 +601,7 @@ func seek() -> void:
 	play_offset_ms = int(target_frame * 1000.0 / ticks_per_second)
 	
 	# Find the first marker_frame index AFTER target_frame
-	var frames = marker_frames[active_path_index]
+	var frames = marker_frames[Global.active_path_index]
 	var buffer_start := 0
 	var cascade_index := 0
 	for i in frames.size():
@@ -636,8 +612,8 @@ func seek() -> void:
 			break
 	
 	# Update display
-	frame = target_frame
-	var path_line = $PathDisplay/Paths.get_child(active_path_index)
+	Global.frame = target_frame
+	var path_line = $PathDisplay/Paths.get_child(Global.active_path_index)
 	path_line.position.x = ($PathDisplay/PathArea.size.x / 2) + path_speed - (target_frame * path_speed)
 	$PathDisplay/Ball.position.y = render_depth(target_depth)
 	update_time_display()
@@ -645,18 +621,18 @@ func seek() -> void:
 	if %WebSocket.ossm_connected:
 		OSSMCommand.reset()
 		home_to(round(target_depth * 10000))
-		await homing_complete
+		await Global.homing_complete
 		if not %WebSocket.ossm_connected:
 			_seeking = false
 			return
 		# Send cascade packet (timestamp <= play_offset, firmware immediately skips it)
-		var cascade_packet = network_paths[active_path_index][cascade_index]
+		var cascade_packet = network_paths[Global.active_path_index][cascade_index]
 		%WebSocket.server.broadcast_binary(cascade_packet)
 		# Send buffer packets from seek position
 		marker_index = buffer_start
 		buffer_sent = 0
-		while buffer_sent < 6 and marker_index < network_paths[active_path_index].size():
-			var packet = network_paths[active_path_index][marker_index]
+		while buffer_sent < 6 and marker_index < network_paths[Global.active_path_index].size():
+			var packet = network_paths[Global.active_path_index][marker_index]
 			var packet_ms = packet.decode_u32(1)
 			var packet_depth = packet.decode_u16(5)
 			%WebSocket.server.broadcast_binary(packet)
@@ -675,9 +651,9 @@ func _on_seek_slider_drag_started() -> void:
 
 
 func _on_seek_slider_value_changed(value: float) -> void:
-	if active_path_index == null:
+	if Global.active_path_index == null:
 		return
-	var total_frames: int = paths[active_path_index].size()
+	var total_frames: int = paths[Global.active_path_index].size()
 	var total_sec := (total_frames - 1) / ticks_per_second
 	var current_sec := int(value * total_sec)
 	if total_sec >= 3600:
@@ -691,8 +667,8 @@ func _on_seek_slider_value_changed(value: float) -> void:
 
 
 func update_time_display():
-	var total_frames: int = paths[active_path_index].size()
-	var current_sec := frame / ticks_per_second
+	var total_frames: int = paths[Global.active_path_index].size()
+	var current_sec := Global.frame / ticks_per_second
 	var total_sec := (total_frames - 1) / ticks_per_second
 	if total_sec >= 3600:
 		$TimeDisplay.text = "%d:%02d:%02d / %d:%02d:%02d" % [
@@ -724,7 +700,7 @@ func activate_move_mode():
 	%Menu/Main/LoopAndVideoButtons/VideoPlayerSync.show()
 	%Menu/PathControls.show()
 	%Menu/Playlist.show()
-	if active_path_index != null:
+	if Global.active_path_index != null:
 		display_active_path_index()
 	%Menu.refresh_selection()
 
@@ -787,43 +763,43 @@ func exit():
 	%BPIOBridge.stop_device()
 	%XToysBridge.stop_xtoys()
 	if %WebSocket.ossm_connected:
-		paused = true
+		Global.paused = true
 		%OSSMCommand.pause()
-		if motor_direction == 0:
-			%OSSMCommand.set_range_limit_min(motor_direction * 10000)
+		if Global.motor_direction == 0:
+			%OSSMCommand.set_range_limit_min(Global.motor_direction * 10000)
 		else:
-			%OSSMCommand.set_range_limit_max(motor_direction * 10000)
+			%OSSMCommand.set_range_limit_max(Global.motor_direction * 10000)
 		home_to(1500)
 
 
 func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
-	if active_path_index == null or not paused or AppMode.active != AppMode.MOVE:
+	if Global.active_path_index == null or not Global.paused or AppMode.active != AppMode.MOVE:
 		return
 	if from_stopped:
-		var path_time = float(frame) / ticks_per_second
+		var path_time = float(Global.frame) / ticks_per_second
 		%VideoPlayer.pause_and_seek(path_time)
 		return
-	var total_frames: int = paths[active_path_index].size()
+	var total_frames: int = paths[Global.active_path_index].size()
 	if total_frames == 0:
 		return
 	
 	var target_frame = clampi(int(video_time_seconds * ticks_per_second), 0, total_frames - 1)
-	frame = target_frame
+	Global.frame = target_frame
 	
 	# Realign buffer tracking to new frame position
-	var frames = marker_frames[active_path_index]
+	var frames = marker_frames[Global.active_path_index]
 	var cascade_index := 0
 	for i in frames.size():
 		if frames[i] <= target_frame:
 			cascade_index = i
 		else:
 			break
-	marker_index = mini(cascade_index + 1 + buffer_sent, network_paths[active_path_index].size())
+	marker_index = mini(cascade_index + 1 + buffer_sent, network_paths[Global.active_path_index].size())
 	
 	# Update display
-	var path_line = $PathDisplay/Paths.get_child(active_path_index)
+	var path_line = $PathDisplay/Paths.get_child(Global.active_path_index)
 	path_line.position.x = ($PathDisplay/PathArea.size.x / 2) + path_speed - (target_frame * path_speed)
-	$PathDisplay/Ball.position.y = render_depth(paths[active_path_index][target_frame])
+	$PathDisplay/Ball.position.y = render_depth(paths[Global.active_path_index][target_frame])
 	$SeekSlider.set_value_no_signal(float(target_frame) / (total_frames - 1))
 	update_time_display()
 	
@@ -836,7 +812,7 @@ func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
 
 
 func _on_video_player_paused():
-	if paused or AppMode.active != AppMode.MOVE:
+	if Global.paused or AppMode.active != AppMode.MOVE:
 		return
 	%ActionPanel.clear_selections()
 	%ActionPanel/Pause.hide()
@@ -845,9 +821,9 @@ func _on_video_player_paused():
 
 
 func _on_video_player_seeked(video_time_seconds: float):
-	if active_path_index == null or AppMode.active != AppMode.MOVE:
+	if Global.active_path_index == null or AppMode.active != AppMode.MOVE:
 		return
-	var total_frames: int = paths[active_path_index].size()
+	var total_frames: int = paths[Global.active_path_index].size()
 	if total_frames == 0:
 		return
 	var target_frame = clampi(int(video_time_seconds * ticks_per_second), 0, total_frames - 1)
@@ -1112,7 +1088,7 @@ func _resolve_storage_dir(category: String) -> String:
 		if saf_paths_uri.is_empty():
 			return ""
 		return _saf_tree_uri_to_fs_path(saf_paths_uri)
-	return paths_dir if category == "paths" else playlists_dir
+	return Global.paths_dir if category == "paths" else Global.playlists_dir
 
 
 func _saf_tree_uri_to_fs_path(tree_uri: String) -> String:

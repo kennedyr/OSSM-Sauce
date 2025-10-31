@@ -165,7 +165,7 @@ func _on_speed_timer_timeout():
 
 func send_smooth_move(ms_duration:int, depth:int, trans:int, ease:int, auxiliary:int):
 	_log("  → duration=%d, depth=%d, trans=%d, ease=%d" % [ms_duration, depth, trans, ease])
-	%OSSMCommand.smooth_move(ms_duration, abs(owner.motor_direction * 10000 - depth), trans, ease, auxiliary)
+	%OSSMCommand.smooth_move(ms_duration, abs(Global.motor_direction * 10000 - depth), trans, ease, auxiliary)
 
 
 func _on_ping_timer_timeout():

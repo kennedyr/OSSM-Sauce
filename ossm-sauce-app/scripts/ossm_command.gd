@@ -609,7 +609,7 @@ static func create_smooth_move_command(ms_duration: int, target_position: int, t
 
 	network_packet.encode_u8(0, OSSM.Command.SMOOTH_MOVE)
 	network_packet.encode_u32(1, ms_duration)
-	network_packet.encode_u16(5, target_position)
+	command.encode_u16(5, abs(Global.motor_direction * 10000 - target_position))
 	network_packet.encode_u8(7, trans)
 	network_packet.encode_u8(8, ease)
 	network_packet.encode_u8(9, auxiliary)

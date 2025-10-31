@@ -123,12 +123,12 @@ func pulse_controller():
 func send_vibrate_command(duration: int = -1) -> void:
 	if paused or not %WebSocket.ossm_connected:
 		return
-	%OSSMCommand.vibrate(duration, half_period_ms, abs(owner.motor_direction * 10000 - origin_position), range_percent, $Waveform/HSlider.value)
+	%OSSMCommand.vibrate(duration, half_period_ms, abs(Global.motor_direction * 10000 - origin_position), range_percent, $Waveform/HSlider.value)
 
 
 func update_blocked_indicator() -> void:
-	$PositionSlider/MinLimit.visible = owner.motor_direction == 1
-	$PositionSlider/MaxLimit.visible = owner.motor_direction == 0
+	$PositionSlider/MinLimit.visible = Global.motor_direction == 1
+	$PositionSlider/MaxLimit.visible = Global.motor_direction == 0
 
 
 func ui_enabled(enabled: bool) -> void:

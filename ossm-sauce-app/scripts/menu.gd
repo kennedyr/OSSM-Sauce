@@ -35,8 +35,8 @@ func _on_play_pressed():
 	tween(false)
 	%ActionPanel.clear_selections()
 	var index = $Playlist.selected_index
-	if not owner.active_path_index == index:
-		owner.active_path_index = index
+	if not Global.active_path_index == index:
+		Global.active_path_index = index
 		owner.display_active_path_index()
 		$Playlist/Scroll/VBox.get_child(index).set_active()
 		if %WebSocket.ossm_connected:
@@ -67,9 +67,9 @@ func _on_restart_pressed():
 func _on_delete_pressed():
 	flash_button($PathControls/HBox/Delete)
 	var selected_item = $Playlist.selected_index
-	if owner.active_path_index == selected_item:
-		owner.paused = true
-		owner.active_path_index = null
+	if Global.active_path_index == selected_item:
+		Global.paused = true
+		owGlobalner.active_path_index = null
 		$PathControls.hide()
 		%ActionPanel.clear_selections()
 		%ActionPanel/Play.show()
@@ -77,8 +77,8 @@ func _on_delete_pressed():
 		owner.send_command(OSSM.Command.PAUSE)
 		owner.send_command(OSSM.Command.RESET)
 		owner.home_to(0)
-	elif owner.active_path_index != null and selected_item < owner.active_path_index:
-		owner.active_path_index -= 1
+	elif Global.active_path_index != null and selected_item < Global.active_path_index:
+		Global.active_path_index -= 1
 	%PathDisplay/Paths.remove_child(%PathDisplay/Paths.get_child(selected_item))
 	var pl_item = $Playlist/Scroll/VBox.get_child(selected_item)
 	$Playlist/Scroll/VBox.remove_child(pl_item)
@@ -217,13 +217,13 @@ func set_stroke_duration_display_mode(value):
 
 
 func _on_min_stroke_duration_changed(value):
-	owner.min_stroke_duration = value
+	Global.min_stroke_duration = value
 	%LoopControls.reset_stroke_duration_sliders()
 	UserSettings.set_value(UserSettings.Section.stroke_settings, 'min_duration', value)
 
 
 func _on_max_stroke_duration_changed(value):
-	owner.max_stroke_duration = value
+	Global.max_stroke_duration = value
 	%LoopControls.reset_stroke_duration_sliders()
 	UserSettings.set_value(UserSettings.Section.stroke_settings, 'max_duration', value)
 
@@ -282,8 +282,10 @@ func _on_mode_selected(index:int):
 	else:
 		owner.home_to(0)
 	if %WebSocket.ossm_connected:
-		await owner.homing_complete
-	owner.paused = true
+		await Global.homing_complete
+	
+	Global.paused = true
+	
 	%ActionPanel.clear_selections()
 	# Deactivate all modes, then activate the selected one
 	owner.deactivate_move_mode()

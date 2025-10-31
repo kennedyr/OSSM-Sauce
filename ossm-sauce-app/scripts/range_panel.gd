@@ -77,9 +77,9 @@ func update_max_range(label_only := false):
 
 
 func send_range_limits():
-	min_range = abs(owner.motor_direction * 10000 - min_range_limit)
-	max_range = abs(owner.motor_direction * 10000 - max_range_limit)
-	if owner.motor_direction == 0:
+	min_range = abs(Global.motor_direction * 10000 - min_range_limit)
+	max_range = abs(Global.motor_direction * 10000 - max_range_limit)
+	if Global.motor_direction == 0:
 		%OSSMCommand.set_range_limit_min(min_range)
 		%OSSMCommand.set_range_limit_max(max_range)
 	else:
@@ -128,7 +128,7 @@ func tween(activating:bool = true):
 	var positions: Array = [outside_pos, inside_pos]
 	if not activating:
 		positions.reverse()
-	tween.tween_method(set_position, position, positions[1], owner.ANIM_TIME)
+	tween.tween_method(set_position, position, positions[1], Global.ANIM_TIME)
 	var start_color: Color = $BackTexture.self_modulate
 	var end_color: Color = start_color
 	start_color.a = 0
@@ -137,7 +137,7 @@ func tween(activating:bool = true):
 	if not activating:
 		colors.reverse()
 		$BackButton.hide()
-		tween.tween_callback(anim_finished).set_delay(owner.ANIM_TIME)
+		tween.tween_callback(anim_finished).set_delay(Global.ANIM_TIME)
 	else:
 		$BackButton.show()
 	var visuals = [$BackTexture, $LabelBot, $LabelTop]
@@ -146,7 +146,7 @@ func tween(activating:bool = true):
 				node.set_self_modulate,
 				colors[0],
 				colors[1],
-				owner.ANIM_TIME)
+				Global.ANIM_TIME)
 
 
 func anim_finished():
@@ -163,7 +163,7 @@ func _on_back_button_pressed():
 		send_range_limits()
 		%CircleSelection.show_hourglass()
 		%PositionControls.modulate.a = 0.05
-		owner.home_to(abs(owner.motor_direction * 10000 - %PositionControls.last_position))
+		owner.home_to(abs(Global.motor_direction * 10000 - %PositionControls.last_position))
 	$BackButton.hide()
 	tween(false)
 	%ActionPanel.show()
