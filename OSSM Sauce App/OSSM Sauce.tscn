@@ -556,7 +556,7 @@ func _on_accept_pressed():
 
 
 func _on_dont_show_toggled(toggled_on):
-	owner.user_settings.set_value('app_settings', 'show_splash', !toggled_on)
+	UserSettings.set_value(UserSettings.Section.app_settings, 'show_splash', !toggled_on)
 "
 
 [node name="OSSMSauce" type="Control"]

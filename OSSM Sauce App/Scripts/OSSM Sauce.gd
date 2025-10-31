@@ -103,7 +103,9 @@ func _physics_process(delta):
 	if paused or paths[active_path_index].is_empty():
 		return
 	
+	# End of current path
 	if frame >= paths[active_path_index].size() - 1:
+		# There is a next path in playlist
 		if active_path_index < network_paths.size() - 1:
 			var overreach_index = marker_index - network_paths[active_path_index].size() + 1
 			var next_path = network_paths[active_path_index + 1]
@@ -116,6 +118,7 @@ func _physics_process(delta):
 			$Menu/Playlist._on_item_selected(next_path_item)
 			path_list.get_child(next_index).set_active()
 		else:
+			# Loop the playlist
 			if $Menu.loop_playlist:
 				var overreach_index = marker_index - network_paths[active_path_index].size() + 1
 				var next_path = network_paths[0]
@@ -126,6 +129,7 @@ func _physics_process(delta):
 				display_active_path_index(false, false)
 				$Menu/Playlist._on_item_selected(next_path_item)
 				path_list.get_child(0).set_active()
+			# Nothing to do
 			else:
 				pause()
 				$Menu.show_play()
@@ -141,6 +145,7 @@ func _physics_process(delta):
 	if frame == current_marker_frame:
 		if %WebSocket.server_started:
 			if marker_index < active_path.size():
+				# send current frame to 
 				%WebSocket.server.broadcast_binary(active_path[marker_index])
 			elif active_path_index < network_paths.size() - 1:
 				var overreach_index = marker_index - active_path.size()
@@ -318,59 +323,74 @@ func round_to(value: float, decimals: int) -> float:
 
 
 func load_path(filePath:String) -> bool:
-	var file = FileAccess.open(filePath, FileAccess.READ)
-	if not file:
+	var marker_data: Dictionary = parse_file(filePath)
+	if not marker_data:
 		printerr("Error: Failed to read file.")
 		return false
-	
-	var file_data:Dictionary
-	
-	if filePath.ends_with(".funscript"):
-		var file_text = file.get_as_text()
-		
-		file_text = file_text.replace("\n", "")
-		
-		var actions_pattern = RegEx.new()
-		actions_pattern.compile('"[Aa]ctions":\\s*\\[.*?\\]')
-		var actions_regex = actions_pattern.search(file_text)
-		if not actions_regex:
-			actions_pattern.compile('"[Rr]aw[Aa]ctions":\\s*\\[.*?\\]')
-			actions_regex = actions_pattern.search(file_text)
-		if actions_regex:
-			var actions_text = actions_regex.get_string(0)
-			actions_text = actions_text.replace("'", '"')
-			actions_text = actions_text.insert(0, "{")
-			actions_text = actions_text.insert(actions_text.length(), "}")
-			var actions_data = JSON.parse_string(actions_text)
-			if actions_data:
-				var actions_list = actions_data[actions_data.keys()[0]]
-				var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 0)
-				var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
-				file_data[0] = [0, trans, ease, 0]
-				for action in actions_list:
-					var frame:int = action.at / 16.66666
-					var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
-
-					var aux = 0
-					file_data[frame] = [depth, trans, ease, aux]
-			else:
-				print("Failed to parse funscript JSON")
-		else:
-			print("No actions data found in the funscript")
-	else:
-		file_data = JSON.parse_string(file.get_line())
-		if not file_data:
-			printerr("Error: No JSON data found in file.")
-			return false
-	
-	var marker_data:Dictionary = file_data
 	if marker_data.size() < 6:
 		printerr("Error: Insufficient path data in file.")
 		return false
+
+	var network_packets = create_network_packets(marker_data)
+	network_paths.append(network_packets)
 	
+	create_path_lines(marker_data)
+	return true
+
+
+func parse_file(filePath: String) -> Dictionary:
+	var file_data:Dictionary
+	var file = FileAccess.open(filePath, FileAccess.READ)
+	var is_funscript = filePath.ends_with(".funscript")
+
+	if file:
+		if is_funscript:
+			var file_text = file.get_as_text().replace("\n", "")
+			var actions_pattern = RegEx.new()
+			actions_pattern.compile('"[Aa]ctions":\\s*\\[.*?\\]')
+			var actions_regex = actions_pattern.search(file_text)
+			if not actions_regex:
+				actions_pattern.compile('"[Rr]aw[Aa]ctions":\\s*\\[.*?\\]')
+				actions_regex = actions_pattern.search(file_text)
+			if actions_regex:
+				var actions_text = actions_regex.get_string(0)
+				actions_text = actions_text.replace("'", '"')
+				actions_text = actions_text.insert(0, "{")
+				actions_text = actions_text.insert(actions_text.length(), "}")
+				var actions_data = JSON.parse_string(actions_text)
+				if actions_data:
+					var actions_list = actions_data[actions_data.keys()[0]]
+					var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 0)
+					var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
+					file_data[0] = [0, trans, ease, 0]
+					for action in actions_list:
+						var frame: int = action.at / 16.66666
+						var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
+						var aux = 0
+						file_data[frame] = [depth, trans, ease, aux]
+				else:
+					print("Failed to parse funscript JSON")
+			else:
+				print("No actions data found in the funscript")
+		else:
+			file_data = JSON.parse_string(file.get_line())
+			if not file_data:
+				printerr("Error: No JSON data found in file.")
+	file.close()
+
+	return file_data
+
+
+func create_network_packets(marker_data: Dictionary):
+	var previous_ms_timing:int
 	var network_packets:Array
 	for marker_frame in marker_data.keys():
 		var ms_timing = round((float(marker_frame) / 60) * 1000)
+		
+		# override trans type for very short transitions
+		if previous_ms_timing and ms_timing - previous_ms_timing <= 125:
+			marker_data[marker_frame][1] = 0
+
 		var depth = marker_data[marker_frame][0]
 		var trans = marker_data[marker_frame][1]
 		var ease = marker_data[marker_frame][2]
@@ -391,10 +411,12 @@ func load_path(filePath:String) -> bool:
 		#adjusting for physics tick rate change from BounceX (60Hz to 50Hz)
 		marker_data[round(int(marker_frame) / 1.2)] = marker_data[marker_frame]
 		marker_data.erase(marker_frame)
-	
-	network_paths.append(network_packets)
-	
-	file.close()
+		previous_ms_timing = ms_timing
+
+	return network_packets
+
+
+func create_path_lines(marker_data: Dictionary):
 	var previous_depth:float
 	var previous_frame:int
 	var marker_list:Array = marker_data.keys()
@@ -430,10 +452,10 @@ func load_path(filePath:String) -> bool:
 				path_line.add_point(Vector2(x_pos, y_pos))
 		previous_depth = depth
 		previous_frame = marker_frame
+	
 	paths.append(path)
 	markers.append(path_new)
 	$PathDisplay/Paths.add_child(path_line)
-	return true
 
 
 func create_delay(duration:float):

@@ -50,6 +50,7 @@ func _on_add_path(file_path: String):
 	lastPath = file_path.get_base_dir()
 	if owner.load_path(file_path):
 		%Menu/Playlist.add_item(file_path.get_file(), file_path)
+		%MPV.try_load_video(file_path)
 
 
 func _on_load_playlist(file_path: String):

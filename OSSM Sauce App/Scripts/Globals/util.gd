@@ -8,13 +8,16 @@ const PHYSICAL_RANGE_MAX = 10000
 static func safe_map_slider_position(percent:float, min_pos:float, max_pos:float):
 	var position_map = remap(percent, 0, 1, min_pos, max_pos)
 	var position = round(position_map)
-	return position
+	if min_pos < max_pos:
+		return clamp(position, min_pos, max_pos)
+	else:
+		return clamp(position, max_pos, min_pos)
 
 
 static func safe_map_slider_percent(slider_pos:float, min_pos:float, max_pos:float):
 	var percent_map = remap(slider_pos, min_pos, max_pos, 0, 1)
 	var percent = snappedf(percent_map, 0.0001)
-	return percent
+	return clamp(percent, 0, 1)
 	
 
 static func safe_map_physical_position(percent:float):
