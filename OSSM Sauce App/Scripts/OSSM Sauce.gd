@@ -140,12 +140,12 @@ func play(play_time_ms = null):
 	%OSSMCommand.play(play_time_ms)
 	if AppMode.active == AppMode.MOVE and Global.active_path_index != null:
 		Global.paused = false
-		%MPV.play()
+		MPV.play()
 
 
 func pause():
 	if AppMode.active == AppMode.MOVE and Global.active_path_index != null:
-		%MPV.pause()
+		MPV.pause()
 	%OSSMCommand.pause()
 	Global.paused = true
 
@@ -372,7 +372,7 @@ func create_delay(duration:float):
 
 func display_active_path_index(pause := true, send_buffer := true):
 	if pause:
-		%MPV.restart()
+		MPV.restart()
 	Global.paused = pause
 	Global.frame = 0
 	marker_index = 0
