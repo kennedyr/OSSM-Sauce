@@ -33,10 +33,12 @@ void setLEDColor(CRGB color) {
 void initializeConfiguration() {
   initializeLED();  // Initialize RGB LED first
   
-  preferences.begin("ossm_sauce");
+  if (enablePreferences) {
+    preferences.begin("ossm_sauce");
 
-  // Set sensorless homing sensitivity
-  powerAvgRangeMultiplier = preferences.getFloat("homing_trigger", 1.5);
+    // Set sensorless homing sensitivity
+    powerAvgRangeMultiplier = preferences.getFloat("homing_trigger", 1.5);
+  }
   
   Serial.println("");
   Serial.println("=== OSSM Configuration ===");
@@ -258,6 +260,10 @@ void showConfigMenu() {
 
 
 void handleConfigMenu() {
+  if(!enablePreferences) {
+    return;
+  }
+
   showConfigMenu();
   
   while (true) {
@@ -514,12 +520,14 @@ bool connectToWiFiInternal() {
   Serial.println("");
 
   String ssid = WIFI_SSID;
-  if (preferences.isKey("wifi_ssid"))
+  if (enablePreferences && preferences.isKey("wifi_ssid")) {
     ssid = preferences.getString("wifi_ssid");
+  }
 
   String password = WIFI_PASSWORD;
-  if (preferences.isKey("wifi_pass"))
+  if (enablePreferences && preferences.isKey("wifi_pass")) {
     password = preferences.getString("wifi_pass");
+  }
 
   WiFi.begin(ssid.c_str(), password.c_str());
   
@@ -573,20 +581,25 @@ void connectToWiFi() {
 String constructWebSocketAddress() {
   String serverAddress;
   serverAddress += "ws://";
-  if (preferences.isKey("ws_server"))
-    serverAddress += preferences.getString("ws_server");
-  else {
-    // No server configured, enter config mode
-    Serial.println("No WebSocket server configured!");
-    handleConfigMenu();
-    // After config, try again
-    if (preferences.isKey("ws_server")) {
+  if (enablePreferences) {
+    if (preferences.isKey("ws_server"))
       serverAddress += preferences.getString("ws_server");
-    } else {
-      Serial.println("No server configured, using localhost with port 8008");
-      serverAddress += WS_SERVER;  // Fallback
+    else {
+      // No server configured, enter config mode
+      Serial.println("No WebSocket server configured!");
+      handleConfigMenu();
+      // After config, try again
+      if (preferences.isKey("ws_server")) {
+        serverAddress += preferences.getString("ws_server");
+      } else {
+        Serial.println("No server configured, using localhost with port 8008");
+        serverAddress += WS_SERVER;  // Fallback
+      }
     }
+  } else {
+    serverAddress += WS_SERVER;
   }
+
   
   // Add default port if none specified
   if (serverAddress.indexOf(':', 5) == -1) {
