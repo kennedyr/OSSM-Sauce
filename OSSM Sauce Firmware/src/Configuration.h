@@ -35,6 +35,7 @@ enum LEDStatus {
 // Global variables
 extern esp_websocket_client_config_t wsConfig;
 extern esp_websocket_client_handle_t wsClient;
+const bool enablePreferences = false;
 extern Preferences preferences;
 extern CRGB leds[NUM_LEDS];
 

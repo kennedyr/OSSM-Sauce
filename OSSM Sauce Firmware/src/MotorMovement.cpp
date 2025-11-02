@@ -187,7 +187,7 @@ void sensorlessHoming() {
   // Set hard limits
   float hardLimitBuffer = abs(limitPhysicalMax - limitPhysicalMin) * 0.06;
 
-  if (preferences.getBool("motor_reversed", false)) {
+  if (enablePreferences && preferences.getBool("motor_reversed", false)) {
     rangeLimitHardMin = limitPhysicalMax - hardLimitBuffer;
     rangeLimitHardMax = limitPhysicalMin + hardLimitBuffer;
   } else {

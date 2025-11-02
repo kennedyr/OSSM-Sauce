@@ -281,8 +281,10 @@ void parseMessage(esp_websocket_event_data_t *data) {
     case SET_HOMING_TRIGGER: {
       float homingTriggerInput;
       memcpy(&homingTriggerInput, message + 1, 4);
-      powerAvgRangeMultiplier = constrain(homingTriggerInput, 0.1, 10) ;
-      preferences.putFloat("homing_trigger", powerAvgRangeMultiplier);
+      powerAvgRangeMultiplier = constrain(homingTriggerInput, 0.1, 2);
+      if(enablePreferences) {
+        preferences.putFloat("homing_trigger", powerAvgRangeMultiplier);
+      }
       break;
     }
 
