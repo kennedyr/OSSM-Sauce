@@ -18,6 +18,8 @@ enum Section {
 	mcp_settings
 }
 
+const readonly = true
+
 static var _user_settings_path: String = ""
 static var _user_settings: ConfigFile = null
 static var user_settings: ConfigFile:
@@ -53,7 +55,9 @@ static func set_value(section: Section, key: String, value: Variant):
 	user_settings.set_value(sectionKey, key, value)
 
 static func clear():
-	user_settings.clear()
+	if (!readonly):
+		user_settings.clear()
 
 static func save():
-	user_settings.save(_user_settings_path)
+	if (!readonly):
+		user_settings.save(_user_settings_path)
