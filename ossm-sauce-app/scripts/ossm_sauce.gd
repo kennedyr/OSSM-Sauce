@@ -68,10 +68,11 @@ var marker_index: int
 func _physics_process(delta) -> void:
 	if Global.paused or Global.active_path_index == null:
 		return
-	if funscripts[Global.active_path_index].paths.is_empty():
-		return
 
 	var current_funscript = funscripts[Global.active_path_index]
+	if current_funscript.paths.is_empty():
+		return
+
 	var total_frames: int = current_funscript.paths.size()
 	# End of current path
 	if Global.frame >= total_frames - 1:
@@ -100,12 +101,14 @@ func _physics_process(delta) -> void:
 				%WebSocket.server.broadcast_binary(active_path[marker_index])
 			elif Global.active_path_index < network_paths.size() - 1:
 				var overreach_index = marker_index - active_path.size()
-				var next_path = funscripts[Global.active_path_index + 1].network_paths
+				var next_funscript = funscripts[Global.active_path_index + 1]
+				var next_path = next_funscript.network_paths
 				if overreach_index < next_path.size():
 					%WebSocket.server.broadcast_binary(next_path[overreach_index])
 			elif $Menu.loop_playlist:
 				var overreach_index = marker_index - active_path.size()
-				var next_path = funscripts[0].network_paths
+				var next_funscript = funscripts[0]
+				var next_path = next_funscript.network_paths
 				if overreach_index < next_path.size():
 					%WebSocket.server.broadcast_binary(next_path[overreach_index])
 		if current_marker < frames.size() - 1:
@@ -268,9 +271,6 @@ func seek_to(play_time_ms:int):
 		%OSSMCommand.reset()
 		%WebSocket.server.broadcast_binary(current_funscript.network_paths[marker_index])
 		marker_index += 1
-		#while marker_index < 6:
-			#%WebSocket.server.broadcast_binary(network_paths[Global.active_path_index][marker_index])
-			#marker_index += 1
 	Global.next_play_time_ms = play_time_ms
 	MPV.seek_to(play_time_ms)
 	var original_path_start_position = ($PathDisplay/PathArea.size.x / 2) + path_speed
@@ -490,7 +490,6 @@ func create_delay(duration: float):
 
 
 func display_active_path_index(pause := true, send_buffer := true):
-	var current_funscript = funscripts[Global.active_path_index]
 	if pause:
 		MPV.restart()
 	Global.paused = pause
@@ -499,6 +498,7 @@ func display_active_path_index(pause := true, send_buffer := true):
 	play_offset_ms = 0
 	$SeekSlider.set_value_no_signal(0)
 	update_time_display()
+	var current_funscript = funscripts[Global.active_path_index]
 	if send_buffer:
 		if %WebSocket.ossm_connected:
 			%OSSMCommand.reset()
