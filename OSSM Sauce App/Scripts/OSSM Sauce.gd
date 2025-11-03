@@ -54,10 +54,10 @@ var marker_index:int
 func _physics_process(_delta):
 	if Global.paused or Global.active_path_index == null:
 		return
-	if funscripts[Global.active_path_index].paths.is_empty():
+	var current_funscript = funscripts[Global.active_path_index]
+	if current_funscript.paths.is_empty():
 		return
 
-	var current_funscript = funscripts[Global.active_path_index]
 	# End of current path
 	if Global.frame >= current_funscript.paths.size() - 1:
 		# There is a next path in playlist
@@ -105,11 +105,13 @@ func _physics_process(_delta):
 				%WebSocket.server.broadcast_binary(active_path[marker_index])
 			elif Global.active_path_index < funscripts.size() - 1:
 				var overreach_index = marker_index - active_path.size()
-				var next_path = funscripts[Global.active_path_index + 1].network_paths
+				var next_funscript = funscripts[Global.active_path_index + 1]
+				var next_path = next_funscript.network_paths
 				%WebSocket.server.broadcast_binary(next_path[overreach_index])
 			elif $Menu.loop_playlist:
 				var overreach_index = marker_index - active_path.size()
-				var next_path = funscripts[0].network_paths
+				var next_funscript = funscripts[0]
+				var next_path = next_funscript.network_paths
 				%WebSocket.server.broadcast_binary(next_path[overreach_index])
 		if current_marker < marker_list.size() - 1:
 			marker_index += 1
@@ -175,9 +177,6 @@ func seek_to(play_time_ms:int):
 		%OSSMCommand.reset()
 		%WebSocket.server.broadcast_binary(current_funscript.network_paths[marker_index])
 		marker_index += 1
-		#while marker_index < 6:
-			#%WebSocket.server.broadcast_binary(network_paths[Global.active_path_index][marker_index])
-			#marker_index += 1
 	Global.next_play_time_ms = play_time_ms
 	MPV.seek_to(play_time_ms)
 	var original_path_start_position = ($PathDisplay/PathArea.size.x / 2) + path_speed
@@ -334,11 +333,12 @@ func display_active_path_index(pause := true, send_buffer := true):
 	Global.paused = pause
 	Global.frame = 0
 	marker_index = 0
+	var current_funscript = funscripts[Global.active_path_index]
 	if send_buffer:
 		if %WebSocket.ossm_connected:
 			%OSSMCommand.reset()
 			while marker_index < 6:
-				%WebSocket.server.broadcast_binary(funscripts[Global.active_path_index].network_paths[marker_index])
+				%WebSocket.server.broadcast_binary(current_funscript.network_paths[marker_index])
 				marker_index += 1
 	else:
 		marker_index = 6
