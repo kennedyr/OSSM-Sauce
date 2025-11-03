@@ -240,7 +240,7 @@ func _translate_and_forward(tcode_cmd: String):
 			var trans:int = %BridgeControls.auto_smoothing
 			var ease:int = EASE_IN_OUT
 			var auxiliary:int = 0
-			var move_cmd = %OSSMCommand.create_move_command(ms_timing, depth, trans, ease, auxiliary)
+			var move_cmd = OSSMCommand.create_move_command(ms_timing, depth, trans, ease, auxiliary)
 			send_smooth_move_command(interval, depth, trans, ease, auxiliary)
 
 		elif type == "V":
