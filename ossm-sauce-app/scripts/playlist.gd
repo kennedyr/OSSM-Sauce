@@ -56,17 +56,9 @@ func move_item(current_index, new_index):
 	%PathDisplay/Paths.move_child(path, new_index)
 	selected_index = new_index
 	
-	var path_data = owner.paths[current_index]
-	owner.paths.remove_at(current_index)
-	owner.paths.insert(new_index, path_data)
-	
-	var marker_data = owner.marker_frames[current_index]
-	owner.marker_frames.remove_at(current_index)
-	owner.marker_frames.insert(new_index, marker_data)
-	
-	var network_data = owner.network_paths[current_index]
-	owner.network_paths.remove_at(current_index)
-	owner.network_paths.insert(new_index, network_data)
+	var funscript_data = owner.funscripts[current_index]
+	owner.funscripts.remove_at(current_index)
+	owner.funscripts.insert(new_index, funscript_data)
 	
 	if Global.active_path_index == current_index:
 		Global.active_path_index = new_index
@@ -101,9 +93,7 @@ func clear():
 		%Menu/PathControls.hide()
 		if not Global.paused:
 			%Menu._on_pause_pressed()
-	owner.paths.clear()
-	owner.marker_frames.clear()
-	owner.network_paths.clear()
+	owner.funscripts.clear()
 	for item in $Scroll/VBox.get_children():
 		$Scroll/VBox.remove_child(item)
 	for path in %PathDisplay/Paths.get_children():

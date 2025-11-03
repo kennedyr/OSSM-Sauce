@@ -16,9 +16,7 @@ var path_speed: int = 30
 
 var _seek_dragging := false
 
-var paths: Array
-var marker_frames: Array
-var network_paths: Array
+var funscripts: Array
 
 var buffer_sent: int
 var play_offset_ms: int
@@ -68,14 +66,17 @@ func _ready():
 
 var marker_index: int
 func _physics_process(delta) -> void:
-	if Global.paused or paths[Global.active_path_index].is_empty():
+	if Global.paused or Global.active_path_index == null:
 		return
-	
-	var total_frames: int = paths[Global.active_path_index].size()
+	if funscripts[Global.active_path_index].paths.is_empty():
+		return
+
+	var current_funscript = funscripts[Global.active_path_index]
+	var total_frames: int = current_funscript.paths.size()
 	# End of current path
 	if Global.frame >= total_frames - 1:
 		# There is a next path in playlist
-		if Global.active_path_index < network_paths.size() - 1:
+		if Global.active_path_index < funscripts.size() - 1:
 			transition_to_path(Global.active_path_index + 1)
 		elif $Menu.loop_playlist:
 			# Loop the playlist
@@ -89,8 +90,8 @@ func _physics_process(delta) -> void:
 			$CircleSelection.show_restart()
 		return
 	
-	var frames = marker_frames[Global.active_path_index]
-	var active_path = network_paths[Global.active_path_index]
+	var frames = current_funscript.marker_frames
+	var active_path = current_funscript.network_paths
 	var current_marker = marker_index - buffer_sent
 	if current_marker < frames.size() and Global.frame == frames[current_marker]:
 		if %WebSocket.server_started:
@@ -99,24 +100,28 @@ func _physics_process(delta) -> void:
 				%WebSocket.server.broadcast_binary(active_path[marker_index])
 			elif Global.active_path_index < network_paths.size() - 1:
 				var overreach_index = marker_index - active_path.size()
-				var next_path = network_paths[Global.active_path_index + 1]
+				var next_path = funscripts[Global.active_path_index + 1].network_paths
 				if overreach_index < next_path.size():
 					%WebSocket.server.broadcast_binary(next_path[overreach_index])
 			elif $Menu.loop_playlist:
 				var overreach_index = marker_index - active_path.size()
-				var next_path = network_paths[0]
+				var next_path = funscripts[0].network_paths
 				if overreach_index < next_path.size():
 					%WebSocket.server.broadcast_binary(next_path[overreach_index])
 		if current_marker < frames.size() - 1:
 			marker_index += 1
 	
-	var depth: float = paths[Global.active_path_index][Global.frame]
+	var depth: float = current_funscript.paths[Global.frame]
 	var ms_timing: int = round((float(Global.frame) / 50) * 1000)
 	var minutes: int = floori(ms_timing / 60000.0)
 	var seconds: int = floori((ms_timing % 60000) / 1000)
 	$PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
 	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
+	
+	var chapter = current_funscript.get_current_chapter_name(ms_timing)
+	if chapter:
+		$PathDisplay/TimeLabel.text += " - " + chapter
 
 	if not _seek_dragging:
 		$SeekSlider.set_value_no_signal(float(Global.frame) / (total_frames - 1))
@@ -126,8 +131,12 @@ func _physics_process(delta) -> void:
 
 
 func transition_to_path(next_index: int):
-	var overreach_sent = maxi(marker_index - network_paths[Global.active_path_index].size(), 0)
-	var next_path = network_paths[next_index]
+	var current_funscript = funscripts[Global.active_path_index]
+	var overreach_sent = maxi(marker_index - current_funscript.network_paths.size(), 0)
+
+	var next_funscript = funscripts[next_index]
+	var next_path = next_funscript.network_paths
+
 	Global.active_path_index = next_index
 	display_active_path_index(false, false)
 	# Top up buffer if overreach didn't cover it
@@ -166,6 +175,9 @@ func play():
 	if AppMode.active == AppMode.MOVE and Global.active_path_index != null:
 		Global.paused = false
 		play_offset_ms = int(Global.frame * 1000.0 / ticks_per_second)
+		var next_play_time_ms = Global.next_play_time_ms
+		if next_play_time_ms:
+			play_offset_ms = next_play_time_ms
 		MPV.play()
 	if %WebSocket.ossm_connected:
 		if AppMode.active == AppMode.MOVE:
@@ -241,6 +253,38 @@ func pause():
 	nudge.encode_u16(5, clampi(depth_val, 0, 10000))
 	%WebSocket.server.broadcast_binary(nudge)
 
+func seek_to(play_time_ms:int):
+	print("seek_to ", play_time_ms)
+	if not Global.paused:
+		print("Must be paused to seek")
+		return
+
+	var current_funscript = funscripts[Global.active_path_index]
+	var frame = round((play_time_ms / 1000.0) * 50)
+	print("seek_to frame", frame)
+	Global.frame = frame
+	marker_index = current_funscript._find_prev_marker_for_frame(frame)
+	if %WebSocket.ossm_connected:
+		%OSSMCommand.reset()
+		%WebSocket.server.broadcast_binary(current_funscript.network_paths[marker_index])
+		marker_index += 1
+		#while marker_index < 6:
+			#%WebSocket.server.broadcast_binary(network_paths[Global.active_path_index][marker_index])
+			#marker_index += 1
+	Global.next_play_time_ms = play_time_ms
+	MPV.seek_to(play_time_ms)
+	var original_path_start_position = ($PathDisplay/PathArea.size.x / 2) + path_speed
+	$PathDisplay/Paths.get_child(Global.active_path_index).position.x = original_path_start_position - (frame * path_speed)
+	var new_current_depth = render_depth(current_funscript.paths[(frame - 1 if frame > 0 else 0)])
+	$PathDisplay/Ball.position.y = new_current_depth
+	
+	var minutes: int = floori(play_time_ms / 60000.0)
+	var seconds: int = floori((play_time_ms % 60000) / 1000.0)
+
+	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
+	var chapter = current_funscript.get_current_chapter_name(play_time_ms)
+	if chapter:
+		$PathDisplay/TimeLabel.text += " - " + chapter
 
 func check_root_directory():
 	if OS.get_name() == 'Android':
@@ -371,109 +415,19 @@ func round_to(value: float, decimals: int) -> float:
 
 
 func load_path(filePath: String) -> bool:
-	var marker_data: Dictionary = parse_file(filePath)
-	if not marker_data:
+	var funscript = Funscript.new(filePath, ticks_per_second, PATH_TOP, PATH_BOTTOM)
+	if not funscript._marker_data:
 		printerr("Error: Failed to read file.")
 		return false
 
-	if marker_data.size() < 6:
+	if funscript._marker_data.size() < 6:
 		printerr("Error: Insufficient path data in file.")
 		return false
 
-	var network_packets = create_network_packets(marker_data)
-	network_paths.append(network_packets)
-	
-	create_path_lines(marker_data)
+	funscripts.append(funscript)
+	create_path_lines(funscript._marker_data)
+
 	return true
-
-
-func parse_file(filePath: String) -> Dictionary:
-	var file_data:Dictionary
-	var file = FileAccess.open(filePath, FileAccess.READ)
-	var is_funscript = filePath.ends_with(".funscript")
-
-	var file_text := file.get_as_text()
-	file.close()
-	
-	if file:
-		if is_funscript:
-			file_text = file_text.replace("\n", "")
-			var parsed_funscript = JSON.parse_string(file_text)
-			var inverted := false
-			if parsed_funscript is Dictionary and parsed_funscript.get("inverted", false):
-				inverted = true
-		
-			var actions_pattern = RegEx.new()
-			actions_pattern.compile('"[Aa]ctions":\\s*\\[.*?\\]')
-			var actions_regex = actions_pattern.search(file_text)
-			if not actions_regex:
-				actions_pattern.compile('"[Rr]aw[Aa]ctions":\\s*\\[.*?\\]')
-				actions_regex = actions_pattern.search(file_text)
-			if actions_regex:
-				var actions_text = actions_regex.get_string(0)
-				actions_text = actions_text.replace("'", '"')
-				actions_text = actions_text.insert(0, "{")
-				actions_text = actions_text.insert(actions_text.length(), "}")
-				var actions_data = JSON.parse_string(actions_text)
-				if actions_data:
-					var actions_list = actions_data[actions_data.keys()[0]]
-					var first_depth = round_to(clamp(actions_list[0].pos / 100, 0, 1), 4)
-					if inverted:
-						first_depth = round_to(1.0 - first_depth, 4)
-					var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 0)
-					var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
-					file_data[0] = [first_depth, trans, ease, 0]
-					for action in actions_list:
-						var frame: int = action.at / (1000.0 / 60.0)
-						var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
-						if inverted:
-							depth = round_to(1.0 - depth, 4)
-						file_data[frame] = [depth, trans, ease, 0]
-				else:
-					printerr("Failed to parse funscript JSON")
-			else:
-				printerr("No actions data found in the funscript")
-		else:
-			file_data = JSON.parse_string(file_text)
-			if not file_data:
-				printerr("Error: No JSON data found in file.")
-				return false
-			if file_data.has("meta"):
-				var meta = file_data["meta"]
-				if meta is Dictionary and meta.has("video_offset_ms"):
-					%VideoPlayer/Main/VideoOffset/Input.value = meta["video_offset_ms"]
-			if file_data.has("markers"):
-				file_data = file_data["markers"]
-		
-	return file_data
-
-func create_network_packets(marker_data: Dictionary):
-	var previous_ms_timing:int
-	var network_packets: Array
-
-	var sorted_keys := marker_data.keys()
-	sorted_keys.sort_custom(func(a, b): return int(a) < int(b))
-	
-	for marker_frame in sorted_keys:
-		var marker = marker_data[marker_frame]
-		var ms_timing := int(round((float(marker_frame) / 60) * 1000))
-		
-		# override trans type for very short transitions
-		if previous_ms_timing and ms_timing - previous_ms_timing <= 125:
-			marker[1] = 0
-
-		var depth = marker[0]
-		var trans = marker[1]
-		var ease = marker[2]
-		var auxiliary:int = marker[3]
-		network_packets.append(%OSSMCommand.create_move_command(ms_timing, Util.safe_map_physical_position(depth), trans, ease, auxiliary))
-		# Adjust for physics tick rate change from BounceX (60Hz to 50Hz)
-		marker_data[round(int(marker_frame) / 1.2)] = marker
-		marker_data.erase(marker_frame)
-		previous_ms_timing = ms_timing
-
-	return network_packets
-	
 
 func create_path_lines(marker_data: Dictionary):
 	var previous_depth: float
@@ -514,6 +468,7 @@ func create_path_lines(marker_data: Dictionary):
 
 
 func create_delay(duration: float):
+	var current_funscript = funscripts[Global.active_path_index]
 	var delay_path: PackedFloat32Array
 	var path_line := Line2D.new()
 	path_line.hide()
@@ -522,19 +477,20 @@ func create_delay(duration: float):
 	var frames: PackedInt32Array
 	var network_packets: Array
 	for timing in 6:
-		var move_command = create_move_command(timing, 0, 0, 0, 0)
+		var move_command = OSSMCommand.create_move_command(timing, 0, 0, 0, 0)
 		network_packets.append(move_command)
 		frames.append(timing)
-	var end_move = create_move_command(duration * 1000, 0, 0, 0, 0)
+	var end_move = OSSMCommand.create_move_command(duration * 1000, 0, 0, 0, 0)
 	network_packets.append(end_move)
-	network_paths.append(network_packets)
-	paths.append(delay_path)
-	marker_frames.append(frames)
+	current_funscript.network_paths.append(network_packets)
+	current_funscript.paths.append(delay_path)
+	current_funscript.marker_frames.append(frames)
 	$PathDisplay/Paths.add_child(path_line)
 	$Menu/Playlist.add_item("delay(%s)" % [duration])
 
 
 func display_active_path_index(pause := true, send_buffer := true):
+	var current_funscript = funscripts[Global.active_path_index]
 	if pause:
 		MPV.restart()
 	Global.paused = pause
@@ -546,14 +502,14 @@ func display_active_path_index(pause := true, send_buffer := true):
 	if send_buffer:
 		if %WebSocket.ossm_connected:
 			%OSSMCommand.reset()
-			var start_depth:float = paths[Global.active_path_index][0]
+			var start_depth:float = current_funscript.paths[0]
 			home_to(round(start_depth * 10000))
 			await Global.homing_complete
 			if not %WebSocket.ossm_connected:
 				return
 			buffer_sent = 0
-			while buffer_sent < 6 and marker_index < network_paths[Global.active_path_index].size():
-				%WebSocket.server.broadcast_binary(network_paths[Global.active_path_index][marker_index])
+			while buffer_sent < 6 and marker_index < current_funscript.network_paths.size():
+				%WebSocket.server.broadcast_binary(current_funscript.network_paths[marker_index])
 				marker_index += 1
 				buffer_sent += 1
 	else:
@@ -569,7 +525,7 @@ func display_active_path_index(pause := true, send_buffer := true):
 	var path = $PathDisplay/Paths.get_child(Global.active_path_index)
 	path.position.x = ($PathDisplay/PathArea.size.x / 2) + path_speed
 	path.show()
-	$PathDisplay/Ball.position.y = render_depth(paths[Global.active_path_index][0])
+	$PathDisplay/Ball.position.y = render_depth(current_funscript.paths[0])
 	$PathDisplay/Ball.show()
 	$PathDisplay.show()
 	if %VideoPlayer.is_active() and AppMode.active == AppMode.MOVE:
@@ -698,6 +654,7 @@ func activate_move_mode():
 	%Menu/Main/PathButtons.show()
 	%Menu/Main/LoopAndVideoButtons/LoopPlaylistButton.show()
 	%Menu/Main/LoopAndVideoButtons/VideoPlayerSync.show()
+	%Menu/MoreButtons.show()
 	%Menu/PathControls.show()
 	%Menu/Playlist.show()
 	if Global.active_path_index != null:
@@ -720,6 +677,7 @@ func deactivate_move_mode():
 	%Menu/Main/PathButtons.hide()
 	%Menu/Main/LoopAndVideoButtons/LoopPlaylistButton.hide()
 	%Menu/Main/LoopAndVideoButtons/VideoPlayerSync.hide()
+	%Menu/MoreButtons.hide()
 	%Menu/PathControls.hide()
 	%Menu/Playlist.hide()
 

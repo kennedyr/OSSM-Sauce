@@ -7,7 +7,7 @@ var path_speed:int = 30
 
 var _marker_data: Dictionary
 var paths:PackedFloat32Array
-var markers:Dictionary
+var marker_frames:Dictionary
 var network_paths:Array
 var chapters:Dictionary
 var PATH_TOP
@@ -43,85 +43,96 @@ func parse_file(filePath: String) -> Dictionary:
 	var file_data:Dictionary
 	var chapt:Array
 	var file = FileAccess.open(filePath, FileAccess.READ)
+	var file_text := file.get_as_text()
+	file.close()
+	
 	var is_funscript = filePath.ends_with(".funscript")
 
 	if file:
 		if is_funscript:
-			var file_text = file.get_as_text().replace("\n", "")
-			var temp_file_data:Dictionary = JSON.parse_string(file_text)
-			var action_data: Array
-			print("temp_file_data ", temp_file_data.keys())
-			if "actions" in temp_file_data:
-				action_data = temp_file_data["actions"]
-			elif "Actions" in temp_file_data:
-				action_data = temp_file_data["Actions"]
-			elif "rawActions" in temp_file_data:
-				action_data = temp_file_data["rawActions"]
-			elif "RawActions" in temp_file_data:
-				action_data = temp_file_data["RawActions"]
-			else:
-				print("No actions data found in the funscript")
+			file_text = file_text.replace("\n", "")
+			var parsed_funscript = JSON.parse_string(file_text)
+			var inverted := false
+			if parsed_funscript is Dictionary:
+				if parsed_funscript.get("inverted", false):
+					inverted = true
+				if "metadata" in parsed_funscript:
+					var meta = parsed_funscript["metadata"]
+					if "chapters" in meta:
+						chapt = meta["chapters"]
 
-			if "metadata" in temp_file_data:
-				var meta = temp_file_data["metadata"]
-				if "chapters" in meta:
-					chapt = meta["chapters"]
-				
-			if action_data:
-				var actions_list = action_data
-				var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 1)
-				@warning_ignore("shadowed_global_identifier")
-				var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
-				file_data[0] = [0, trans, ease, 0]
-				for action in actions_list:
-					var frame: int = action.at / 16.66666
-					var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
-					var aux = 0
-					file_data[frame] = [depth, trans, ease, aux]
+			var actions_pattern = RegEx.new()
+			actions_pattern.compile('"[Aa]ctions":\\s*\\[.*?\\]')
+			var actions_regex = actions_pattern.search(file_text)
+			if not actions_regex:
+				actions_pattern.compile('"[Rr]aw[Aa]ctions":\\s*\\[.*?\\]')
+				actions_regex = actions_pattern.search(file_text)
+			if actions_regex:
+				var actions_text = actions_regex.get_string(0)
+				actions_text = actions_text.replace("'", '"')
+				actions_text = actions_text.insert(0, "{")
+				actions_text = actions_text.insert(actions_text.length(), "}")
+				var actions_data = JSON.parse_string(actions_text)
+				if actions_data:
+					var actions_list = actions_data[actions_data.keys()[0]]
+					var first_depth = round_to(clamp(actions_list[0].pos / 100, 0, 1), 4)
+					if inverted:
+						first_depth = round_to(1.0 - first_depth, 4)
+					var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 0)
+					var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
+					file_data[0] = [first_depth, trans, ease, 0]
+					for action in actions_list:
+						var frame: int = action.at / (1000.0 / 60.0)
+						var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
+						if inverted:
+							depth = round_to(1.0 - depth, 4)
+						file_data[frame] = [depth, trans, ease, 0]
+				else:
+					printerr("Failed to parse funscript JSON")
 			else:
-				print("Failed to parse funscript JSON")
+				printerr("No actions data found in the funscript")
 		else:
-			file_data = JSON.parse_string(file.get_line())
+			file_data = JSON.parse_string(file_text)
 			if not file_data:
 				printerr("Error: No JSON data found in file.")
-	file.close()
-
+				return false
+			if file_data.has("meta"):
+				var meta = file_data["meta"]
+				if meta is Dictionary and meta.has("video_offset_ms"):
+					%VideoPlayer/Main/VideoOffset/Input.value = meta["video_offset_ms"]
+			if file_data.has("markers"):
+				file_data = file_data["markers"]
+		
 	return { 
 		"actions": file_data,
 		"chapters": chapt
 	}
 
-
+	
 func create_network_packets(marker_data: Dictionary):
 	var previous_ms_timing:int
-	var network_packets:Array
-	for marker_frame in marker_data.keys():
-		var ms_timing = round((float(marker_frame) / 60) * 1000)
+	var network_packets: Array
+
+	var sorted_keys := marker_data.keys()
+	sorted_keys.sort_custom(func(a, b): return int(a) < int(b))
+	
+	for marker_frame in sorted_keys:
+		var marker = marker_data[marker_frame]
+		var ms_timing := int(round((float(marker_frame) / 60) * 1000))
 		
 		# override trans type for very short transitions
 		if previous_ms_timing and ms_timing - previous_ms_timing <= 125:
-			marker_data[marker_frame][1] = 0
+			marker[1] = 0
 
-		var depth = marker_data[marker_frame][0]
-		var trans = marker_data[marker_frame][1]
+		var depth = marker[0]
+		var trans = marker[1]
 		@warning_ignore("shadowed_global_identifier")
-		var ease = marker_data[marker_frame][2]
-		var auxiliary:int = marker_data[marker_frame][3]
-		
+		var ease = marker[2]
+		var auxiliary:int = marker[3]
 		var network_packet = OSSMCommand.create_move_command(ms_timing, Util.safe_map_physical_position(depth), trans, ease, auxiliary)
-		#if auxiliary & 1 << 1:
-			#network_packet.resize(13)
-			#network_packet.encode_u8(0, OSSM.Command.VIBRATE)
-			#network_packet.encode_s32(1, -1)
-			#network_packet.encode_u32(5, 10)
-			#network_packet.encode_u16(9, round(remap(depth, 0, 1, 0, 10000)))
-			#network_packet.encode_u8(11, 5)
-			#network_packet.encode_u8(12, 100)
-		#else:
 		network_packets.append(network_packet)
-		
-		#adjusting for physics tick rate change from BounceX (60Hz to 50Hz)
-		marker_data[round(int(marker_frame) / 1.2)] = marker_data[marker_frame]
+		# Adjust for physics tick rate change from BounceX (60Hz to 50Hz)
+		marker_data[round(int(marker_frame) / 1.2)] = marker
 		marker_data.erase(marker_frame)
 		previous_ms_timing = ms_timing
 
@@ -162,7 +173,7 @@ func create_path_lines(marker_data: Dictionary):
 		previous_frame = marker_frame
 	
 	paths = path
-	markers = path_new
+	marker_frames = path_new
 
 
 @warning_ignore("shadowed_variable")
@@ -187,7 +198,7 @@ func render_depth(depth) -> float:
 
 
 func _find_prev_marker_for_frame(frame: int):
-	var marker_list_keys = markers.keys()
+	var marker_list_keys = marker_frames.keys()
 	var future_keys = marker_list_keys.filter(func(number): return number >= frame)
 	future_keys.sort()
 	var next_marker_frame = future_keys.pop_front()

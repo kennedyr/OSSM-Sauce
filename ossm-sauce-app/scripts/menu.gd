@@ -82,9 +82,7 @@ func _on_delete_pressed():
 	%PathDisplay/Paths.remove_child(%PathDisplay/Paths.get_child(selected_item))
 	var pl_item = $Playlist/Scroll/VBox.get_child(selected_item)
 	$Playlist/Scroll/VBox.remove_child(pl_item)
-	owner.paths.remove_at(selected_item)
-	owner.marker_frames.remove_at(selected_item)
-	owner.network_paths.remove_at(selected_item)
+	owner.funscripts.remove_at(selected_item)
 	$Playlist.selected_index = null
 	if $Playlist/Scroll/VBox.get_child_count() == 0:
 		$Main/PlaylistButtons/SavePlaylist.disabled = true
