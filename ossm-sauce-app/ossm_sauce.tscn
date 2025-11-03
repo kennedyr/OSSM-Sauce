@@ -357,6 +357,95 @@ func _on_dont_show_toggled(toggled_on):
 	UserSettings.set_value(UserSettings.Section.app_settings, 'show_splash', !toggled_on)
 "
 
+[sub_resource type="GDScript" id="GDScript_3opsr"]
+script/source = "extends Control
+@onready var Item:Panel = $Box/VBoxContainer/Item
+
+func _ready():
+	$Box/VBoxContainer.remove_child(Item)
+	Global.active_path_index_changed.connect(_on_active_path_index_changed)
+
+
+func _on_active_path_index_changed():
+	var node = $Box/VBoxContainer
+	for n in node.get_children():
+		node.remove_child(n)
+		n.queue_free()
+	var chapters = owner.funscripts[Global.active_path_index].chapters
+	for key in chapters:
+		var chapterBegin = chapters[key]
+		add_item(key, chapterBegin)
+
+
+func add_item(item_text:String, chapterBegin:String):
+	var item = Item.duplicate()
+	item.get_node('Label').text = item_text
+	item.get_node('FilePath').text = str(chapterBegin)
+	$Box/VBoxContainer.add_child(item)
+	var item_button = item.get_node('Button')
+	item_button.connect('pressed', _on_item_selected.bind(item))
+
+
+func deselect_all():
+	for item in $Box/VBoxContainer.get_children():
+		item.deselect()
+
+
+func _on_item_selected(item):
+	deselect_all()
+	item.select()
+	var textVal = item.get_node('FilePath').text
+	var floatVal = parse_time(textVal)
+	$Box/HBox2/SpinBox.value = floatVal
+
+
+func parse_time(time_string: String):
+	var segments: PackedStringArray = time_string.split(\":\")
+	var length = segments.size()
+	var seconds
+	var minutes
+	var hours
+	if length >= 1:
+		seconds = segments[length - 1]
+	if length >= 2:
+		minutes = segments[length - 2]
+	if length >= 3:
+		hours = segments[length - 3]
+
+	return float(seconds) + int(minutes) * 60 + int(hours) * 60 * 60
+
+
+func _on_seek_to_pressed():
+	var duration:float = $Box/HBox2/SpinBox.value
+	owner.seek_to(duration * 1000)
+	close()
+
+
+func close():
+	%Menu.show_menu_buttons()
+	%Menu/Header.show()
+	%Menu.refresh_selection()
+	hide()
+
+
+func _on_back_pressed():
+	close()
+"
+
+[sub_resource type="GDScript" id="GDScript_vmpig"]
+script/source = "extends Panel
+
+func select():
+	$Label.self_modulate = Color.SANDY_BROWN
+	self_modulate = Color.SLATE_GRAY
+
+func deselect():
+	self_modulate.a = 0.7
+	self_modulate = Color.WHITE
+	$Label.self_modulate = Color.WHITE
+	$Label.self_modulate.a = 0.765
+"
+
 [node name="OSSMSauce" type="Control" unique_id=732584772]
 layout_mode = 3
 anchors_preset = 15
@@ -2061,6 +2150,15 @@ layout_mode = 2
 theme_override_constants/separation = 50
 alignment = 1
 
+[node name="MoreButtons" type="HBoxContainer" parent="Menu/Main"]
+layout_mode = 0
+offset_left = -96.0
+offset_top = 436.0
+offset_right = 984.0
+offset_bottom = 532.0
+theme_override_constants/separation = 117
+alignment = 1
+
 [node name="LoopPlaylistButton" type="Button" parent="Menu/Main/LoopAndVideoButtons" unique_id=994928288]
 layout_mode = 2
 size_flags_horizontal = 4
@@ -2068,6 +2166,12 @@ theme_override_colors/font_pressed_color = Color(0, 0.815686, 0.627451, 1)
 theme_override_font_sizes/font_size = 54
 toggle_mode = true
 text = "Loop Playlist: OFF"
+
+[node name="SeekTo" type="Button" parent="Menu/Main/MoreButtons"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 64
+disabled = true
+text = "Seek To"
 
 [node name="VideoPlayerSync" type="Button" parent="Menu/Main/LoopAndVideoButtons" unique_id=741368855]
 layout_mode = 2
@@ -2958,6 +3062,130 @@ grow_horizontal = 0
 grow_vertical = 0
 theme_override_font_sizes/font_size = 40
 horizontal_alignment = 2
+
+
+[node name="SeekTo" type="Control" parent="Menu"]
+visible = false
+self_modulate = Color(0, 1, 1, 1)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = SubResource("GDScript_3opsr")
+
+[node name="Box" type="Control" parent="Menu/SeekTo"]
+self_modulate = Color(0, 1, 1, 1)
+layout_mode = 1
+anchor_top = 0.166146
+anchor_right = 1.0
+anchor_bottom = 0.8989583
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
+
+[node name="Panel" type="Panel" parent="Menu/SeekTo/Box"]
+modulate = Color(0.27, 0.27, 0.27, 1)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HBox" type="HBoxContainer" parent="Menu/SeekTo/Box"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 71.0
+offset_bottom = 153.0
+grow_horizontal = 2
+theme_override_constants/separation = 115
+alignment = 1
+
+[node name="SeekTo" type="Button" parent="Menu/SeekTo/Box/HBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 54
+text = "Seek To"
+
+[node name="Back" type="Button" parent="Menu/SeekTo/Box/HBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 54
+text = "Back"
+
+[node name="HBox2" type="HBoxContainer" parent="Menu/SeekTo/Box"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 231.0
+offset_bottom = 313.0
+grow_horizontal = 2
+theme_override_constants/separation = 115
+alignment = 1
+
+[node name="SpinBox" type="SpinBox" parent="Menu/SeekTo/Box/HBox2"]
+layout_mode = 2
+max_value = 99999.0
+step = 0.01
+value = 2.0
+
+[node name="Label" type="Label" parent="Menu/SeekTo/Box/HBox2"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 54
+text = "sec"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Menu/SeekTo/Box"]
+layout_mode = 0
+offset_top = 504.9997
+offset_right = 1084.0
+offset_bottom = 1420.9998
+
+[node name="Item" type="Panel" parent="Menu/SeekTo/Box/VBoxContainer"]
+self_modulate = Color(1, 1, 1, 0.701961)
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+script = SubResource("GDScript_vmpig")
+
+[node name="Label" type="Label" parent="Menu/SeekTo/Box/VBoxContainer/Item"]
+self_modulate = Color(1, 1, 1, 0.764706)
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 8.0
+offset_top = -37.0
+offset_right = 988.0
+offset_bottom = 37.0
+grow_vertical = 2
+theme_override_font_sizes/font_size = 48
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="FilePath" type="Label" parent="Menu/SeekTo/Box/VBoxContainer/Item"]
+self_modulate = Color(1, 1, 1, 0.764706)
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 8.0
+offset_top = -37.0
+offset_right = 988.0
+offset_bottom = 37.0
+grow_vertical = 2
+theme_override_font_sizes/font_size = 48
+horizontal_alignment = 2
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="Button" type="TextureButton" parent="Menu/SeekTo/Box/VBoxContainer/Item"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
 
 [node name="VideoPlayer" type="Panel" parent="." unique_id=43259500]
 unique_name_in_owner = true
@@ -4231,6 +4459,8 @@ script = ExtResource("50_ov553")
 [connection signal="pressed" from="Menu/SavePlaylist/HBox/Save" to="Menu/SavePlaylist" method="_on_save_pressed"]
 [connection signal="pressed" from="Menu/SavePlaylist/HBox/Back" to="Menu/SavePlaylist" method="_on_back_pressed"]
 [connection signal="text_changed" from="Menu/SavePlaylist/TextEdit" to="Menu/SavePlaylist" method="_on_text_edit_text_changed"]
+[connection signal="pressed" from="Menu/SeekTo/Box/HBox/SeekTo" to="Menu/SeekTo" method="_on_seek_to_pressed"]
+[connection signal="pressed" from="Menu/SeekTo/Box/HBox/Back" to="Menu/SeekTo" method="_on_back_pressed"]
 [connection signal="pressed" from="VideoPlayer/Back" to="VideoPlayer" method="_on_back_pressed"]
 [connection signal="item_selected" from="VideoPlayer/Main/PlayerSelection" to="VideoPlayer" method="_on_player_selection_item_selected"]
 [connection signal="text_submitted" from="VideoPlayer/Main/PlayerAddress/Input" to="VideoPlayer" method="_on_player_address_text_submitted"]

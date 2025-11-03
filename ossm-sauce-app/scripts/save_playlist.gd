@@ -21,22 +21,13 @@ func _on_save_pressed():
 	for path_name in %Menu/Playlist.get_items():
 		file.store_line(path_name)
 	file.close()
-	show_menu_buttons()
+	close()
 
-
-func show_menu_buttons():
-	var buttons = [
-		%Menu/Main/PlaylistButtons,
-		%Menu/Main/PathButtons,
-		%Menu/Main/LoopAndVideoButtons,
-		%Menu/PathControls,
-		%Menu/Header,
-		%Menu/Main/Mode]
-	for button in buttons:
-		button.show()
+func close():
+	%Menu.show_menu_buttons()
+	%Menu/Header.show()
 	%Menu.refresh_selection()
 	hide()
 
-
 func _on_back_pressed():
-	show_menu_buttons()
+	close()
