@@ -110,18 +110,37 @@ func _on_add_delay_pressed():
 	$Header.hide()
 
 
+func _on_seek_to_pressed():
+	hide_menu_buttons()
+	$SeekTo.show()
+	$Header.hide()
+
+
 func hide_menu_buttons():
 	$Main/PlaylistButtons.hide()
 	$Main/PathButtons.hide()
-	$Main/LoopPlaylistButton.hide()
+	$Main/MoreButtons.hide()
 	$PathControls.hide()
 	$Main/Mode.hide()
+
+
+func show_menu_buttons():
+	$Main/PlaylistButtons.show()
+	$Main/PathButtons.show()
+	$Main/MoreButtons.show()
+	$PathControls.show()
+	$Main/Mode.show()
 
 
 func refresh_selection():
 	if $Main/Mode.selected != 0:
 		return
 	var selected_item = $Playlist.selected_index
+	if Global.active_path_index == selected_item and Global.frame > 0 and Global.paused:
+		$Main/MoreButtons/SeekTo.disabled = false
+	else:
+		$Main/MoreButtons/SeekTo.disabled = true
+
 	if selected_item != null:
 		var item = $Playlist/Scroll/VBox.get_child(selected_item)
 		$Playlist._on_item_selected(item)
