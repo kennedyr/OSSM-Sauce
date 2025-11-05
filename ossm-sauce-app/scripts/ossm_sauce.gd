@@ -98,19 +98,19 @@ func _physics_process(delta) -> void:
 		if %WebSocket.server_started:
 			if marker_index < active_path.size():
 				# send current frame to 
-				%WebSocket.server.broadcast_binary(active_path[marker_index])
+				%OSSMCommand.broadcast_binary(active_path[marker_index])
 			elif Global.active_path_index < network_paths.size() - 1:
 				var overreach_index = marker_index - active_path.size()
 				var next_funscript = funscripts[Global.active_path_index + 1]
 				var next_path = next_funscript.network_paths
 				if overreach_index < next_path.size():
-					%WebSocket.server.broadcast_binary(next_path[overreach_index])
+					%OSSMCommand.broadcast_binary(next_path[overreach_index])
 			elif $Menu.loop_playlist:
 				var overreach_index = marker_index - active_path.size()
 				var next_funscript = funscripts[0]
 				var next_path = next_funscript.network_paths
 				if overreach_index < next_path.size():
-					%WebSocket.server.broadcast_binary(next_path[overreach_index])
+					%OSSMCommand.broadcast_binary(next_path[overreach_index])
 		if current_marker < frames.size() - 1:
 			marker_index += 1
 	
@@ -146,7 +146,7 @@ func transition_to_path(next_index: int):
 	marker_index = overreach_sent
 	buffer_sent = overreach_sent
 	while buffer_sent < 6 and marker_index < next_path.size():
-		%WebSocket.server.broadcast_binary(next_path[marker_index])
+		%OSSMCommand.broadcast_binary(next_path[marker_index])
 		marker_index += 1
 		buffer_sent += 1
 	var path_list = $Menu/Playlist/Scroll/VBox
@@ -222,11 +222,11 @@ func pause():
 			break
 	
 	# Send cascade packet + buffer
-	%WebSocket.server.broadcast_binary(network_paths[Global.active_path_index][cascade_index])
+	%OSSMCommand.broadcast_binary(network_paths[Global.active_path_index][cascade_index])
 	marker_index = buffer_start
 	buffer_sent = 0
 	while buffer_sent < 6 and marker_index < network_paths[Global.active_path_index].size():
-		%WebSocket.server.broadcast_binary(network_paths[Global.active_path_index][marker_index])
+		%OSSMCommand.broadcast_binary(network_paths[Global.active_path_index][marker_index])
 		marker_index += 1
 		buffer_sent += 1
 	
@@ -235,7 +235,7 @@ func pause():
 	safe_accel.resize(5)
 	safe_accel.encode_u8(0, OSSM.Command.SET_GLOBAL_ACCELERATION)
 	safe_accel.encode_u32(1, 60000)
-	%WebSocket.server.broadcast_binary(safe_accel)
+	%OSSMCommand.broadcast_binary(safe_accel)
 	var depth_val:int = abs(Global.motor_direction * 10000 - round(current_depth * 10000))
 	var nudge: PackedByteArray
 	nudge.resize(10)
@@ -246,15 +246,15 @@ func pause():
 	# Nudge out
 	nudge.encode_u32(1, 100)
 	nudge.encode_u16(5, clampi(depth_val + 500, 0, 10000))
-	%WebSocket.server.broadcast_binary(nudge)
+	%OSSMCommand.broadcast_binary(nudge)
 	await get_tree().create_timer(0.15).timeout
 	# Nudge in (guaranteed direction change)
 	nudge.encode_u16(5, clampi(depth_val - 500, 0, 10000))
-	%WebSocket.server.broadcast_binary(nudge)
+	%OSSMCommand.broadcast_binary(nudge)
 	await get_tree().create_timer(0.15).timeout
 	# Return to position
 	nudge.encode_u16(5, clampi(depth_val, 0, 10000))
-	%WebSocket.server.broadcast_binary(nudge)
+	%OSSMCommand.broadcast_binary(nudge)
 
 func seek_to(play_time_ms:int):
 	print("seek_to ", play_time_ms)
@@ -264,13 +264,23 @@ func seek_to(play_time_ms:int):
 
 	var current_funscript = funscripts[Global.active_path_index]
 	var frame = round((play_time_ms / 1000.0) * 50)
+
 	print("seek_to frame", frame)
 	Global.frame = frame
+
+	# Set to prev move
 	marker_index = current_funscript._find_prev_marker_for_frame(frame)
+	var prev_move_command: PackedByteArray = current_funscript.network_paths[marker_index]
+	var homingtarget = prev_move_command.decode_u16(5)
+	home_to(homingtarget)
+	marker_index += 1
+
 	if %WebSocket.ossm_connected:
-		%OSSMCommand.reset()
-		%WebSocket.server.broadcast_binary(current_funscript.network_paths[marker_index])
+		%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
+		var bufferTo = marker_index + 6
+		while marker_index < bufferTo:
 		marker_index += 1
+
 	Global.next_play_time_ms = play_time_ms
 	MPV.seek_to(play_time_ms)
 	var original_path_start_position = ($PathDisplay/PathArea.size.x / 2) + path_speed
@@ -509,7 +519,7 @@ func display_active_path_index(pause := true, send_buffer := true):
 				return
 			buffer_sent = 0
 			while buffer_sent < 6 and marker_index < current_funscript.network_paths.size():
-				%WebSocket.server.broadcast_binary(current_funscript.network_paths[marker_index])
+				%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
 				marker_index += 1
 				buffer_sent += 1
 	else:
@@ -583,7 +593,7 @@ func seek() -> void:
 			return
 		# Send cascade packet (timestamp <= play_offset, firmware immediately skips it)
 		var cascade_packet = network_paths[Global.active_path_index][cascade_index]
-		%WebSocket.server.broadcast_binary(cascade_packet)
+		%OSSMCommand.broadcast_binary(cascade_packet)
 		# Send buffer packets from seek position
 		marker_index = buffer_start
 		buffer_sent = 0
@@ -591,7 +601,7 @@ func seek() -> void:
 			var packet = network_paths[Global.active_path_index][marker_index]
 			var packet_ms = packet.decode_u32(1)
 			var packet_depth = packet.decode_u16(5)
-			%WebSocket.server.broadcast_binary(packet)
+			%OSSMCommand.broadcast_binary(packet)
 			marker_index += 1
 			buffer_sent += 1
 	
