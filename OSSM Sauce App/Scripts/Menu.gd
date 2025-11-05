@@ -134,7 +134,7 @@ func refresh_selection():
 	if $Main/Mode.selected != 0:
 		return
 	var selected_item = $Playlist.selected_index
-	if Global.active_path_index == selected_item and Global.frame > 0 and Global.paused:
+	if Global.active_path_index == selected_item and Global.paused:
 		$Main/MoreButtons/SeekTo.disabled = false
 	else:
 		$Main/MoreButtons/SeekTo.disabled = true

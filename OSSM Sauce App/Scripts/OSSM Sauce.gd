@@ -65,7 +65,7 @@ func _physics_process(_delta):
 			var next_funscript = funscripts[Global.active_path_index + 1]
 			var overreach_index = marker_index - current_funscript.network_paths.size() + 1
 			var next_path = next_funscript.network_paths
-			%WebSocket.server.broadcast_binary(next_path[overreach_index])
+			%OSSMCommand.broadcast_binary(next_path[overreach_index])
 			var path_list = $Menu/Playlist/Scroll/VBox
 			var next_index = Global.active_path_index + 1
 			var next_path_item = path_list.get_child(next_index) 
@@ -79,7 +79,7 @@ func _physics_process(_delta):
 				var overreach_index = marker_index - current_funscript.network_paths.size() + 1
 				var next_funscript = funscripts[0]
 				var next_path = next_funscript.network_paths
-				%WebSocket.server.broadcast_binary(next_path[overreach_index])
+				%OSSMCommand.broadcast_binary(next_path[overreach_index])
 				var path_list = $Menu/Playlist/Scroll/VBox
 				var next_path_item = path_list.get_child(0) 
 				Global.active_path_index = 0
@@ -102,17 +102,17 @@ func _physics_process(_delta):
 		if %WebSocket.server_started:
 			if marker_index < active_path.size():
 				# send current frame to 
-				%WebSocket.server.broadcast_binary(active_path[marker_index])
+				%OSSMCommand.broadcast_binary(active_path[marker_index])
 			elif Global.active_path_index < funscripts.size() - 1:
 				var overreach_index = marker_index - active_path.size()
 				var next_funscript = funscripts[Global.active_path_index + 1]
 				var next_path = next_funscript.network_paths
-				%WebSocket.server.broadcast_binary(next_path[overreach_index])
+				%OSSMCommand.broadcast_binary(next_path[overreach_index])
 			elif $Menu.loop_playlist:
 				var overreach_index = marker_index - active_path.size()
 				var next_funscript = funscripts[0]
 				var next_path = next_funscript.network_paths
-				%WebSocket.server.broadcast_binary(next_path[overreach_index])
+				%OSSMCommand.broadcast_binary(next_path[overreach_index])
 		if current_marker < marker_list.size() - 1:
 			marker_index += 1
 	
@@ -170,13 +170,23 @@ func seek_to(play_time_ms:int):
 
 	var current_funscript = funscripts[Global.active_path_index]
 	var frame = round((play_time_ms / 1000.0) * 50)
+
 	print("seek_to frame", frame)
 	Global.frame = frame
+
+	# Set to prev move
 	marker_index = current_funscript._find_prev_marker_for_frame(frame)
+	var prev_move_command: PackedByteArray = current_funscript.network_paths[marker_index]
+	var homingtarget = prev_move_command.decode_u16(5)
+	home_to(homingtarget)
+	marker_index += 1
+	
 	if %WebSocket.ossm_connected:
-		%OSSMCommand.reset()
-		%WebSocket.server.broadcast_binary(current_funscript.network_paths[marker_index])
-		marker_index += 1
+		var bufferTo = marker_index + 6
+		while marker_index < bufferTo:
+			%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
+			marker_index += 1
+
 	Global.next_play_time_ms = play_time_ms
 	MPV.seek_to(play_time_ms)
 	var original_path_start_position = ($PathDisplay/PathArea.size.x / 2) + path_speed
@@ -338,7 +348,7 @@ func display_active_path_index(pause := true, send_buffer := true):
 		if %WebSocket.ossm_connected:
 			%OSSMCommand.reset()
 			while marker_index < 6:
-				%WebSocket.server.broadcast_binary(current_funscript.network_paths[marker_index])
+				%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
 				marker_index += 1
 	else:
 		marker_index = 6

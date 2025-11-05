@@ -538,9 +538,9 @@ func _on_item_selected(item):
 func parse_time(time_string: String):
 	var segments: PackedStringArray = time_string.split(\":\")
 	var length = segments.size()
-	var seconds
-	var minutes
-	var hours
+	var seconds = 0
+	var minutes = 0
+	var hours = 0
 	if length >= 1:
 		seconds = segments[length - 1]
 	if length >= 2:
