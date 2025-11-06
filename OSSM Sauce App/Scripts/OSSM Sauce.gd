@@ -176,11 +176,9 @@ func seek_to(play_time_ms:int):
 
 	# Set to prev move
 	marker_index = current_funscript._find_prev_marker_for_frame(frame)
-	var prev_move_command: PackedByteArray = current_funscript.network_paths[marker_index]
-	var homingtarget = prev_move_command.decode_u16(5)
-	home_to(homingtarget)
 	marker_index += 1
-	
+	%OSSMCommand.reset()
+
 	if %WebSocket.ossm_connected:
 		var bufferTo = marker_index + 6
 		while marker_index < bufferTo:
