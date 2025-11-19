@@ -371,10 +371,11 @@ func _on_active_path_index_changed():
 	for n in node.get_children():
 		node.remove_child(n)
 		n.queue_free()
-	var chapters = owner.funscripts[Global.active_path_index].chapters
-	for key in chapters:
-		var chapterBegin = chapters[key]
-		add_item(key, chapterBegin)
+	if Global.active_path_index != null:
+  	var chapters = owner.funscripts[Global.active_path_index].chapters
+    for chapter in chapters:
+      var chapterBegin = chapters[key]
+			add_item(chapter['name'], str(chapter['chapterBeginSeconds']))
 
 
 func add_item(item_text:String, chapterBegin:String):
