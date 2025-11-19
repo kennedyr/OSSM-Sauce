@@ -4,6 +4,7 @@ var app_version_number:String = "1.4.4"
 
 var ticks_per_second:int
 
+var buffer_size:int = 30
 var path_speed:int = 30
 
 var funscripts: Array
@@ -96,7 +97,7 @@ func _physics_process(_delta):
 	
 	var marker_list = current_funscript.markers
 	var active_path = current_funscript.network_paths
-	var current_marker = marker_index - 6
+	var current_marker = marker_index - buffer_size
 	var current_marker_frame = int(marker_list.keys()[current_marker])
 	if Global.frame == current_marker_frame:
 		if %WebSocket.server_started:
@@ -180,7 +181,7 @@ func seek_to(play_time_ms:int):
 	%OSSMCommand.reset()
 
 	if %WebSocket.ossm_connected:
-		var bufferTo = marker_index + 6
+		var bufferTo = marker_index + buffer_size
 		while marker_index < bufferTo:
 			%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
 			marker_index += 1
@@ -266,7 +267,7 @@ func load_path(filePath:String) -> bool:
 	if not funscript._marker_data:
 		printerr("Error: Failed to read file.")
 		return false
-	if funscript._marker_data.size() < 6:
+	if funscript._marker_data.size() < buffer_size:
 		printerr("Error: Insufficient path data in file.")
 		return false
 
@@ -321,7 +322,7 @@ func create_delay(duration:float):
 		delay_path.append(-1)
 	var marker_path:Dictionary
 	var network_packets:Array
-	for timing in 6:
+	for timing in buffer_size:
 		var move_command = OSSMCommand.create_move_command(timing, 0, 0, 0, 0)
 		network_packets.append(move_command)
 		marker_path[timing] = message
@@ -345,11 +346,11 @@ func display_active_path_index(pause := true, send_buffer := true):
 	if send_buffer:
 		if %WebSocket.ossm_connected:
 			%OSSMCommand.reset()
-			while marker_index < 6:
+			while marker_index < buffer_size:
 				%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
 				marker_index += 1
 	else:
-		marker_index = 6
+		marker_index = buffer_size
 	
 	$ActionPanel.clear_selections()
 	if pause:
