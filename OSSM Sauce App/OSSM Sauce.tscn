@@ -507,16 +507,16 @@ func _on_active_path_index_changed():
 	for n in node.get_children():
 		node.remove_child(n)
 		n.queue_free()
-	var chapters = owner.funscripts[Global.active_path_index].chapters
-	for key in chapters:
-		var chapterBegin = chapters[key]
-		add_item(key, chapterBegin)
+	if Global.active_path_index != null:
+		var chapters = owner.funscripts[Global.active_path_index].chapters
+		for chapter in chapters:
+			add_item(chapter['name'], str(chapter['chapterBeginSeconds']))
 
 
 func add_item(item_text:String, chapterBegin:String):
 	var item = Item.duplicate()
 	item.get_node('Label').text = item_text
-	item.get_node('FilePath').text = str(chapterBegin)
+	item.get_node('FilePath').text = chapterBegin
 	$Box/VBoxContainer.add_child(item)
 	var item_button = item.get_node('Button')
 	item_button.connect('pressed', _on_item_selected.bind(item))
@@ -531,7 +531,7 @@ func _on_item_selected(item):
 	deselect_all()
 	item.select()
 	var textVal = item.get_node('FilePath').text
-	var floatVal = parse_time(textVal)
+	var floatVal = float(textVal)
 	$Box/HBox2/SpinBox.value = floatVal
 
 

@@ -125,10 +125,11 @@ func _physics_process(_delta):
 
 	$PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
-	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
+	var label = "%02d:%02d" % [minutes, seconds]
 	var chapter = current_funscript.get_current_chapter_name(ms_timing)
 	if chapter:
-		$PathDisplay/TimeLabel.text += " - " + chapter
+		label += " - " + chapter
+	$PathDisplay/TimeLabel.text = label
 
 func home_to(target_position:int):
 	if %WebSocket.ossm_connected:
@@ -165,6 +166,9 @@ func pause():
 
 func seek_to(play_time_ms:int):
 	print("seek_to ", play_time_ms)
+	if Global.active_path_index == null:
+		return
+
 	if not Global.paused:
 		print("Must be paused to seek")
 		return
@@ -312,6 +316,9 @@ func create_path_lines(marker_data: Dictionary):
 
 
 func create_delay(duration:float):
+	if Global.active_path_index == null:
+		return
+
 	var current_funscript = funscripts[Global.active_path_index]
 	var delay_path:PackedFloat32Array
 	var path_line:Line2D = Line2D.new()
@@ -337,6 +344,9 @@ func create_delay(duration:float):
 
 @warning_ignore("shadowed_variable")
 func display_active_path_index(pause := true, send_buffer := true):
+	if Global.active_path_index == null:
+		return
+
 	if pause:
 		MPV.restart()
 	Global.paused = pause
@@ -364,6 +374,11 @@ func display_active_path_index(pause := true, send_buffer := true):
 	$PathDisplay/Ball.position.y = render_depth(funscripts[Global.active_path_index].paths[0])
 	$PathDisplay/Ball.show()
 	$PathDisplay.show()
+	var chapter = current_funscript.get_current_chapter_name(0)
+	var label = "%02d:%02d" % [0, 0]
+	if chapter:
+		label += " - " + chapter
+	$PathDisplay/TimeLabel.text = label
 
 
 func render_depth(depth) -> float:

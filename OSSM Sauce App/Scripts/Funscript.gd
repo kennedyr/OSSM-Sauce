@@ -9,7 +9,7 @@ var _marker_data: Dictionary
 var paths:PackedFloat32Array
 var markers:Dictionary
 var network_paths:Array
-var chapters:Dictionary
+var chapters:Array
 var PATH_TOP
 var PATH_BOTTOM
 
@@ -50,7 +50,6 @@ func parse_file(filePath: String) -> Dictionary:
 			var file_text = file.get_as_text().replace("\n", "")
 			var temp_file_data:Dictionary = JSON.parse_string(file_text)
 			var action_data: Array
-			print("temp_file_data ", temp_file_data.keys())
 			if "actions" in temp_file_data:
 				action_data = temp_file_data["actions"]
 			elif "Actions" in temp_file_data:
@@ -166,15 +165,19 @@ func create_path_lines(marker_data: Dictionary):
 
 
 @warning_ignore("shadowed_variable")
-func create_chapters(chapters: Array):
-	var chaptersDict: Dictionary = {}
-	if chapters:
-		for chapter in chapters:
-			chaptersDict[chapter.name] = chapter.startTime
-	else:
-		chaptersDict["Beginning"] = "0.0"
+func create_chapters(chappy: Array):
+	var chapters = chappy if chappy else []
+	for chapter in chapters:
+		chapter['chapterBeginSeconds'] = parse_time(chapter.startTime)
+	chapters.sort_custom(chapter_sorter)
 
-	return chaptersDict
+	return chapters
+
+
+func chapter_sorter(a, b) -> bool:
+	if a['chapterBeginSeconds'] < b['chapterBeginSeconds']:
+		return true
+	return false
 
 
 func round_to(value: float, decimals: int) -> float:
@@ -214,16 +217,11 @@ func parse_time(time_string: String):
 
 
 func get_current_chapter_name(ms_timing: int):
-	if (chapters.size() > 1):
-		var seconds: float = ms_timing / 1000.0
-		var current_chapter = ""
-		for key in chapters:
-			var chapterTimeString = chapters[key]
-			var chaterBeginSeconds = parse_time(chapterTimeString)
-			if seconds >= chaterBeginSeconds:
-				current_chapter = key
-			if seconds < chaterBeginSeconds:
-				break;
-		return current_chapter;
-	return ""
+	var seconds: float = ms_timing / 1000.0
+	var chapterName = ""
+	for chapter in chapters:
+		if seconds >= chapter['chapterBeginSeconds']:
+			chapterName = chapter['name']
+		
+	return chapterName
 	
