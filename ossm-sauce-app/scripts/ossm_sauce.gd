@@ -18,6 +18,7 @@ var _seek_dragging := false
 
 var funscripts: Array
 
+var buffer_size:int = 30
 var buffer_sent: int
 var play_offset_ms: int
 var _seeking: bool
@@ -145,7 +146,7 @@ func transition_to_path(next_index: int):
 	# Top up buffer if overreach didn't cover it
 	marker_index = overreach_sent
 	buffer_sent = overreach_sent
-	while buffer_sent < 6 and marker_index < next_path.size():
+	while buffer_sent < buffer_size and marker_index < next_path.size():
 		%OSSMCommand.broadcast_binary(next_path[marker_index])
 		marker_index += 1
 		buffer_sent += 1
@@ -225,7 +226,7 @@ func pause():
 	%OSSMCommand.broadcast_binary(network_paths[Global.active_path_index][cascade_index])
 	marker_index = buffer_start
 	buffer_sent = 0
-	while buffer_sent < 6 and marker_index < network_paths[Global.active_path_index].size():
+	while buffer_sent < buffer_size and marker_index < network_paths[Global.active_path_index].size():
 		%OSSMCommand.broadcast_binary(network_paths[Global.active_path_index][marker_index])
 		marker_index += 1
 		buffer_sent += 1
@@ -275,7 +276,7 @@ func seek_to(play_time_ms:int):
 
 	if %WebSocket.ossm_connected:
 		%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
-		var bufferTo = marker_index + 6
+		var bufferTo = marker_index + buffer_size
 		while marker_index < bufferTo:
 		marker_index += 1
 
@@ -428,7 +429,7 @@ func load_path(filePath: String) -> bool:
 		printerr("Error: Failed to read file.")
 		return false
 
-	if funscript._marker_data.size() < 6:
+	if funscript._marker_data.size() < buffer_size:
 		printerr("Error: Insufficient path data in file.")
 		return false
 
@@ -484,7 +485,7 @@ func create_delay(duration: float):
 		delay_path.append(-1)
 	var frames: PackedInt32Array
 	var network_packets: Array
-	for timing in 6:
+	for timing in buffer_size:
 		var move_command = OSSMCommand.create_move_command(timing, 0, 0, 0, 0)
 		network_packets.append(move_command)
 		frames.append(timing)
@@ -516,13 +517,13 @@ func display_active_path_index(pause := true, send_buffer := true):
 			if not %WebSocket.ossm_connected:
 				return
 			buffer_sent = 0
-			while buffer_sent < 6 and marker_index < current_funscript.network_paths.size():
+			while buffer_sent < buffer_size and marker_index < current_funscript.network_paths.size():
 				%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
 				marker_index += 1
 				buffer_sent += 1
 	else:
-		marker_index = 6
-		buffer_sent = 6
+		marker_index = buffer_size
+		buffer_sent = buffer_size
 	
 	$ActionPanel.clear_selections()
 	if pause:
@@ -595,7 +596,7 @@ func seek() -> void:
 		# Send buffer packets from seek position
 		marker_index = buffer_start
 		buffer_sent = 0
-		while buffer_sent < 6 and marker_index < network_paths[Global.active_path_index].size():
+		while buffer_sent < buffer_size and marker_index < network_paths[Global.active_path_index].size():
 			var packet = network_paths[Global.active_path_index][marker_index]
 			var packet_ms = packet.decode_u32(1)
 			var packet_depth = packet.decode_u16(5)
