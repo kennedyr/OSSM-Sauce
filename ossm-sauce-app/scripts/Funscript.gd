@@ -22,7 +22,13 @@ func _init(filePath: String, ticks_per_second: int, path_top: float, path_bottom
 
 
 func load_path(filePath:String) -> bool:
-	var file_data = parse_file(filePath)
+	var parsed_data = parse_file(filePath)
+	var is_funscript = filePath.ends_with(".funscript")
+	var file_data = parsed_data
+	if is_funscript:
+		file_data = map_funscript_data(parsed_data)
+	else:
+		file_data = map_other_data(parsed_data)
 	_marker_data = file_data.actions
 	var marker_data = _marker_data
 	if not marker_data:
@@ -34,80 +40,86 @@ func load_path(filePath:String) -> bool:
 
 	network_paths = create_network_packets(marker_data)
 	create_path_lines(marker_data)
-	chapters = create_chapters(file_data.chapters)
+	chapters = create_chapters(file_data.chapters, parsed_data.actions.back().at)
 
 	return true
 
 
 func parse_file(filePath: String) -> Dictionary:
 	var file_data:Dictionary
-	var chapt:Array
 	var file = FileAccess.open(filePath, FileAccess.READ)
-	var file_text := file.get_as_text()
-	file.close()
-	
-	var is_funscript = filePath.ends_with(".funscript")
-
 	if file:
-		if is_funscript:
-			file_text = file_text.replace("\n", "")
-			var parsed_funscript = JSON.parse_string(file_text)
-			var inverted := false
-			if parsed_funscript is Dictionary:
-				if parsed_funscript.get("inverted", false):
-					inverted = true
-				if "metadata" in parsed_funscript:
-					var meta = parsed_funscript["metadata"]
-					if "chapters" in meta:
-						chapt = meta["chapters"]
+		var file_text = file.get_as_text().replace("\n", "")
+		file_data = JSON.parse_string(file_text)
+		if not file_data:
+			printerr("Error: No JSON data found in file.")
+	file.close()		
 
-			var actions_pattern = RegEx.new()
-			actions_pattern.compile('"[Aa]ctions":\\s*\\[.*?\\]')
-			var actions_regex = actions_pattern.search(file_text)
-			if not actions_regex:
-				actions_pattern.compile('"[Rr]aw[Aa]ctions":\\s*\\[.*?\\]')
-				actions_regex = actions_pattern.search(file_text)
-			if actions_regex:
-				var actions_text = actions_regex.get_string(0)
-				actions_text = actions_text.replace("'", '"')
-				actions_text = actions_text.insert(0, "{")
-				actions_text = actions_text.insert(actions_text.length(), "}")
-				var actions_data = JSON.parse_string(actions_text)
-				if actions_data:
-					var actions_list = actions_data[actions_data.keys()[0]]
-					var first_depth = round_to(clamp(actions_list[0].pos / 100, 0, 1), 4)
-					if inverted:
-						first_depth = round_to(1.0 - first_depth, 4)
-					var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 0)
-					var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
-					file_data[0] = [first_depth, trans, ease, 0]
-					for action in actions_list:
-						var frame: int = action.at / (1000.0 / 60.0)
-						var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
-						if inverted:
-							depth = round_to(1.0 - depth, 4)
-						file_data[frame] = [depth, trans, ease, 0]
-				else:
-					printerr("Failed to parse funscript JSON")
-			else:
-				printerr("No actions data found in the funscript")
+	return file_data
+
+	
+func map_funscript_data(parsed_data: Dictionary) -> Dictionary:
+	var file_data:Dictionary
+	var chapt:Array
+	var inverted := false
+
+	if parsed_data:
+		var action_data: Array
+		if "actions" in parsed_data:
+			action_data = parsed_data["actions"]
+		elif "Actions" in parsed_data:
+			action_data = parsed_data["Actions"]
+		elif "rawActions" in parsed_data:
+			action_data = parsed_data["rawActions"]
+		elif "RawActions" in parsed_data:
+			action_data = parsed_data["RawActions"]
 		else:
-			file_data = JSON.parse_string(file_text)
-			if not file_data:
-				printerr("Error: No JSON data found in file.")
-				return false
-			if file_data.has("meta"):
-				var meta = file_data["meta"]
-				if meta is Dictionary and meta.has("video_offset_ms"):
-					%VideoPlayer/Main/VideoOffset/Input.value = meta["video_offset_ms"]
-			if file_data.has("markers"):
-				file_data = file_data["markers"]
-		
+			print("No actions data found in the funscript")
+
+		if parsed_data.get("inverted", false):
+			inverted = true
+		if "metadata" in parsed_data:
+			var meta = parsed_data["metadata"]
+			if "chapters" in meta:
+				chapt = meta["chapters"]
+			
+		if action_data:
+			var actions_list = action_data
+			var first_depth = round_to(clamp(actions_list[0].pos / 100, 0, 1), 4)
+			if inverted:
+				first_depth = round_to(1.0 - first_depth, 4)
+			var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 1)
+			@warning_ignore("shadowed_global_identifier")
+			var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
+			file_data[0] = [first_depth, trans, ease, 0]
+			for action in actions_list:
+				var frame: int = action.at / (1000.0 / 60.0)
+				var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
+				if inverted:
+					depth = round_to(1.0 - depth, 4)
+				var aux = 0
+				file_data[frame] = [depth, trans, ease, aux]
+
+		else:
+			print("Failed to parse funscript JSON")
+
 	return { 
 		"actions": file_data,
 		"chapters": chapt
 	}
 
+
+func map_other_data(parsed_data: Dictionary) -> Dictionary:
+	if parsed_data:
+	if parsed_data.has("meta"):
+		var meta = file_data["meta"]
+		if meta is Dictionary and meta.has("video_offset_ms"):
+			%VideoPlayer/Main/VideoOffset/Input.value = meta["video_offset_ms"]
+
+	return { 
+		"actions": file_data["markers"],
+		"chapters": []
+	}
 	
 func create_network_packets(marker_data: Dictionary):
 	var previous_ms_timing:int
@@ -176,11 +188,42 @@ func create_path_lines(marker_data: Dictionary):
 	marker_frames = path_new
 
 
+func format_time(msTime: int):
+	var hours = int(msTime / 3600000.0)
+	var remainder = msTime - hours * 3600000
+	var minutes = int(remainder / 60000.0)
+	remainder = remainder - minutes * 60000
+	var seconds = int(remainder / 1000.0)
+	remainder = remainder - seconds * 1000
+	var timeString =  "%d:%d:%d.%d" % [hours, minutes, seconds, remainder]
+	return timeString
+
+
 @warning_ignore("shadowed_variable")
-func create_chapters(chappy: Array):
+func create_chapters(chappy: Array, lastAt: int):
 	var chapters = chappy if chappy else []
-	for chapter in chapters:
-		chapter['chapterBeginSeconds'] = parse_time(chapter.startTime)
+	if chappy.is_empty():
+		chapters.append({
+			"name": "Beginning",
+			"startTime": format_time(0),
+			"chapterBeginSeconds": 0
+		})
+		for n in range(300000, lastAt, 300000):
+			var minutes = int(n/60000.0)
+			chapters.append({
+				"name": "%d minutes" % minutes,
+				"startTime": "00:%d:00.000" % minutes,
+				"chapterBeginSeconds": n / 1000.0
+			})
+		chapters.append({
+			"name": "End",
+			"startTime": format_time(lastAt),
+			"chapterBeginSeconds": lastAt / 1000.0
+		})
+	else:
+		for chapter in chapters:
+			chapter['chapterBeginSeconds'] = parse_time(chapter.startTime)
+	
 	chapters.sort_custom(chapter_sorter)
 
 	return chapters
