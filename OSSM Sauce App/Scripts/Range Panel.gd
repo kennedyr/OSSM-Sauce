@@ -72,6 +72,8 @@ func update_min_range(label_only:bool = false):
 	var text_value = str(round(percent * 100))
 	$LabelBot.text = "Min Position:\n" + text_value + "%"
 
+	%SpeedPanel.update_speed(true)
+
 
 func update_max_range(label_only:bool = false):
 	var slider_pos = max_slider.position.y
@@ -83,6 +85,8 @@ func update_max_range(label_only:bool = false):
 
 	var text_value = str(round(percent * 100))
 	$LabelTop.text = "Max Position:\n" + text_value + "%"
+
+	%SpeedPanel.update_speed(true)
 
 
 func get_min_slider_percent():
@@ -105,6 +109,10 @@ func get_max_slider_percent():
 func set_max_slider_percent(percent):
 	max_slider.position.y = Util.safe_map_slider_position(percent, min_range_pos, max_range_pos)
 	update_max_range()
+
+
+func get_range_percent():
+	return get_max_slider_percent() - get_min_slider_percent()
 
 
 func tween(activating:bool = true):

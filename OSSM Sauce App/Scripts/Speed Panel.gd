@@ -48,16 +48,17 @@ func set_acceleration_slider_percent(percent):
 	update_acceleration()
 
 
-func update_speed():
+func update_speed(label_only:bool = false):
 	var slider_pos = speed_slider.position.y
 	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
 	var speed = Util.safe_map_value(percent, 0, Global.max_speed)
-
-	%OSSMCommand.set_speed_limit(speed)
-	UserSettings.set_value(UserSettings.Section.speed_slider, 'position_percent', percent)
-	#$LabelTop.text = "Max Speed:\n" + str(speed) + " steps/sec"
+	var range_percent = %RangePanel.get_range_percent()
+	var range_steps = range_percent * 1000
+	if not label_only:
+		%OSSMCommand.set_speed_limit(speed)
+		UserSettings.set_value(UserSettings.Section.speed_slider, 'position_percent', percent)
 	var text_value = str(round(percent * 100))
-	$LabelTop.text = "Max Speed:\n" + text_value + "%"
+	$LabelTop.text = "Max Speed: " + text_value + "%\n" + str(snapped(speed / (range_steps * 2), 0.1)) + " strokes/sec"
 
 
 func update_acceleration():
