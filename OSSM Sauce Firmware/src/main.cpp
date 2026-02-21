@@ -86,8 +86,12 @@ void sendResponse(CommandType responseCommand) {
   esp_websocket_client_send_bin(wsClient, message, messageSize, portMAX_DELAY);
 }
 
+void sendTextResponse(char* message, int messageSize) {
+  esp_websocket_client_send_text(wsClient, message, messageSize, portMAX_DELAY);
+}
 
-void parseMessage(esp_websocket_event_data_t *data) {
+
+void parseBinaryMessage(esp_websocket_event_data_t *data) {
   byte* message = (byte*)data->data_ptr;
   size_t messageLength = data->data_len;
 
@@ -204,6 +208,7 @@ void parseMessage(esp_websocket_event_data_t *data) {
 
     case PAUSE: {
       movementMode = MODE_IDLE;
+      stepper->stopMove();
       break;
     }
 
@@ -305,6 +310,27 @@ void parseMessage(esp_websocket_event_data_t *data) {
   }
 }
 
+char* substr(char* arr, int begin, int len)
+{
+    char* res = new char[len + 1];
+    for (int i = 0; i < len; i++)
+        res[i] = *(arr + begin + i);
+    res[len] = 0;
+    return res;
+}
+
+void parseTextMessage(esp_websocket_event_data_t *data)
+{
+    char *message = (char *)data->data_ptr;
+    size_t messageLength = data->data_len;
+    if (strncmp(message, "PING", strlen("PING")) == 0)
+    {
+        char buf[messageLength + 1];
+        strcpy(buf, "PONG");
+        strcat(buf, substr(message, 4, messageLength));
+        sendTextResponse(buf, data->data_len);
+    }
+}
 
 static void websocket_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
   esp_websocket_event_data_t *data = (esp_websocket_event_data_t *)event_data;
@@ -319,7 +345,11 @@ static void websocket_event_handler(void *arg, esp_event_base_t event_base, int3
       setLEDStatus(LED_ERROR);  // Update LED status
       break;
     case WEBSOCKET_EVENT_DATA:
-      parseMessage(data);
+      if (data->op_code == 1) {
+        parseTextMessage(data);
+      } else if (data->op_code == 2){
+        parseBinaryMessage(data);
+      }
       break;
   }
 }
