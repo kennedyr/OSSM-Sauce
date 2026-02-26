@@ -45,5 +45,5 @@ static func try_load_video(file_path:String):
 
 static func _load_video(path:String):
 	print("loading ", path)
-	#var command = r'mpv "' + path + r'"'
-	#OS.create_process("cmd", ["/c", command])
+	var command = r'mpv "' + path + r'"'
+	OS.create_process("cmd", ["/c", command])
