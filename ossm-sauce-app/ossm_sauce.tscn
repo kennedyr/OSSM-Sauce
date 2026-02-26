@@ -384,7 +384,7 @@ func add_item(item_text:String, chapterBegin:String):
 	item.get_node('FilePath').text = str(chapterBegin)
 	$Box/ScrollContainer/VBoxContainer.add_child(item)
 	var item_button = item.get_node('Button')
-	item_button.connect('pressed', _on_item_selected.bind(item))
+	item_button.connect('pressed', _on_item_double_click.bind(item))
 
 
 func deselect_all():
@@ -3187,6 +3187,7 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_right = 984.0
 grow_horizontal = 2
 grow_vertical = 2
 
