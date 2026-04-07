@@ -121,12 +121,12 @@ func _physics_process(delta) -> void:
 	var seconds: int = floori((ms_timing % 60000) / 1000)
 	$PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
-	var label = "%02d:%02d" % [minutes, seconds]
+	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
 	
 	var chapter = current_funscript.get_current_chapter_name(ms_timing)
-	if chapter:
-		label += " - " + chapter
-	$PathDisplay/TimeLabel.text = label
+	var next_chapter = current_funscript.get_next_chapter_name(ms_timing)
+	if chapter or next_chapter:
+		$PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
 
 	if not _seek_dragging:
 		$SeekSlider.set_value_no_signal(float(Global.frame) / (total_frames - 1))
@@ -296,8 +296,9 @@ func seek_to(play_time_ms:int):
 
 	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
 	var chapter = current_funscript.get_current_chapter_name(play_time_ms)
-	if chapter:
-		$PathDisplay/TimeLabel.text += " - " + chapter
+	var next_chapter = current_funscript.get_next_chapter_name(play_time_ms)
+	if chapter or next_chapter:
+		$PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
 
 func check_root_directory():
 	if OS.get_name() == 'Android':
@@ -547,11 +548,12 @@ func display_active_path_index(pause := true, send_buffer := true):
 	$PathDisplay/Ball.position.y = render_depth(current_funscript.paths[0])
 	$PathDisplay/Ball.show()
 	$PathDisplay.show()
+	$PathDisplay/TimeLabel.text = "%02d:%02d" % [0, 0]
 	var chapter = current_funscript.get_current_chapter_name(0)
-	var label = "%02d:%02d" % [0, 0]
-	if chapter:
-		label += " - " + chapter
-	$PathDisplay/TimeLabel.text = label
+	var next_chapter = current_funscript.get_next_chapter_name(0)
+	if chapter or next_chapter:
+		$PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
+
 	if %VideoPlayer.is_active() and AppMode.active == AppMode.MOVE:
 		%VideoPlayer.sync_seek(0.0)
 
@@ -671,6 +673,7 @@ func activate_move_mode():
 	%PathDisplay/PathArea.show()
 	%PathDisplay/Paths.show()
 	%PathDisplay/TimeLabel.show()
+	%PathDisplay/ChapterLabel.show()
 	%PathDisplay/Ball.show()
 	$SeekSlider.show()
 	$TimeDisplay.show()
@@ -694,6 +697,7 @@ func deactivate_move_mode():
 	%PathDisplay/Paths.hide()
 	%PathDisplay/PathArea.hide()
 	%PathDisplay/TimeLabel.hide()
+	%PathDisplay/ChapterLabel.hide()
 	%PathDisplay/Ball.hide()
 	$SeekSlider.hide()
 	$TimeDisplay.hide()

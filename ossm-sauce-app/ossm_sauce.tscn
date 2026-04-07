@@ -504,11 +504,23 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -303.5
-offset_right = 303.5
+offset_right = -85.0
 offset_bottom = 77.0
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 56
 text = "00:00"
+
+[node name="ChapterLabel" type="Label" parent="PathDisplay"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -77.5
+offset_right = 529.5
+offset_bottom = 130.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 56
+text = "chapter"
 
 [node name="AccelTimer" type="Timer" parent="PathDisplay" unique_id=1546967046]
 wait_time = 0.8
