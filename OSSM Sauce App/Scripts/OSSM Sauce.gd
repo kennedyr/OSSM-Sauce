@@ -125,11 +125,11 @@ func _physics_process(_delta):
 
 	$PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
-	var label = "%02d:%02d" % [minutes, seconds]
+	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
 	var chapter = current_funscript.get_current_chapter_name(ms_timing)
-	if chapter:
-		label += " - " + chapter
-	$PathDisplay/TimeLabel.text = label
+	var next_chapter = current_funscript.get_next_chapter_name(ms_timing)
+	if chapter or next_chapter:
+		$PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
 
 func home_to(target_position:int):
 	if %WebSocket.ossm_connected:
@@ -202,8 +202,9 @@ func seek_to(play_time_ms:int):
 
 	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
 	var chapter = current_funscript.get_current_chapter_name(play_time_ms)
-	if chapter:
-		$PathDisplay/TimeLabel.text += " - " + chapter
+	var next_chapter = current_funscript.get_next_chapter_name(play_time_ms)
+	if chapter or next_chapter:
+		$PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
 
 func check_root_directory():
 	var dir = DirAccess.open(Global.storage_dir)
@@ -374,11 +375,12 @@ func display_active_path_index(pause := true, send_buffer := true):
 	$PathDisplay/Ball.position.y = render_depth(funscripts[Global.active_path_index].paths[0])
 	$PathDisplay/Ball.show()
 	$PathDisplay.show()
+	$PathDisplay/TimeLabel.text = "%02d:%02d" % [0, 0]
 	var chapter = current_funscript.get_current_chapter_name(0)
-	var label = "%02d:%02d" % [0, 0]
-	if chapter:
-		label += " - " + chapter
-	$PathDisplay/TimeLabel.text = label
+	var next_chapter = current_funscript.get_next_chapter_name(0)
+	if chapter or next_chapter:
+		$PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
+
 
 
 func render_depth(depth) -> float:
@@ -392,6 +394,7 @@ func activate_move_mode():
 	%PathDisplay/PathArea.show()
 	%PathDisplay/Paths.show()
 	%PathDisplay/TimeLabel.show()
+	%PathDisplay/ChapterLabel.show()
 	%PathDisplay/Ball.show()
 	%Menu/Main/PlaylistButtons.show()
 	%Menu/Main/PathButtons.show()
@@ -409,6 +412,7 @@ func deactivate_move_mode():
 	%PathDisplay/Paths.hide()
 	%PathDisplay/PathArea.hide()
 	%PathDisplay/TimeLabel.hide()
+	%PathDisplay/ChapterLabel.hide()
 	%PathDisplay/Ball.hide()
 	%Menu/Main/PlaylistButtons.hide()
 	%Menu/Main/PathButtons.hide()

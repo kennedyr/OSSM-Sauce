@@ -201,11 +201,12 @@ func create_chapters(chappy: Array, lastAt: int):
 		chapters.append({
 			"name": "End",
 			"startTime": format_time(lastAt),
-			"chapterBeginSeconds": lastAt / 1000.0
+			"chapterBeginSeconds": lastAt / 1000.0 - 1
 		})
 	else:
 		for chapter in chapters:
 			chapter['chapterBeginSeconds'] = parse_time(chapter.startTime)
+			chapter['chapterEndSeconds'] = parse_time(chapter.endTime)
 	
 	chapters.sort_custom(chapter_sorter)
 
@@ -259,7 +260,15 @@ func get_current_chapter_name(ms_timing: int):
 	var chapterName = ""
 	for chapter in chapters:
 		if seconds >= chapter['chapterBeginSeconds']:
-			chapterName = chapter['name']
+			if (!chapter.has('chapterEndSeconds') or seconds < chapter['chapterEndSeconds']):
+				chapterName = chapter['name']
 		
 	return chapterName
 	
+
+func get_next_chapter_name(ms_timing: int):
+	var seconds: float = ms_timing / 1000.0
+	for chapter in chapters:
+		if seconds < chapter['chapterBeginSeconds']:
+			return chapter['name']
+	return ""
