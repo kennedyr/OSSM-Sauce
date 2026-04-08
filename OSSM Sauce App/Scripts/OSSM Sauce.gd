@@ -8,6 +8,7 @@ var buffer_size:int = 30
 var path_speed:int = 30
 
 var funscripts: Array
+var lineColors: Gradient
 
 @onready var PATH_TOP = $PathDisplay/PathArea.position.y
 @onready var PATH_BOTTOM = PATH_TOP + $PathDisplay/PathArea.size.y
@@ -34,6 +35,14 @@ func _ready():
 	
 	$PathDisplay/Ball.position.x = $PathDisplay/PathArea.size.x / 2
 	
+	lineColors = create_gradient([
+		Color("FFFFFF"),
+		Color("66FF00"),
+		Color("FFFF00"),
+		Color("FF0000"),
+		Color("0000FF")
+	])
+
 	check_root_directory()
 	
 	UserSettings.initialize()
@@ -286,6 +295,7 @@ func create_path_lines(marker_data: Dictionary):
 	var previous_depth:float
 	var previous_frame:int
 	var marker_list:Array = marker_data.keys()
+	var line_colors:Array = []
 	var path_line:Line2D = Line2D.new()
 	path_line.width = 15
 	path_line.hide()
@@ -298,6 +308,12 @@ func create_path_lines(marker_data: Dictionary):
 		@warning_ignore("unused_variable")
 		var auxiliary = marker_data[marker_frame][3]
 		if marker_frame > 0:
+			var speed = get_speed(previous_frame, previous_depth, marker_frame, depth)
+			var line_color = lineColors.sample(remap(speed, 0, 500, 0, 1))
+			line_colors.append({
+				"length": previous_frame * path_speed + 1,
+				"color": line_color
+			})
 			var steps:int = marker_frame - previous_frame
 			for step in steps:
 				var step_depth:float = Tween.interpolate_value(
@@ -310,9 +326,17 @@ func create_path_lines(marker_data: Dictionary):
 				var x_pos = (previous_frame * path_speed) + (step * path_speed)
 				var y_pos = render_depth(step_depth)
 				path_line.add_point(Vector2(x_pos, y_pos))
+			line_colors.append({
+				"length": marker_frame * path_speed,
+				"color": line_color
+			})
 		previous_depth = depth
 		previous_frame = marker_frame
-	
+	var gradient = create_line_gradient(line_colors)
+	var gradient_texture := GradientTexture2D.new()
+	gradient_texture.gradient = gradient
+	path_line.texture = gradient_texture
+	path_line.texture_mode = Line2D.LINE_TEXTURE_STRETCH
 	$PathDisplay/Paths.add_child(path_line)
 
 
@@ -441,3 +465,65 @@ func exit():
 		pause()
 		%OSSMCommand.set_range_limit_min(0)
 		home_to(0)
+
+
+func create_gradient(colors: Array[Color]) -> Gradient:
+	var gradient = Gradient.new() 	# creates black to white gradient with two points
+	gradient.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_LINEAR
+	# check colors array size
+	var amount: int = colors.size()
+	if amount < 1:
+		printerr("gradient cant have less than one color")
+		return gradient # return default gradient
+
+	# remove default end color
+	gradient.remove_point(1)
+	# set or add new colors in equal intervals from 0 to 1
+	for i in range(amount):
+		var pos = lerp(0, 1, i/(amount-1.0))
+		if gradient.get_point_count() <= i:
+			gradient.add_point(pos, colors[i])
+		else:
+			gradient.set_color(i, colors[i])
+			gradient.set_offset(i, pos)
+
+	return gradient
+
+
+func create_line_gradient(line_colors: Array[Variant]) -> Gradient:
+	var gradient = Gradient.new()
+	gradient.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_LINEAR
+	if line_colors.size() < 1:
+		printerr("gradient cant have less than one color")
+		return gradient # return default gradient
+
+	# remove default end color
+	gradient.remove_point(1)
+	var first = line_colors.front()
+	var last = line_colors.back()
+	var total_length = last["length"]
+	gradient.set_color(0, first["color"])
+	var prev = first
+	var index = 0
+	for lc in line_colors:
+		var length = lc["length"] - prev["length"]
+		if lc["color"] != prev["color"]:
+			if length >= 100:
+				gradient.add_point(lc["length"] / total_length, lc["color"])
+			else:
+				if index < line_colors.size() && line_colors[index + 1]["color"] == lc["color"]:
+					gradient.add_point(lc["length"] / total_length, lc["color"])
+		prev = lc
+		index += 1
+
+	return gradient
+
+
+func get_speed(prevMarker, prevDepth, marker, depth):
+	var prevAt = prevMarker * 16.66666
+	var at = marker * 16.66666
+	var timeDiff = abs(at - prevAt);
+	if timeDiff <= 0:
+		return 0
+
+	return 100000 * (abs(depth - prevDepth ) / timeDiff);
