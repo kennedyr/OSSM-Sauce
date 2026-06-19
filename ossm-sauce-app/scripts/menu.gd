@@ -69,7 +69,7 @@ func _on_delete_pressed():
 	var selected_item = $Playlist.selected_index
 	if Global.active_path_index == selected_item:
 		Global.paused = true
-		owGlobalner.active_path_index = null
+		Global.active_path_index = null
 		$PathControls.hide()
 		%ActionPanel.clear_selections()
 		%ActionPanel/Play.show()

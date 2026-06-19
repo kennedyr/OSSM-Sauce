@@ -130,7 +130,7 @@ func _on_data_received(client_id, data):
 					node.modulate.a = 1
 				Global.emit_signal("homing_complete")
 				if AppMode.active == AppMode.MOVE:
-					if Global.active_path_index != null and global.frame == 0:
+					if Global.active_path_index != null and Global.frame == 0:
 						%CircleSelection.show_play()
 
 

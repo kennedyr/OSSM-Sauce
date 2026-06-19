@@ -15,7 +15,8 @@ enum Section {
 	bridge_settings,
 	bpio_settings,
 	xtoys_settings,
-	mcp_settings
+	mcp_settings,
+	video_player
 }
 
 const readonly = true

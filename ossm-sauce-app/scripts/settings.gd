@@ -28,7 +28,7 @@ func _on_change_port_pressed() -> void:
 
 func _on_reverse_motor_direction_toggled(toggled_on: bool) -> void:
 	var direction = 1 if toggled_on else 0
-	UserSettings.set_value('device_settings', 'motor_direction', direction)
+	UserSettings.set_value(UserSettings.Section.device_settings, 'motor_direction', direction)
 	Global.motor_direction = direction
 	if not %WebSocket.ossm_connected:
 		return

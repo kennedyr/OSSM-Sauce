@@ -110,14 +110,13 @@ func map_funscript_data(parsed_data: Dictionary) -> Dictionary:
 
 
 func map_other_data(parsed_data: Dictionary) -> Dictionary:
-	if parsed_data:
 	if parsed_data.has("meta"):
-		var meta = file_data["meta"]
+		var meta = parsed_data["meta"]
 		if meta is Dictionary and meta.has("video_offset_ms"):
 			%VideoPlayer/Main/VideoOffset/Input.value = meta["video_offset_ms"]
 
 	return { 
-		"actions": file_data["markers"],
+		"actions": parsed_data["markers"],
 		"chapters": []
 	}
 	

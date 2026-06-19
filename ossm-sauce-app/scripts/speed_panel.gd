@@ -54,9 +54,9 @@ func update_speed(label_only:bool = false):
 	var range_steps = range_percent * 1000
 
 	UserSettings.set_value(UserSettings.Section.speed_slider, 'position_percent', percent)
-	#$LabelTop.text = "Max Speed:\n" + str(speed_limit) + " steps/sec"
-	var text_value = str(round(percent * 100))
-	$LabelTop.text = "Max Speed: " + text_value + "%\n" + str(snapped(speed / (range_steps * 2), 0.1)) + " strokes/sec"
+	$LabelTop.text = "Max Speed:\n" + str(speed_limit) + " steps/sec"
+	#var text_value = str(round(percent * 100))
+	#$LabelTop.text = "Max Speed: " + text_value + "%\n" + str(snapped(speed / (range_steps * 2), 0.1)) + " strokes/sec"
 	if $DebounceTimer.is_stopped():
 		$DebounceTimer.start()
 
@@ -105,7 +105,7 @@ func _on_acceleration_slider_gui_input(event):
 			acceleration_slider.position.y = new_slider_position
 			update_acceleration()
 			var slider_position_percent = remap(
-					new_slider_pos,
+					new_slider_position,
 					accel_slider_min_pos,
 					accel_slider_max_pos,
 					0,

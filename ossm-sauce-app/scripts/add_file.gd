@@ -3,7 +3,6 @@ extends Panel
 var lastPath = null;
 var lastPlaylist = null;
 
-
 func _ready() -> void:
 	self_modulate.a = 2
 	$FileDialog.file_selected.connect(_on_file_selected)
@@ -62,12 +61,12 @@ func _on_cancel():
 
 func _on_load_playlist_pressed():
 	var file_name: String = $FileList.get_item_text($FileList.selected_index)
-	_on_load_playlist(path)
+	_on_load_playlist(file_name)
 
 
 func _on_file_selected(path: String):
 	$HBox/AddPath.disabled = false
-	if mode == "PLAYLIST":
+	if $FileList.mode == "PLAYLIST":
 		_on_load_playlist(path)
 	else:
 		_on_add_path(path)
@@ -83,8 +82,8 @@ func _on_add_path(file_path: String):
 
 
 func _on_load_playlist(file_path: String):
-	# var file = FileAccess.open(file_path, FileAccess.READ)
-	var file = owner.playlists_open_read(file_name)
+	var file = FileAccess.open(file_path, FileAccess.READ)
+	#var file = owner.playlists_open_read(file_name)
 
 	if not file:
 		return

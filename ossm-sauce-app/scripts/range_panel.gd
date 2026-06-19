@@ -79,8 +79,8 @@ func update_max_range(label_only := false):
 
 
 func send_range_limits():
-	min_range = abs(Global.motor_direction * 10000 - min_range_limit)
-	max_range = abs(Global.motor_direction * 10000 - max_range_limit)
+	var min_range = abs(Global.motor_direction * 10000 - min_range_limit)
+	var max_range = abs(Global.motor_direction * 10000 - max_range_limit)
 	if Global.motor_direction == 0:
 		%OSSMCommand.set_range_limit_min(min_range)
 		%OSSMCommand.set_range_limit_max(max_range)
