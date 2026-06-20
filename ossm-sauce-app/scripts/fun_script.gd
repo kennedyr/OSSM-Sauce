@@ -6,9 +6,9 @@ var TICKS_PER_SECOND:int
 var path_speed:int = 30
 
 var _marker_data: Dictionary
-var paths:PackedFloat32Array
-var marker_frames:Dictionary
-var network_paths:Array
+var path: PackedFloat32Array
+var frames: PackedInt32Array
+var network_paths: Array
 var chapters:Array
 var PATH_TOP
 var PATH_BOTTOM
@@ -46,7 +46,7 @@ func load_path(filePath:String) -> bool:
 
 
 func parse_file(filePath: String) -> Dictionary:
-	var file_data:Dictionary
+	var file_data: Dictionary
 	var file = FileAccess.open(filePath, FileAccess.READ)
 	if file:
 		var file_text = file.get_as_text().replace("\n", "")
@@ -59,8 +59,8 @@ func parse_file(filePath: String) -> Dictionary:
 
 	
 func map_funscript_data(parsed_data: Dictionary) -> Dictionary:
-	var file_data:Dictionary
-	var chapt:Array
+	var file_data: Dictionary
+	var chapt: Array
 	var inverted := false
 
 	if parsed_data:
@@ -121,7 +121,7 @@ func map_other_data(parsed_data: Dictionary) -> Dictionary:
 	}
 	
 func create_network_packets(marker_data: Dictionary):
-	var previous_ms_timing:int
+	var previous_ms_timing: int
 	var network_packets: Array
 
 	var sorted_keys := marker_data.keys()
@@ -151,28 +151,21 @@ func create_network_packets(marker_data: Dictionary):
 
 
 func create_path_lines(marker_data: Dictionary):
-	var previous_depth:float
-	var previous_frame:int
-	var marker_list:Array = marker_data.keys()
-	var path:PackedFloat32Array
-	var path_new:Dictionary
+	var previous_depth: float
+	var previous_frame: int
+	var marker_list: Array = marker_data.keys()
 	marker_list.sort()
 	for marker_frame in marker_list:
-		var depth = marker_data[marker_frame][0]
-		var trans = marker_data[marker_frame][1]
+		var marker = marker_data[marker_frame]
+		var depth = marker[0]
+		var trans = marker[1]
 		@warning_ignore("shadowed_global_identifier")
-		var ease = marker_data[marker_frame][2]
-		@warning_ignore("unused_variable")
-		var auxiliary = marker_data[marker_frame][3]
+		var ease = marker[2]
 		if marker_frame > 0:
-			var steps:int = marker_frame - previous_frame
-			var duration = (float(steps) / TICKS_PER_SECOND) * 1000
-			var scaled_depth:int = round(clamp(depth, 0, 0.9999) * 10000)
-			var headers:String = "M%sD%sT%sE%s"
-			var message:String = headers%[scaled_depth, duration, trans, ease]
-			path_new[previous_frame] = message
+			var steps: int = marker_frame - previous_frame
+			frames.append(previous_frame)
 			for step in steps:
-				var step_depth:float = Tween.interpolate_value(
+				var step_depth: float = Tween.interpolate_value(
 						previous_depth,
 						depth - previous_depth,
 						step,
@@ -182,9 +175,6 @@ func create_path_lines(marker_data: Dictionary):
 				path.append(step_depth)
 		previous_depth = depth
 		previous_frame = marker_frame
-	
-	paths = path
-	marker_frames = path_new
 
 
 func format_time(msTime: int):
@@ -244,8 +234,8 @@ func render_depth(depth) -> float:
 	return PATH_BOTTOM + depth * (PATH_TOP - PATH_BOTTOM)
 
 
-func _find_prev_marker_for_frame(frame: int):
-	var marker_list_keys = marker_frames.keys()
+func find_prev_marker_for_frame(frame: int):
+	var marker_list_keys = Array(frames)
 	var future_keys = marker_list_keys.filter(func(number): return number >= frame)
 	future_keys.sort()
 	var next_marker_frame = future_keys.pop_front()

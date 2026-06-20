@@ -66,10 +66,10 @@ func _physics_process(delta) -> void:
 	if Global.paused or Global.active_path_index == null:
 		return
 
-	if current_funscript.paths.is_empty():
+	if current_funscript.path.is_empty():
 		return
 
-	var total_frames: int = current_funscript.paths.size()
+	var total_frames: int = current_funscript.path.size()
 	# End of current path
 	if Global.frame >= total_frames - 1:
 		# There is a next path in playlist
@@ -87,7 +87,7 @@ func _physics_process(delta) -> void:
 			$CircleSelection.show_restart()
 		return
 	
-	var frames = current_funscript.marker_frames
+	var frames = current_funscript.frames
 	var active_path = current_funscript.network_paths
 	var current_marker = marker_index - buffer_sent
 	if current_marker < frames.size() and Global.frame == frames[current_marker]:
@@ -109,11 +109,11 @@ func _physics_process(delta) -> void:
 		if current_marker < frames.size() - 1:
 			marker_index += 1
 	
-	var depth: float = current_funscript.paths[Global.frame]
+	var depth: float = current_funscript.path[Global.frame]
 	# var ms_timing: int = round((float(Global.frame) / 50) * 1000)
 	# var minutes: int = floori(ms_timing / 60000.0)
 	# var seconds: int = floori((ms_timing % 60000) / 1000)
-	# $PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
+	$PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
 	# $PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
 	
@@ -186,11 +186,11 @@ func pause():
 
 	if Global.active_path_index == null:
 		return
-	if AppMode.active != AppMode.MOVE or current_funscript.paths.is_empty():
+	if AppMode.active != AppMode.MOVE or current_funscript.path.is_empty():
 		return
 	
 	# Sync OSSM to current path position
-	var current_depth: float = current_funscript.paths[Global.frame]
+	var current_depth: float = current_funscript.path[Global.frame]
 	%OSSMCommand.reset()
 	home_to(round(current_depth * 10000))
 	await Global.homing_complete
@@ -198,7 +198,7 @@ func pause():
 		return
 	
 	# Find cascade and buffer start for current frame
-	var frames = current_funscript.marker_frames
+	var frames = current_funscript.frames
 	var buffer_start := 0
 	var cascade_index := 0
 	for i in frames.size():
@@ -254,7 +254,7 @@ func pause():
 # 	Global.frame = frame
 
 # 	# Set to prev move
-# 	marker_index = current_funscript._find_prev_marker_for_frame(frame)
+# 	marker_index = current_funscript.find_prev_marker_for_frame(frame)
 # 	marker_index += 1
 # 	%OSSMCommand.reset()
 
@@ -268,7 +268,7 @@ func pause():
 # 	# MPV.seek_to(play_time_ms)
 # 	var original_path_start_position = ($PathDisplay/PathArea.size.x / 2) + path_speed
 # 	$PathDisplay/Paths.get_child(Global.active_path_index).position.x = original_path_start_position - (frame * path_speed)
-# 	var new_current_depth = render_depth(current_funscript.paths[(frame - 1 if frame > 0 else 0)])
+# 	var new_current_depth = render_depth(current_funscript.path[(frame - 1 if frame > 0 else 0)])
 # 	$PathDisplay/Ball.position.y = new_current_depth
 	
 # 	var minutes: int = floori(play_time_ms / 60000.0)
@@ -461,8 +461,8 @@ func create_delay(duration: float):
 	var end_move = OSSMCommand.create_move_command(duration * 1000, 0, 0, 0, 0)
 	network_packets.append(end_move)
 	current_funscript.network_paths.append(network_packets)
-	current_funscript.paths.append(delay_path)
-	current_funscript.marker_frames.append(frames)
+	current_funscript.path.append(delay_path)
+	current_funscript.frames.append(frames)
 	$PathDisplay/Paths.add_child(path_line)
 	$Menu/Playlist.add_item("delay(%s)" % [duration])
 
@@ -480,7 +480,7 @@ func display_active_path_index(pause := true, send_buffer := true):
 	if send_buffer:
 		if %WebSocket.ossm_connected:
 			%OSSMCommand.reset()
-			var start_depth:float = current_funscript.paths[0]
+			var start_depth:float = current_funscript.path[0]
 			home_to(round(start_depth * 10000))
 			await Global.homing_complete
 			if not %WebSocket.ossm_connected:
@@ -503,7 +503,7 @@ func display_active_path_index(pause := true, send_buffer := true):
 	var path = $PathDisplay/Paths.get_child(Global.active_path_index)
 	path.position.x = ($PathDisplay/PathArea.size.x / 2) + path_speed
 	path.show()
-	$PathDisplay/Ball.position.y = render_depth(current_funscript.paths[0])
+	$PathDisplay/Ball.position.y = render_depth(current_funscript.path[0])
 	$PathDisplay/Ball.show()
 	$PathDisplay.show()
 	# $PathDisplay/TimeLabel.text = "%02d:%02d" % [0, 0]
@@ -528,7 +528,7 @@ func seek() -> void:
 		%ActionPanel/Play.show()
 		%CircleSelection.hide()
 	
-	var active_path = current_funscript.paths
+	var active_path = current_funscript.path
 	if active_path.is_empty():
 		_seeking = false
 		return
@@ -541,7 +541,7 @@ func seek() -> void:
 	play_offset_ms = int(target_frame * 1000.0 / ticks_per_second)
 	
 	# Find the first marker_frame index AFTER target_frame
-	var frames = current_funscript.marker_frames
+	var frames = current_funscript.frames
 	var buffer_start := 0
 	var cascade_index := 0
 	for i in frames.size():
@@ -593,7 +593,7 @@ func _on_seek_slider_drag_started() -> void:
 func _on_seek_slider_value_changed(value: float) -> void:
 	if Global.active_path_index == null:
 		return
-	var total_frames: int = current_funscript.paths.size()
+	var total_frames: int = current_funscript.path.size()
 	var total_sec := (total_frames - 1) / ticks_per_second
 	var current_sec := int(value * total_sec)
 	if total_sec >= 3600:
@@ -607,7 +607,7 @@ func _on_seek_slider_value_changed(value: float) -> void:
 
 
 func update_time_display():
-	var total_frames: int = current_funscript.paths.size()
+	var total_frames: int = current_funscript.path.size()
 	var current_sec := Global.frame / ticks_per_second
 	var total_sec := (total_frames - 1) / ticks_per_second
 	if total_sec >= 3600:
@@ -721,7 +721,7 @@ func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
 		var path_time = float(Global.frame) / ticks_per_second
 		%VideoPlayer.pause_and_seek(path_time)
 		return
-	var total_frames: int = current_funscript.paths.size()
+	var total_frames: int = current_funscript.path.size()
 	if total_frames == 0:
 		return
 	
@@ -729,7 +729,7 @@ func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
 	Global.frame = target_frame
 	
 	# Realign buffer tracking to new frame position
-	var frames = current_funscript.marker_frames
+	var frames = current_funscript.frames
 	var cascade_index := 0
 	for i in frames.size():
 		if frames[i] <= target_frame:
@@ -741,7 +741,7 @@ func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
 	# Update display
 	var path_line = $PathDisplay/Paths.get_child(Global.active_path_index)
 	path_line.position.x = ($PathDisplay/PathArea.size.x / 2) + path_speed - (target_frame * path_speed)
-	$PathDisplay/Ball.position.y = render_depth(current_funscript.paths[target_frame])
+	$PathDisplay/Ball.position.y = render_depth(current_funscript.path[target_frame])
 	$SeekSlider.set_value_no_signal(float(target_frame) / (total_frames - 1))
 	update_time_display()
 	
@@ -765,7 +765,7 @@ func _on_video_player_paused():
 func _on_video_player_seeked(video_time_seconds: float):
 	if Global.active_path_index == null or AppMode.active != AppMode.MOVE:
 		return
-	var total_frames: int = current_funscript.paths.size()
+	var total_frames: int = current_funscript.path.size()
 	if total_frames == 0:
 		return
 	var target_frame = clampi(int(video_time_seconds * ticks_per_second), 0, total_frames - 1)
