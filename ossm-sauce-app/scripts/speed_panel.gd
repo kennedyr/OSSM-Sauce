@@ -35,7 +35,6 @@ func set_speed_slider_percent(percent):
 		percent,
 		speed_slider_min_pos,
 		speed_slider_max_pos)
-	UserSettings.set_value(UserSettings.Section.speed_slider, 'position_percent', percent)
 	update_speed()
 
 
@@ -50,7 +49,6 @@ func set_acceleration_slider_percent(percent):
 		percent,
 		accel_slider_min_pos,
 		accel_slider_max_pos)
-	UserSettings.set_value(UserSettings.Section.accel_slider, 'position_percent', percent)
 	update_acceleration()
 
 
@@ -63,6 +61,7 @@ func update_speed():
 		Global.max_speed)
 
 	$LabelTop.text = "Max Speed:\n" + str(speed_limit) + " steps/sec"
+	UserSettings.set_value(UserSettings.Section.speed_slider, 'position_percent', percent)
 	if $DebounceTimer.is_stopped():
 		$DebounceTimer.start()
 
@@ -76,6 +75,7 @@ func update_acceleration():
 		Global.max_acceleration)
 
 	$LabelBot.text = "Acceleration:\n" + str(acceleration_limit) + " steps/sec²"
+	UserSettings.set_value(UserSettings.Section.accel_slider, 'position_percent', percent)
 	if $DebounceTimer.is_stopped():
 		$DebounceTimer.start()
 
@@ -101,16 +101,6 @@ func _on_speed_slider_gui_input(event):
 
 			speed_slider.position.y = new_slider_pos
 			update_speed()
-			var slider_position_percent = remap(
-					new_slider_pos,
-					speed_slider_min_pos,
-					speed_slider_max_pos,
-					0,
-					1)
-			UserSettings.set_value(
-				UserSettings.Section.speed_slider,
-				'position_percent',
-				slider_position_percent)
 
 
 func _on_acceleration_slider_gui_input(event):
@@ -126,16 +116,6 @@ func _on_acceleration_slider_gui_input(event):
 
 			acceleration_slider.position.y = new_slider_pos
 			update_acceleration()
-			var slider_position_percent = remap(
-					new_slider_pos,
-					accel_slider_min_pos,
-					accel_slider_max_pos,
-					0,
-					1)
-			UserSettings.set_value(
-				UserSettings.Section.accel_slider,
-				'position_percent',
-				slider_position_percent)
 
 
 func tween(activating := true):

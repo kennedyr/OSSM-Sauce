@@ -2418,17 +2418,17 @@ theme_override_constants/separation = 25
 layout_mode = 2
 theme_override_constants/separation = 18
 
-[node name="Label" type="Label" parent="Menu/BridgeSettings/MCP/Port" unique_id=873659490]
-layout_mode = 2
-theme = ExtResource("1_g6hv1")
-text = "Port:"
-
 [node name="Input" type="SpinBox" parent="Menu/BridgeSettings/MCP/Port" unique_id=1445660732 groups=["spinboxes"]]
 layout_mode = 2
 theme = ExtResource("1_g6hv1")
 min_value = 1024.0
 max_value = 49151.0
 value = 8081.0
+
+[node name="Label" type="Label" parent="Menu/BridgeSettings/MCP/Port" unique_id=873659490]
+layout_mode = 2
+theme = ExtResource("1_g6hv1")
+text = "Port:"
 
 [node name="HelpButton" type="Button" parent="Menu/BridgeSettings/MCP" unique_id=1784972055]
 layout_mode = 2

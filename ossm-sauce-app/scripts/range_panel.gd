@@ -64,8 +64,6 @@ func update_min_range(label_only := false):
 	var text_value = str(round(percent * 100))
 	$LabelBot.text = "Min Position:\n" + text_value + "%"
 
-	%SpeedPanel.update_speed(true)
-
 
 func update_max_range(label_only := false):
 	var slider_pos = max_slider.position.y
@@ -111,7 +109,7 @@ func set_min_slider_pos(percent):
 
 
 func set_min_slider_percent(percent):
-	set_min_slider_percent(percent)
+	set_min_slider_pos(percent)
 
 
 func get_max_slider_percent():

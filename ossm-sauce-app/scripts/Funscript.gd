@@ -53,7 +53,7 @@ func parse_file(filePath: String) -> Dictionary:
 		file_data = JSON.parse_string(file_text)
 		if not file_data:
 			printerr("Error: No JSON data found in file.")
-	file.close()		
+		file.close()
 
 	return file_data
 

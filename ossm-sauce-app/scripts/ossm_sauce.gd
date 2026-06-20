@@ -28,9 +28,9 @@ var _seeking: bool
 @onready var PATH_BOTTOM = PATH_TOP + $PathDisplay/PathArea.size.y
 
 var current_funscript :
-    get:
+	get:
 		if Global.active_path_index >= 0 and Global.active_path_index < funscripts.size():
-        	funscripts[Global.active_path_index]
+			return funscripts[Global.active_path_index]
 
 func _ready():
 	set_process(false)
@@ -73,7 +73,7 @@ var marker_index: int
 func _physics_process(delta) -> void:
 	if Global.paused or Global.active_path_index == null:
 		return
-	
+
 	if current_funscript.paths.is_empty():
 		return
 
@@ -118,8 +118,18 @@ func _physics_process(delta) -> void:
 			marker_index += 1
 	
 	var depth: float = current_funscript.paths[Global.frame]
-	var ms_timing: int = round((float(Global.frame) / 50) * 1000)
+	# var ms_timing: int = round((float(Global.frame) / 50) * 1000)
+	# var minutes: int = floori(ms_timing / 60000.0)
+	# var seconds: int = floori((ms_timing % 60000) / 1000)
+	# $PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
+	# $PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
+	
+	# var chapter = current_funscript.get_current_chapter_name(ms_timing)
+	# var next_chapter = current_funscript.get_next_chapter_name(ms_timing)
+	# if chapter or next_chapter:
+		# $PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
+
 	if not _seek_dragging:
 		$SeekSlider.set_value_no_signal(float(Global.frame) / (total_frames - 1))
 		update_time_display()
@@ -181,7 +191,7 @@ func pause():
 	if not %WebSocket.ossm_connected:
 		return
 	%OSSMCommand.pause()
-	
+
 	if Global.active_path_index == null:
 		return
 	if AppMode.active != AppMode.MOVE or current_funscript.paths.is_empty():
@@ -237,6 +247,47 @@ func pause():
 	nudge.encode_u16(5, clampi(depth_val, 0, 10000))
 	%OSSMCommand.broadcast_binary(nudge)
 
+# func seek_to(play_time_ms:int):
+# 	print("seek_to ", play_time_ms)
+# 	if Global.active_path_index == null:
+# 		return
+
+# 	if not Global.paused:
+# 		print("Must be paused to seek")
+# 		return
+
+# 	var frame = round((play_time_ms / 1000.0) * 50)
+
+# 	print("seek_to frame", frame)
+# 	Global.frame = frame
+
+# 	# Set to prev move
+# 	marker_index = current_funscript._find_prev_marker_for_frame(frame)
+# 	marker_index += 1
+# 	%OSSMCommand.reset()
+
+# 	if %WebSocket.ossm_connected:
+# 		var bufferTo = marker_index + buffer_size
+# 		while marker_index < bufferTo:
+# 			%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
+# 			marker_index += 1
+
+# 	Global.next_play_time_ms = play_time_ms
+# 	# MPV.seek_to(play_time_ms)
+# 	var original_path_start_position = ($PathDisplay/PathArea.size.x / 2) + path_speed
+# 	$PathDisplay/Paths.get_child(Global.active_path_index).position.x = original_path_start_position - (frame * path_speed)
+# 	var new_current_depth = render_depth(current_funscript.paths[(frame - 1 if frame > 0 else 0)])
+# 	$PathDisplay/Ball.position.y = new_current_depth
+	
+# 	var minutes: int = floori(play_time_ms / 60000.0)
+# 	var seconds: int = floori((play_time_ms % 60000) / 1000.0)
+
+# 	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
+# 	var chapter = current_funscript.get_current_chapter_name(play_time_ms)
+# 	var next_chapter = current_funscript.get_next_chapter_name(play_time_ms)
+# 	if chapter or next_chapter:
+# 		$PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
+
 func check_root_directory():
 	if OS.get_name() == 'Android':
 		return
@@ -255,22 +306,22 @@ func apply_user_settings():
 		UserSettings.clear()
 		UserSettings.set_value(UserSettings.Section.app_settings, 'version_number', app_version_number)
 		UserSettings.save()
-	
+
 	if OS.get_name() != 'Android':
 		DisplayServer.window_set_size(UserSettings.get_value(UserSettings.Section.window, 'size', Vector2(435, 774)))
 		
-		$Settings/Window/AlwaysOnTop/CheckBox.button_pressed = UserSettings.get_value(UserSettings.Section.window, 'always_on_top', false)
+		$Settings/VBox/AlwaysOnTop.button_pressed = UserSettings.get_value(UserSettings.Section.window, 'always_on_top', false)
 
 		# $Settings/Window/TransparentBg/CheckBox.button_pressed = UserSettings.get_value(UserSettings.Section.window, 'transparent_background', false)
-	
+
 	if UserSettings.get_value(UserSettings.Section.app_settings, 'show_splash', true):
 		$Splash.show()
 	
 	_check_storage_setup()
 	
 	var port_number = UserSettings.get_value(UserSettings.Section.network, 'port', %WebSocket.port)
-		$Settings/VBox/Network/Port/Input.value = port_number
-		%WebSocket.port = port_number
+	$Settings/VBox/Network/Port/Input.value = port_number
+	%WebSocket.port = port_number
 	
 	var motor_direction = UserSettings.get_value(UserSettings.Section.device_settings, 'motor_direction', 0)
 	$Settings/VBox/ReverseMotorDirection.button_pressed = bool(motor_direction)
@@ -343,15 +394,15 @@ func apply_user_settings():
 
 
 func apply_device_settings():
-	$Settings.set_max_speed(UserSettings.get_value(UserSettings.Section.speed_slider, 'max_speed', 25000))
-	$Settings.set_max_acceleration(UserSettings.get_value(UserSettings.Section.accel_slider, 'max_acceleration', 500000))
+	Global.max_speed = UserSettings.get_value(UserSettings.Section.speed_slider, 'max_speed', 25000)
+	Global.max_acceleration = UserSettings.get_value(UserSettings.Section.accel_slider, 'max_acceleration', 500000)
 	$SpeedPanel.set_speed_slider_percent(UserSettings.get_value(UserSettings.Section.speed_slider, 'position_percent', 0.6))
 	$SpeedPanel.set_acceleration_slider_percent(UserSettings.get_value(UserSettings.Section.accel_slider, 'position_percent', 0.4))
 	$RangePanel.set_min_slider_percent(UserSettings.get_value(UserSettings.Section.range_slider_min, 'position_percent', 0))
 	$RangePanel.set_max_slider_percent(UserSettings.get_value(UserSettings.Section.range_slider_max, 'position_percent', 1))
 	$Settings.set_syncing_speed(UserSettings.get_value(UserSettings.Section.device_settings, 'syncing_speed', 1000))
 	$Settings.set_homing_trigger(UserSettings.get_value(UserSettings.Section.device_settings, 'homing_trigger', 1.5))
-	
+
 	$SpeedPanel.send_speed_limits()
 	$RangePanel.send_range_limits()
 
@@ -370,7 +421,7 @@ func load_path(filePath: String) -> bool:
 	if funscript._marker_data.size() < buffer_size:
 		printerr("Error: Insufficient path data in file.")
 		return false
-	
+
 	funscripts.append(funscript)
 	create_path_lines(funscript._marker_data)
 
@@ -474,6 +525,12 @@ func display_active_path_index(pause := true, send_buffer := true):
 	$PathDisplay/Ball.position.y = render_depth(current_funscript.paths[0])
 	$PathDisplay/Ball.show()
 	$PathDisplay.show()
+	# $PathDisplay/TimeLabel.text = "%02d:%02d" % [0, 0]
+	# var chapter = current_funscript.get_current_chapter_name(0)
+	# var next_chapter = current_funscript.get_next_chapter_name(0)
+	# if chapter or next_chapter:
+	# 	$PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
+
 	if %VideoPlayer.is_active() and AppMode.active == AppMode.MOVE:
 		%VideoPlayer.sync_seek(0.0)
 
@@ -1035,3 +1092,65 @@ func _saf_uri_to_friendly_path(tree_uri: String) -> String:
 	if volume == "primary":
 		return "Internal Storage/" + rel_path
 	return volume + "/" + rel_path
+
+
+# func create_gradient(colors: Array[Color]) -> Gradient:
+# 	var gradient = Gradient.new() 	# creates black to white gradient with two points
+# 	gradient.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_LINEAR
+# 	# check colors array size
+# 	var amount: int = colors.size()
+# 	if amount < 1:
+# 		printerr("gradient cant have less than one color")
+# 		return gradient # return default gradient
+
+# 	# remove default end color
+# 	gradient.remove_point(1)
+# 	# set or add new colors in equal intervals from 0 to 1
+# 	for i in range(amount):
+# 		var pos = lerp(0, 1, i/(amount-1.0))
+# 		if gradient.get_point_count() <= i:
+# 			gradient.add_point(pos, colors[i])
+# 		else:
+# 			gradient.set_color(i, colors[i])
+# 			gradient.set_offset(i, pos)
+
+# 	return gradient
+
+
+# func create_line_gradient(line_colors: Array[Variant]) -> Gradient:
+# 	var gradient = Gradient.new()
+# 	gradient.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_LINEAR
+# 	if line_colors.size() < 1:
+# 		printerr("gradient cant have less than one color")
+# 		return gradient # return default gradient
+
+# 	# remove default end color
+# 	gradient.remove_point(1)
+# 	var first = line_colors.front()
+# 	var last = line_colors.back()
+# 	var total_length = last["length"]
+# 	gradient.set_color(0, first["color"])
+# 	var prev = first
+# 	var index = 0
+# 	for lc in line_colors:
+# 		var length = lc["length"] - prev["length"]
+# 		if lc["color"] != prev["color"]:
+# 			if length >= 100:
+# 				gradient.add_point(lc["length"] / total_length, lc["color"])
+# 			else:
+# 				if index < line_colors.size() && line_colors[index + 1]["color"] == lc["color"]:
+# 					gradient.add_point(lc["length"] / total_length, lc["color"])
+# 		prev = lc
+# 		index += 1
+
+# 	return gradient
+
+
+# func get_speed(prevMarker, prevDepth, marker, depth):
+# 	var prevAt = prevMarker * 16.66666
+# 	var at = marker * 16.66666
+# 	var timeDiff = abs(at - prevAt);
+# 	if timeDiff <= 0:
+# 		return 0
+
+# 	return 100000 * (abs(depth - prevDepth ) / timeDiff);

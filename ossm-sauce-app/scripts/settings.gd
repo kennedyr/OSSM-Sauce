@@ -57,8 +57,12 @@ func _on_syncing_speed_changed():
 
 func _on_syncing_speed_debounce_timer_timeout() -> void:
 	var new_syncing_speed: int = $VBox/SyncingSpeed/Input.value
-	%OSSMCommand.set_homing_speed(new_syncing_speed)
+	set_syncing_speed(new_syncing_speed)
 	UserSettings.set_value(UserSettings.Section.device_settings, 'syncing_speed', new_syncing_speed)
+
+
+func set_syncing_speed(new_syncing_speed: int) -> void:
+	%OSSMCommand.set_homing_speed(new_syncing_speed)
 
 
 func _on_homing_trigger_changed() -> void:
@@ -69,6 +73,10 @@ func _on_homing_trigger_debounce_timer_timeout() -> void:
 	var default_string: String = "Default value: 1.5\nYour value is: "
 	$HomingTriggerPopup/VBox/ValueLabel.text = default_string + str($VBox/HomingTrigger/Input.value)
 	$HomingTriggerPopup.show()
+
+
+func set_homing_trigger(homing_trigger: float):
+	%OSSMCommand.set_homing_trigger(homing_trigger)
 
 
 func _on_always_on_top_toggled(toggled):

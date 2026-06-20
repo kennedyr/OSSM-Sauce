@@ -50,7 +50,7 @@ func show_playlists():
 
 func _on_file_selected(path: String):
 	$HBox/AddPath.disabled = false
-	if $FileList.mode == "PLAYLIST":
+	if $FileList.mode == $FileList.Mode.PLAYLIST:
 		_on_load_playlist(path)
 	else:
 		_on_add_path(path)
