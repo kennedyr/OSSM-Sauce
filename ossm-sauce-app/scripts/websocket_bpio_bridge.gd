@@ -175,7 +175,7 @@ func send_smooth_move(ms_duration: int, depth: int, trans: int, ease: int, auxil
 	command.resize(10)
 	command.encode_u8(0, OSSM.Command.SMOOTH_MOVE)
 	command.encode_u32(1, ms_duration)
-	command.encode_u16(5, abs(owner.motor_direction * 10000 - depth))
+	command.encode_u16(5, abs(Global.motor_direction * 10000 - depth))
 	command.encode_u8(7, trans)
 	command.encode_u8(8, ease)
 	command.encode_u8(9, auxiliary)

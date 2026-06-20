@@ -21,13 +21,9 @@ func _ready():
 func _physics_process(delta) -> void:
 	var pos = lerp(slider.position.y, touch_pos, delta * smoothing)
 	slider.position.y = clamp(pos, max_range, min_range)
-	var mapped_pos: int = abs(owner.motor_direction * 10000 - remap(slider.position.y, min_range, max_range, 0, 10000))
-	if %WebSocket.ossm_connected and last_position != mapped_pos:
-		var command: PackedByteArray
-		command.resize(5)
-		command.encode_u8(0, OSSM.Command.POSITION)
-		command.encode_u32(1, mapped_pos)
-		%WebSocket.server.broadcast_binary(command)
+	var mapped_pos: int = abs(Global.motor_direction * 10000 - remap(slider.position.y, min_range, max_range, 0, 10000))
+	if last_position != mapped_pos:
+		%OSSMCommand.position(mapped_pos)
 		last_position = mapped_pos
 
 
@@ -53,13 +49,13 @@ func _on_smoothing_slider_value_changed(value) -> void:
 	var min_value = $Smoothing/HSlider.min_value
 	var max_value = $Smoothing/HSlider.max_value
 	smoothing = max_value - (value - min_value)
-	owner.user_settings.set_value('app_settings', 'smoothing_slider', value)
+	UserSettings.set_value(UserSettings.Section.app_settings, 'smoothing_slider', value)
 
 
 func activate():
 	touch_pos = min_range
 	$MovementBar/Slider.position.y = min_range
-	last_position = owner.motor_direction * 10000  # slider starts at min (app pos 0), flip-adjusted
+	last_position = Global.motor_direction * 10000  # slider starts at min (app pos 0), flip-adjusted
 	set_physics_process(true)
 	set_process_input(true)
 	owner.play()

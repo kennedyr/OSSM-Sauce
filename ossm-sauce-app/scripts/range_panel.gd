@@ -25,7 +25,11 @@ func _on_min_slider_gui_input(event):
 		if event.button_mask & MOUSE_BUTTON_LEFT:
 			var drag_pos = min_slider.position.y + event.relative.y
 			var max_range = max_slider.position.y + max_slider.size.y
-			min_slider.position.y = clamp(drag_pos, max_range, min_range_pos)
+			var new_slider_position = clamp(drag_pos, max_range, min_range_pos)
+			if(new_slider_position == min_slider.position.y):
+				return
+
+			min_slider.position.y = new_slider_position
 			if AppMode.active == AppMode.POSITION:
 				update_min_range(true)
 			else:
@@ -37,7 +41,11 @@ func _on_max_slider_gui_input(event):
 		if event.button_mask & MOUSE_BUTTON_LEFT:
 			var drag_pos = max_slider.position.y + event.relative.y
 			var min_range = min_slider.position.y - min_slider.size.y
-			max_slider.position.y = clamp(drag_pos, max_range_pos, min_range)
+			var new_slider_position = clamp(drag_pos, max_range_pos, min_range)
+			if(new_slider_position == max_slider.position.y):
+				return
+
+			max_slider.position.y = new_slider_position
 			if AppMode.active == AppMode.POSITION:
 				update_max_range(true)
 			else:
@@ -46,40 +54,41 @@ func _on_max_slider_gui_input(event):
 
 func update_min_range(label_only := false):
 	var slider_pos = min_slider.position.y
-	min_range_limit = round(remap(slider_pos, min_range_pos, max_range_pos, 0, 10000))
-	var percent = remap(slider_pos, min_range_pos, max_range_pos, 0, 1)
+	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
+	min_range_limit = Util.safe_map_physical_position(percent)
 	if not label_only:
-		owner.user_settings.set_value('range_slider_min', 'position_percent', percent)
+		UserSettings.set_value(UserSettings.Section.range_slider_min, 'position_percent', percent)
 		if $DebounceTimer.is_stopped():
 			$DebounceTimer.start()
-	$LabelBot.text = "Min Position:\n" + str(snapped(percent * 100, 0.01)) + "%"
+
+	var text_value = str(round(percent * 100))
+	$LabelBot.text = "Min Position:\n" + text_value + "%"
+
+	%SpeedPanel.update_speed(true)
 
 
 func update_max_range(label_only := false):
 	var slider_pos = max_slider.position.y
-	max_range_limit = round(remap(slider_pos, min_range_pos, max_range_pos, 0, 10000))
-	var percent = remap(slider_pos, min_range_pos, max_range_pos, 0, 1)
+	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
+	max_range_limit = Util.safe_map_physical_position(percent)
 	if not label_only:
-		owner.user_settings.set_value('range_slider_max', 'position_percent', percent)
+		UserSettings.set_value(UserSettings.Section.range_slider_max, 'position_percent', percent)
 		if $DebounceTimer.is_stopped():
 			$DebounceTimer.start()
 	$LabelTop.text = "Max Position:\n" + str(snapped(percent * 100, 0.01)) + "%"
 
 
 func send_range_limits():
+	var min_range = abs(Global.motor_direction * 10000 - min_range_limit)
+	var max_range = abs(Global.motor_direction * 10000 - max_range_limit)
+	if Global.motor_direction == 0:
+		%OSSMCommand.set_range_limit_min(min_range)
+		%OSSMCommand.set_range_limit_max(max_range)
+	else:
+		%OSSMCommand.set_range_limit_min(max_range)
+		%OSSMCommand.set_range_limit_max(min_range)
+
 	if %WebSocket.ossm_connected:
-		var command:PackedByteArray
-		command.resize(4)
-		command.encode_u8(0, OSSM.Command.SET_RANGE_LIMIT)
-		command.encode_u8(1, MIN_RANGE if owner.motor_direction == 0 else MAX_RANGE)
-		command.encode_u16(2, abs(owner.motor_direction * 10000 - min_range_limit))
-		%WebSocket.server.broadcast_binary(command)
-		command = PackedByteArray()
-		command.resize(4)
-		command.encode_u8(0, OSSM.Command.SET_RANGE_LIMIT)
-		command.encode_u8(1, MAX_RANGE if owner.motor_direction == 0 else MIN_RANGE)
-		command.encode_u16(2, abs(owner.motor_direction * 10000 - max_range_limit))
-		%WebSocket.server.broadcast_binary(command)
 		if AppMode.active == AppMode.VIBRATE:
 			if %VibrationControls.pulse_active:
 				%VibrationControls.pulse_controller()
@@ -87,26 +96,44 @@ func send_range_limits():
 				%VibrationControls.send_vibrate_command()
 
 
+func get_min_slider_percent():
+	var slider_pos = min_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
+	return percent
+
+
 func set_min_slider_pos(percent):
-	var slider_map = remap(
-			percent,
-			0,
-			1,
-			min_range_pos,
-			max_range_pos)
-	min_slider.position.y = slider_map
+	min_slider.position.y = Util.safe_map_slider_position(
+		percent,
+		min_range_pos,
+		max_range_pos)
 	update_min_range(true)
 
 
+func set_min_slider_percent(percent):
+	set_min_slider_percent(percent)
+
+
+func get_max_slider_percent():
+	var slider_pos = max_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
+	return percent
+
+
 func set_max_slider_pos(percent):
-	var slider_map = remap(
-			percent,
-			0,
-			1,
-			min_range_pos,
-			max_range_pos)
-	max_slider.position.y = slider_map
+	max_slider.position.y = Util.safe_map_slider_position(
+		percent,
+		min_range_pos,
+		max_range_pos)
 	update_max_range(true)
+
+
+func set_max_slider_percent(percent):
+	set_max_slider_pos(percent)
+
+
+func get_range_percent():
+	return get_max_slider_percent() - get_min_slider_percent()
 
 
 func tween(activating:bool = true):
@@ -121,7 +148,7 @@ func tween(activating:bool = true):
 	var positions: Array = [outside_pos, inside_pos]
 	if not activating:
 		positions.reverse()
-	tween.tween_method(set_position, position, positions[1], owner.ANIM_TIME)
+	tween.tween_method(set_position, position, positions[1], Global.ANIM_TIME)
 	var start_color: Color = $BackTexture.self_modulate
 	var end_color: Color = start_color
 	start_color.a = 0
@@ -130,7 +157,7 @@ func tween(activating:bool = true):
 	if not activating:
 		colors.reverse()
 		$BackButton.hide()
-		tween.tween_callback(anim_finished).set_delay(owner.ANIM_TIME)
+		tween.tween_callback(anim_finished).set_delay(Global.ANIM_TIME)
 	else:
 		$BackButton.show()
 	var visuals = [$BackTexture, $LabelBot, $LabelTop]
@@ -139,7 +166,7 @@ func tween(activating:bool = true):
 				node.set_self_modulate,
 				colors[0],
 				colors[1],
-				owner.ANIM_TIME)
+				Global.ANIM_TIME)
 
 
 func anim_finished():
@@ -156,7 +183,7 @@ func _on_back_button_pressed():
 		send_range_limits()
 		%CircleSelection.show_hourglass()
 		%PositionControls.modulate.a = 0.05
-		owner.home_to(abs(owner.motor_direction * 10000 - %PositionControls.last_position))
+		owner.home_to(abs(Global.motor_direction * 10000 - %PositionControls.last_position))
 	$BackButton.hide()
 	tween(false)
 	%ActionPanel.show()

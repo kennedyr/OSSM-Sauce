@@ -113,12 +113,12 @@ func _build_loop_packet() -> PackedByteArray:
 	packet.resize(19)
 	packet.encode_u8(0, OSSM.Command.LOOP)
 	packet.encode_u32(1, in_duration * 1000)
-	packet.encode_u16(5, abs(owner.motor_direction * 10000 - 10000))
+	packet.encode_u16(5, abs(Global.motor_direction * 10000 - 10000))
 	packet.encode_u8(7, in_trans)
 	packet.encode_u8(8, in_ease)
 	packet.encode_u8(9, 0)
 	packet.encode_u32(10, out_duration * 1000)
-	packet.encode_u16(14, owner.motor_direction * 10000)
+	packet.encode_u16(14, Global.motor_direction * 10000)
 	packet.encode_u8(16, out_trans)
 	packet.encode_u8(17, out_ease)
 	packet.encode_u8(18, 0)
@@ -139,10 +139,11 @@ func _persist_and_mirror(child: Node, suffix: String, dropdown_name: String, ind
 	var side: String = "in" if child.name == "In" else "out"
 	var other_side: String = "out" if side == "in" else "in"
 	var other_node: String = "Out" if side == "in" else "In"
-	owner.user_settings.set_value('stroke_settings', side + "_" + suffix, index)
+	UserSettings.set_value(UserSettings.Section.stroke_settings, side + "_" + suffix, index)
+	
 	if $LinkSpeedSliders.button_pressed:
 		get_node(other_node + "/AccelerationControls/" + dropdown_name).select(index)
-		owner.user_settings.set_value('stroke_settings', other_side + "_" + suffix, index)
+		UserSettings.set_value(UserSettings.Section.stroke_settings, other_side + "_" + suffix, index)
 	draw_easing()
 	request_send()
 

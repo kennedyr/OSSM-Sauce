@@ -24,66 +24,66 @@ func _ready():
 	accel_slider_min_pos = acceleration_bottom.position.y
 
 
-func set_speed_slider_pos(percent):
-	var slider_map = remap(
-			percent,
-			0,
-			1,
-			speed_slider_min_pos,
-			speed_slider_max_pos)
-	speed_slider.position.y = slider_map
-	owner.user_settings.set_value('speed_slider', 'position_percent', percent)
+func get_speed_slider_percent():
+	var slider_pos = speed_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
+	return percent
+
+
+func set_speed_slider_percent(percent):
+	speed_slider.position.y = Util.safe_map_slider_position(
+		percent,
+		speed_slider_min_pos,
+		speed_slider_max_pos)
+	UserSettings.set_value(UserSettings.Section.speed_slider, 'position_percent', percent)
 	update_speed()
 
 
-func set_acceleration_slider_pos(percent):
-	var slider_map = remap(
-			percent,
-			0,
-			1,
-			accel_slider_min_pos,
-			accel_slider_max_pos)
-	acceleration_slider.position.y = slider_map
-	owner.user_settings.set_value('accel_slider', 'position_percent', percent)
+func get_acceleration_slider_percent():
+	var slider_pos = acceleration_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, accel_slider_min_pos, accel_slider_max_pos)
+	return percent
+
+
+func set_acceleration_slider_percent(percent):
+	acceleration_slider.position.y = Util.safe_map_slider_position(
+		percent,
+		accel_slider_min_pos,
+		accel_slider_max_pos)
+	UserSettings.set_value(UserSettings.Section.accel_slider, 'position_percent', percent)
 	update_acceleration()
 
 
 func update_speed():
-	speed_limit = round(remap(
-			speed_slider.position.y,
-			speed_slider_min_pos,
-			speed_slider_max_pos,
-			0,
-			owner.max_speed))
+	var slider_pos = speed_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
+	speed_limit = Util.safe_map_value(
+		percent,
+		0,
+		Global.max_speed)
+
 	$LabelTop.text = "Max Speed:\n" + str(speed_limit) + " steps/sec"
 	if $DebounceTimer.is_stopped():
 		$DebounceTimer.start()
 
 
 func update_acceleration():
-	acceleration_limit = round(remap(
-			acceleration_slider.position.y,
-			accel_slider_min_pos,
-			accel_slider_max_pos,
-			1000,
-			owner.max_acceleration))
+	var slider_pos = acceleration_slider.position.y
+	var percent = Util.safe_map_slider_percent(slider_pos, accel_slider_min_pos, accel_slider_max_pos)
+	acceleration_limit = Util.safe_map_value(
+		percent,
+		1000,
+		Global.max_acceleration)
+
 	$LabelBot.text = "Acceleration:\n" + str(acceleration_limit) + " steps/sec²"
 	if $DebounceTimer.is_stopped():
 		$DebounceTimer.start()
 
 
 func send_speed_limits():
+	%OSSMCommand.set_speed_limit(speed_limit)
+	%OSSMCommand.set_acceleration_limit(acceleration_limit)
 	if %WebSocket.ossm_connected:
-		var command: PackedByteArray
-		command.resize(5)
-		command.encode_u8(0, OSSM.Command.SET_SPEED_LIMIT)
-		command.encode_u32(1, speed_limit)
-		%WebSocket.server.broadcast_binary(command)
-		command = PackedByteArray()
-		command.resize(5)
-		command.encode_u8(0, OSSM.Command.SET_GLOBAL_ACCELERATION)
-		command.encode_u32(1, acceleration_limit)
-		%WebSocket.server.broadcast_binary(command)
 		if AppMode.active == AppMode.VIBRATE:
 			%VibrationControls.send_vibrate_command()
 
@@ -93,9 +93,12 @@ func _on_speed_slider_gui_input(event):
 		if event.button_mask & MOUSE_BUTTON_LEFT:
 			var drag_pos = speed_slider.position.y + event.relative.y
 			var new_slider_pos = clamp(
-					drag_pos,
-					speed_slider_max_pos,
-					speed_slider_min_pos)
+				drag_pos,
+				speed_slider_max_pos,
+				speed_slider_min_pos)
+			if(new_slider_pos == speed_slider.position.y):
+				return
+
 			speed_slider.position.y = new_slider_pos
 			update_speed()
 			var slider_position_percent = remap(
@@ -104,10 +107,10 @@ func _on_speed_slider_gui_input(event):
 					speed_slider_max_pos,
 					0,
 					1)
-			owner.user_settings.set_value(
-					'speed_slider',
-					'position_percent',
-					slider_position_percent)
+			UserSettings.set_value(
+				UserSettings.Section.speed_slider,
+				'position_percent',
+				slider_position_percent)
 
 
 func _on_acceleration_slider_gui_input(event):
@@ -115,9 +118,12 @@ func _on_acceleration_slider_gui_input(event):
 		if event.button_mask & MOUSE_BUTTON_LEFT:
 			var drag_pos = acceleration_slider.position.y + event.relative.y
 			var new_slider_pos = clamp(
-					drag_pos,
-					accel_slider_max_pos,
-					accel_slider_min_pos)
+				drag_pos,
+				accel_slider_max_pos,
+				accel_slider_min_pos)
+			if(new_slider_pos == acceleration_slider.position.y):
+				return
+
 			acceleration_slider.position.y = new_slider_pos
 			update_acceleration()
 			var slider_position_percent = remap(
@@ -126,10 +132,10 @@ func _on_acceleration_slider_gui_input(event):
 					accel_slider_max_pos,
 					0,
 					1)
-			owner.user_settings.set_value(
-					'accel_slider',
-					'position_percent',
-					slider_position_percent)
+			UserSettings.set_value(
+				UserSettings.Section.accel_slider,
+				'position_percent',
+				slider_position_percent)
 
 
 func tween(activating := true):
@@ -142,7 +148,7 @@ func tween(activating := true):
 	var positions: Array = [outside_pos, inside_pos]
 	if not activating:
 		positions.reverse()
-	tween.tween_method(set_position, position, positions[1], owner.ANIM_TIME)
+	tween.tween_method(set_position, position, positions[1], Global.ANIM_TIME)
 	var start_color: Color = $BackTexture.self_modulate
 	var end_color: Color = start_color
 	start_color.a = 0
@@ -151,7 +157,7 @@ func tween(activating := true):
 	if not activating:
 		colors.reverse()
 		$BackButton.hide()
-		tween.tween_callback(anim_finished).set_delay(owner.ANIM_TIME)
+		tween.tween_callback(anim_finished).set_delay(Global.ANIM_TIME)
 	else:
 		$BackButton.show()
 	var visuals = [$BackTexture, $LabelTop, $LabelBot]
@@ -160,7 +166,7 @@ func tween(activating := true):
 			node.set_self_modulate,
 			colors[0],
 			colors[1],
-			owner.ANIM_TIME)
+			Global.ANIM_TIME)
 
 
 func anim_finished():

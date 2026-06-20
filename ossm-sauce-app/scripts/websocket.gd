@@ -9,6 +9,8 @@ var server_started: bool
 var ossm_connected: bool
 var ping_timer: Timer
 
+var ping_id:int = 0
+
 func _ready():
 	server = WebSocketServer.new()
 	server.client_connected.connect(_on_client_connected)
@@ -69,8 +71,20 @@ func _on_client_disconnected(client_id, code):
 		_on_client_disconnected_cleanup()
 
 
+func ping(client_id):
+	ping_id = Time.get_ticks_msec()
+	print("Sending ping to client %d: %d" % [client_id, ping_id])
+	server.send_text(client_id, "PING%d" % [ping_id])
+
+
 func _on_message_received(client_id, message):
 	print("Text message from client %d: %s" % [client_id, message])
+	if message.begins_with("PING"):
+		server.send_text(client_id, message.replace("PING", "PONG"))
+	elif message.begins_with("PONG"):
+		if message.contains(ping_id):
+			var pong_id = Time.get_ticks_msec()
+			print("Latency in milliseconds %d" % [pong_id - ping_id])
 
 
 func _on_data_received(client_id, data):
@@ -91,6 +105,7 @@ func _on_data_received(client_id, data):
 				Input.parse_input_event(release_event)
 				
 				ossm_connected = true
+				ping(client_id)
 				owner.apply_device_settings()
 				
 				# Reset and home to base by reselecting mode
@@ -113,9 +128,9 @@ func _on_data_received(client_id, data):
 					%Menu]
 				for node in displays:
 					node.modulate.a = 1
-				owner.emit_signal("homing_complete")
+				Global.emit_signal("homing_complete")
 				if AppMode.active == AppMode.MOVE:
-					if owner.active_path_index != null and owner.frame == 0:
+					if Global.active_path_index != null and Global.frame == 0:
 						%CircleSelection.show_play()
 
 

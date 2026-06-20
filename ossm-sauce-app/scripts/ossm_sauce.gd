@@ -2,11 +2,6 @@ extends Control
 
 var app_version_number: String = ProjectSettings.get_setting("application/config/version")
 
-var storage_dir: String
-var paths_dir: String
-var playlists_dir: String
-var cfg_path: String
-
 const SAF_CONFIG_PATH := "user://saf_storage.cfg"
 var saf_storage := ConfigFile.new()
 var saf_paths_uri: String = ""
@@ -15,45 +10,27 @@ var _saf_paths_subdir_exists: bool = false
 var _saf_playlists_subdir_exists: bool = false
 var _saf_file_subdirs: Dictionary = {}
 
-const ANIM_TIME = 0.65
-
-var user_settings := ConfigFile.new()
-
 var ticks_per_second: int
 
 var path_speed: int = 30
 
-var paused := true
 var _seek_dragging := false
 
-var active_path_index
+var funscripts: Array = []
 
-var paths: Array
-var marker_frames: Array
-var network_paths: Array
-
-var frame: int
+var buffer_size:int = 30
 var buffer_sent: int
 var play_offset_ms: int
 var _seeking: bool
 
-var max_speed: int
-var max_acceleration: int
-var motor_direction: int = 0
-
-var min_stroke_duration: float
-var max_stroke_duration: float
-
-signal homing_complete
 
 @onready var PATH_TOP = $PathDisplay/PathArea.position.y
 @onready var PATH_BOTTOM = PATH_TOP + $PathDisplay/PathArea.size.y
 
-
-func _init():
-	max_speed = 25000
-	max_acceleration = 500000
-
+var current_funscript :
+    get:
+		if Global.active_path_index >= 0 and Global.active_path_index < funscripts.size():
+        	funscripts[Global.active_path_index]
 
 func _ready():
 	set_process(false)
@@ -62,17 +39,8 @@ func _ready():
 	var physics_ticks = "physics/common/physics_ticks_per_second"
 	ticks_per_second = ProjectSettings.get_setting(physics_ticks)
 	
-	min_stroke_duration = $Menu/LoopSettings/MinStrokeDuration/Input.value
-	max_stroke_duration = $Menu/LoopSettings/MaxStrokeDuration/Input.value
-	
-	if OS.get_name() == 'Android':
-		#storage_dir = OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP)
-		cfg_path = "user://UserSettings.cfg"
-	else:
-		storage_dir = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
-		cfg_path = storage_dir + "/OSSM Sauce/UserSettings.cfg"
-	paths_dir = storage_dir + "/OSSM Sauce/Paths/"
-	playlists_dir = storage_dir + "/OSSM Sauce/Playlists/"
+	Global.min_stroke_duration = $Menu/LoopSettings/MinStrokeDuration/Input.value
+	Global.max_stroke_duration = $Menu/LoopSettings/MaxStrokeDuration/Input.value
 	
 	for node in [$Menu, $Settings, $SpeedPanel, $RangePanel]:
 		node.self_modulate.a = 1.65
@@ -81,7 +49,7 @@ func _ready():
 	
 	check_root_directory()
 	
-	user_settings.load(cfg_path)
+	UserSettings.initialize()
 	apply_user_settings()
 	
 	$Menu/VersionLabel.text = "v" + app_version_number
@@ -103,75 +71,77 @@ func _ready():
 
 var marker_index: int
 func _physics_process(delta) -> void:
-	if paused or paths[active_path_index].is_empty():
+	if Global.paused or Global.active_path_index == null:
 		return
 	
-	var total_frames: int = paths[active_path_index].size()
-	if frame >= total_frames - 1:
-		if active_path_index < network_paths.size() - 1:
-			transition_to_path(active_path_index + 1)
+	if current_funscript.paths.is_empty():
+		return
+
+	var total_frames: int = current_funscript.paths.size()
+	# End of current path
+	if Global.frame >= total_frames - 1:
+		# There is a next path in playlist
+		if Global.active_path_index < funscripts.size() - 1:
+			transition_to_path(Global.active_path_index + 1)
 		elif $Menu.loop_playlist:
+			# Loop the playlist
 			transition_to_path(0)
 		else:
-			paused = true
-			send_command(OSSM.Command.PAUSE)
+			# Nothing to do
+			Global.paused = true
+			%OSSMCommand.pause()
 			%VideoPlayer.pause_player()
 			$Menu.show_play()
 			$CircleSelection.show_restart()
 		return
 	
-	var frames = marker_frames[active_path_index]
-	var active_path = network_paths[active_path_index]
+	var frames = current_funscript.marker_frames
+	var active_path = current_funscript.network_paths
 	var current_marker = marker_index - buffer_sent
-	if current_marker < frames.size() and frame == frames[current_marker]:
+	if current_marker < frames.size() and Global.frame == frames[current_marker]:
 		if %WebSocket.server_started:
 			if marker_index < active_path.size():
-				%WebSocket.server.broadcast_binary(active_path[marker_index])
-			elif active_path_index < network_paths.size() - 1:
+				# send current frame to 
+				%OSSMCommand.broadcast_binary(active_path[marker_index])
+			elif Global.active_path_index < funscripts.size() - 1:
 				var overreach_index = marker_index - active_path.size()
-				var next_path = network_paths[active_path_index + 1]
+				var next_funscript = funscripts[Global.active_path_index + 1]
+				var next_path = next_funscript.network_paths
 				if overreach_index < next_path.size():
-					%WebSocket.server.broadcast_binary(next_path[overreach_index])
+					%OSSMCommand.broadcast_binary(next_path[overreach_index])
 			elif $Menu.loop_playlist:
 				var overreach_index = marker_index - active_path.size()
-				var next_path = network_paths[0]
+				var next_path = funscripts[0].network_paths
 				if overreach_index < next_path.size():
-					%WebSocket.server.broadcast_binary(next_path[overreach_index])
+					%OSSMCommand.broadcast_binary(next_path[overreach_index])
 		if current_marker < frames.size() - 1:
 			marker_index += 1
 	
-	var depth: float = paths[active_path_index][frame]
-	$PathDisplay/Paths.get_child(active_path_index).position.x -= path_speed
+	var depth: float = current_funscript.paths[Global.frame]
+	var ms_timing: int = round((float(Global.frame) / 50) * 1000)
 	$PathDisplay/Ball.position.y = render_depth(depth)
 	if not _seek_dragging:
-		$SeekSlider.set_value_no_signal(float(frame) / (total_frames - 1))
+		$SeekSlider.set_value_no_signal(float(Global.frame) / (total_frames - 1))
 		update_time_display()
-	frame += 1
+
+	Global.frame += 1
 
 
 func transition_to_path(next_index: int):
-	var overreach_sent = maxi(marker_index - network_paths[active_path_index].size(), 0)
-	var next_path = network_paths[next_index]
-	active_path_index = next_index
+	var overreach_sent = maxi(marker_index - current_funscript.network_paths.size(), 0)
+	var next_path = funscripts[next_index].network_paths
+	Global.active_path_index = next_index
 	display_active_path_index(false, false)
 	# Top up buffer if overreach didn't cover it
 	marker_index = overreach_sent
 	buffer_sent = overreach_sent
-	while buffer_sent < 6 and marker_index < next_path.size():
-		%WebSocket.server.broadcast_binary(next_path[marker_index])
+	while buffer_sent < buffer_size and marker_index < next_path.size():
+		%OSSMCommand.broadcast_binary(next_path[marker_index])
 		marker_index += 1
 		buffer_sent += 1
 	var path_list = $Menu/Playlist/Scroll/VBox
 	$Menu/Playlist._on_item_selected(path_list.get_child(next_index))
 	path_list.get_child(next_index).set_active()
-
-
-func send_command(value: int):
-	if %WebSocket.ossm_connected:
-		var command:PackedByteArray
-		command.resize(1)
-		command[0] = value
-		%WebSocket.server.broadcast_binary(command)
 
 
 func home_to(target_position: int):
@@ -191,80 +161,63 @@ func home_to(target_position: int):
 			%Menu]
 		for display in displays:
 			display.modulate.a = 0.05
-		var command: PackedByteArray
-		command.resize(5)
-		command.encode_u8(0, OSSM.Command.HOMING)
-		command.encode_s32(1, abs(motor_direction * 10000 - target_position))
-		%WebSocket.server.broadcast_binary(command)
+		%OSSMCommand.home_to(abs(Global.motor_direction * 10000 - target_position))
 
 
 func play():
-	var command: PackedByteArray
-	if AppMode.active == AppMode.MOVE and active_path_index != null:
-		paused = false
-		play_offset_ms = int(frame * 1000.0 / ticks_per_second)
-	command.resize(6)
-	command.encode_u8(0, OSSM.Command.PLAY)
-	command.encode_u8(1, AppMode.active)
-	command.encode_u32(2, play_offset_ms)
+	if AppMode.active == AppMode.MOVE and Global.active_path_index != null:
+		Global.paused = false
+		play_offset_ms = int(Global.frame * 1000.0 / ticks_per_second)
 	if %WebSocket.ossm_connected:
 		if AppMode.active == AppMode.MOVE:
-			var safe_accel: PackedByteArray
-			safe_accel.resize(5)
-			safe_accel.encode_u8(0, OSSM.Command.SET_GLOBAL_ACCELERATION)
-			safe_accel.encode_u32(1, 60000)
-			%WebSocket.server.broadcast_binary(safe_accel)
-		%WebSocket.server.broadcast_binary(command)
+			%OSSMCommand.set_acceleration_limit(60000)
+		%OSSMCommand.play(play_offset_ms)
 		# Restore user's acceleration after a comfortable ramp-up
 		$PathDisplay/AccelTimer.start(0.8)
 
 
 func pause():
-	paused = true
+	Global.paused = true
 	if not %WebSocket.ossm_connected:
 		return
-	send_command(OSSM.Command.PAUSE)
+	%OSSMCommand.pause()
 	
-	if active_path_index == null:
+	if Global.active_path_index == null:
 		return
-	if AppMode.active != AppMode.MOVE or paths[active_path_index].is_empty():
+	if AppMode.active != AppMode.MOVE or current_funscript.paths.is_empty():
 		return
 	
 	# Sync OSSM to current path position
-	var current_depth: float = paths[active_path_index][frame]
-	send_command(OSSM.Command.RESET)
+	var current_depth: float = current_funscript.paths[Global.frame]
+	%OSSMCommand.reset()
 	home_to(round(current_depth * 10000))
-	await homing_complete
+	await Global.homing_complete
 	if not %WebSocket.ossm_connected:
 		return
 	
 	# Find cascade and buffer start for current frame
-	var frames = marker_frames[active_path_index]
+	var frames = current_funscript.marker_frames
 	var buffer_start := 0
 	var cascade_index := 0
 	for i in frames.size():
-		if frames[i] <= frame:
+		if frames[i] <= Global.frame:
 			cascade_index = i
 			buffer_start = i + 1
 		else:
 			break
 	
 	# Send cascade packet + buffer
-	%WebSocket.server.broadcast_binary(network_paths[active_path_index][cascade_index])
+	%OSSMCommand.broadcast_binary(current_funscript.network_paths[cascade_index])
 	marker_index = buffer_start
 	buffer_sent = 0
-	while buffer_sent < 6 and marker_index < network_paths[active_path_index].size():
-		%WebSocket.server.broadcast_binary(network_paths[active_path_index][marker_index])
+	while buffer_sent < buffer_size and marker_index < current_funscript.network_paths.size():
+		%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
 		marker_index += 1
 		buffer_sent += 1
 	
 	# Reduce acceleration and nudge in both directions to force direction change
-	var safe_accel: PackedByteArray
-	safe_accel.resize(5)
-	safe_accel.encode_u8(0, OSSM.Command.SET_GLOBAL_ACCELERATION)
-	safe_accel.encode_u32(1, 60000)
-	%WebSocket.server.broadcast_binary(safe_accel)
-	var depth_val:int = abs(motor_direction * 10000 - round(current_depth * 10000))
+	%OSSMCommand.set_acceleration_limit(60000)
+	var depth_val:int = abs(Global.motor_direction * 10000 - round(current_depth * 10000))
 	var nudge: PackedByteArray
 	nudge.resize(10)
 	nudge.encode_u8(0, OSSM.Command.SMOOTH_MOVE)
@@ -274,21 +227,20 @@ func pause():
 	# Nudge out
 	nudge.encode_u32(1, 100)
 	nudge.encode_u16(5, clampi(depth_val + 500, 0, 10000))
-	%WebSocket.server.broadcast_binary(nudge)
+	%OSSMCommand.broadcast_binary(nudge)
 	await get_tree().create_timer(0.15).timeout
 	# Nudge in (guaranteed direction change)
 	nudge.encode_u16(5, clampi(depth_val - 500, 0, 10000))
-	%WebSocket.server.broadcast_binary(nudge)
+	%OSSMCommand.broadcast_binary(nudge)
 	await get_tree().create_timer(0.15).timeout
 	# Return to position
 	nudge.encode_u16(5, clampi(depth_val, 0, 10000))
-	%WebSocket.server.broadcast_binary(nudge)
-
+	%OSSMCommand.broadcast_binary(nudge)
 
 func check_root_directory():
 	if OS.get_name() == 'Android':
 		return
-	var dir = DirAccess.open(storage_dir)
+	var dir = DirAccess.open(Global.storage_dir)
 	if not dir.dir_exists("OSSM Sauce"):
 		dir.make_dir("OSSM Sauce")
 	dir.change_dir("OSSM Sauce")
@@ -298,201 +250,110 @@ func check_root_directory():
 
 
 func apply_user_settings():
-	var cfg_version_number = user_settings.get_value(
-			'app_settings',
-			'version_number',
-			"")
-	
+	var cfg_version_number = UserSettings.get_value(UserSettings.Section.app_settings, 'version_number')
 	if cfg_version_number.naturalcasecmp_to("1.5") < 0:
-		user_settings.clear()
-		user_settings.set_value(
-				'app_settings',
-				'version_number',
-				app_version_number)
-		user_settings.save(cfg_path)
+		UserSettings.clear()
+		UserSettings.set_value(UserSettings.Section.app_settings, 'version_number', app_version_number)
+		UserSettings.save()
 	
 	if OS.get_name() != 'Android':
-		if user_settings.has_section_key('window', 'size'):
-			DisplayServer.window_set_size(
-					user_settings.get_value('window', 'size'))
-		else:
-			DisplayServer.window_set_size(Vector2(435, 774))
+		DisplayServer.window_set_size(UserSettings.get_value(UserSettings.Section.window, 'size', Vector2(435, 774)))
 		
-		if user_settings.has_section_key('window', 'always_on_top'):
-			var checkbox = $Settings/VBox/AlwaysOnTop
-			checkbox.button_pressed = user_settings.get_value(
-					'window',
-					'always_on_top')
-		
-		#if user_settings.has_section_key('window', 'transparent_background'):
-			#var checkbox = $Settings/VBox/TransparentBg
-			#checkbox.button_pressed = user_settings.get_value(
-					#'window',
-					#'transparent_background')
+		$Settings/Window/AlwaysOnTop/CheckBox.button_pressed = UserSettings.get_value(UserSettings.Section.window, 'always_on_top', false)
+
+		# $Settings/Window/TransparentBg/CheckBox.button_pressed = UserSettings.get_value(UserSettings.Section.window, 'transparent_background', false)
 	
-	if user_settings.get_value('app_settings', 'show_splash', true):
+	if UserSettings.get_value(UserSettings.Section.app_settings, 'show_splash', true):
 		$Splash.show()
 	
 	_check_storage_setup()
 	
-	if user_settings.has_section_key('network', 'port'):
-		var port_number = user_settings.get_value('network', 'port')
+	var port_number = UserSettings.get_value(UserSettings.Section.network, 'port', %WebSocket.port)
 		$Settings/VBox/Network/Port/Input.value = port_number
 		%WebSocket.port = port_number
 	
-	if user_settings.has_section_key('device_settings', 'motor_direction'):
-		var value = user_settings.get_value('device_settings', 'motor_direction', 0)
-		$Settings/VBox/ReverseMotorDirection.button_pressed = bool(value)
+	var motor_direction = UserSettings.get_value(UserSettings.Section.device_settings, 'motor_direction', 0)
+	$Settings/VBox/ReverseMotorDirection.button_pressed = bool(motor_direction)
 	
 	apply_device_settings()
 	
-	if user_settings.has_section_key('app_settings', 'smoothing_slider'):
-		$PositionControls/Smoothing/HSlider.set_value(
-				user_settings.get_value('app_settings', 'smoothing_slider'))
+	$PositionControls/Smoothing/HSlider.set_value(UserSettings.get_value(UserSettings.Section.app_settings, 'smoothing_slider', 16.0))
+	$Menu.set_min_stroke_duration(UserSettings.get_value(UserSettings.Section.stroke_settings, 'min_duration', 0.2))
+	$Menu.set_max_stroke_duration(UserSettings.get_value(UserSettings.Section.stroke_settings, 'max_duration', 10.0))
+	$Menu.set_stroke_duration_display_mode(UserSettings.get_value(UserSettings.Section.stroke_settings, 'display_mode', 0))
 	
-	if user_settings.has_section_key('stroke_settings', 'min_duration'):
-		$Menu.set_min_stroke_duration(
-				user_settings.get_value('stroke_settings', 'min_duration'))
-	if user_settings.has_section_key('stroke_settings', 'max_duration'):
-		$Menu.set_max_stroke_duration(
-				user_settings.get_value('stroke_settings', 'max_duration'))
-	if user_settings.has_section_key('stroke_settings', 'display_mode'):
-		$Menu.set_stroke_duration_display_mode(
-				user_settings.get_value('stroke_settings', 'display_mode'))
-	if user_settings.has_section_key('stroke_settings', 'in_trans'):
-		$LoopControls/In/AccelerationControls/Transition.select(
-				user_settings.get_value('stroke_settings', 'in_trans'))
-	if user_settings.has_section_key('stroke_settings', 'in_ease'):
-		$LoopControls/In/AccelerationControls/Easing.select(
-				user_settings.get_value('stroke_settings', 'in_ease'))
-	if user_settings.has_section_key('stroke_settings', 'out_trans'):
-		$LoopControls/Out/AccelerationControls/Transition.select(
-				user_settings.get_value('stroke_settings', 'out_trans'))
-	if user_settings.has_section_key('stroke_settings', 'out_ease'):
-		$LoopControls/Out/AccelerationControls/Easing.select(
-				user_settings.get_value('stroke_settings', 'out_ease'))
+	$LoopControls/In/AccelerationControls/Transition.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 1))
+	$LoopControls/In/AccelerationControls/Easing.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2))
+	$LoopControls/Out/AccelerationControls/Transition.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'out_trans', 1))
+	$LoopControls/Out/AccelerationControls/Easing.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'out_ease', 2))
+
 	$LoopControls.draw_easing()
 	
-	if user_settings.has_section_key('bridge_settings', 'min_move_duration') \
-			or user_settings.has_section_key('bridge_settings', 'max_move_duration'):
+	if UserSettings.get_value(UserSettings.Section.bridge_settings, 'min_move_duration') \
+			or UserSettings.get_value(UserSettings.Section.bridge_settings, 'max_move_duration'):
 		%BridgeControls.set_move_duration_limits(
-				user_settings.get_value('bridge_settings', 'min_move_duration', 500),
-				user_settings.get_value('bridge_settings', 'max_move_duration', 6000))
-	if user_settings.has_section_key('bridge_settings', 'bridge_mode'):
-		var bridge_mode = user_settings.get_value('bridge_settings', 'bridge_mode')
+				UserSettings.get_value(UserSettings.Section.bridge_settings, 'min_move_duration', 500),
+				UserSettings.get_value(UserSettings.Section.bridge_settings, 'max_move_duration', 6000))
+	if UserSettings.get_value(UserSettings.Section.bridge_settings, 'bridge_mode'):
+		var bridge_mode = UserSettings.get_value(UserSettings.Section.bridge_settings, 'bridge_mode')
 		%Menu/BridgeSettings/BridgeMode/ModeSelection.selected = bridge_mode
 		$Menu._on_bridge_mode_selected(bridge_mode)
-	if user_settings.has_section_key('bridge_settings', 'logging_enabled'):
-		%Menu/BridgeSettings/LoggingEnabled.button_pressed = user_settings.get_value(
-				'bridge_settings', 'logging_enabled')
+	if UserSettings.get_value(UserSettings.Section.bridge_settings, 'logging_enabled'):
+		%Menu/BridgeSettings/LoggingEnabled.button_pressed = UserSettings.get_value(UserSettings.Section.bridge_settings, 'logging_enabled')
 	
-	if user_settings.has_section_key('bpio_settings', 'server_address'):
-		%Menu/BridgeSettings/BPIO/ServerAddress/Input.text = user_settings.get_value(
-				'bpio_settings', 'server_address')
-	if user_settings.has_section_key('bpio_settings', 'server_port'):
-		%Menu/BridgeSettings/BPIO/Ports/ServerPort/Input.value = user_settings.get_value(
-				'bpio_settings', 'server_port')
-	if user_settings.has_section_key('bpio_settings', 'wsdm_port'):
-		%Menu/BridgeSettings/BPIO/Ports/WSDMPort/Input.value = user_settings.get_value(
-				'bpio_settings', 'wsdm_port')
-	if user_settings.has_section_key('bpio_settings', 'identifier'):
-		%Menu/BridgeSettings/BPIO/Identifier/Input.text = user_settings.get_value(
-				'bpio_settings', 'identifier')
-	if user_settings.has_section_key('bpio_settings', 'client_name'):
-		%Menu/BridgeSettings/BPIO/ClientName/Input.text = user_settings.get_value(
-				'bpio_settings', 'client_name')
-	if user_settings.has_section_key('bpio_settings', 'address'):
-		%Menu/BridgeSettings/BPIO/Address/Input.text = user_settings.get_value(
-				'bpio_settings', 'address')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'server_address'):
+		%Menu/BridgeSettings/BPIO/ServerAddress/Input.text = UserSettings.get_value(UserSettings.Section.bpio_settings, 'server_address')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'server_port'):
+		%Menu/BridgeSettings/BPIO/Ports/ServerPort/Input.value = UserSettings.get_value(UserSettings.Section.bpio_settings, 'server_port')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'wsdm_port'):
+		%Menu/BridgeSettings/BPIO/Ports/WSDMPort/Input.value = UserSettings.get_value(UserSettings.Section.bpio_settings, 'wsdm_port')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'identifier'):
+		%Menu/BridgeSettings/BPIO/Identifier/Input.text = UserSettings.get_value(UserSettings.Section.bpio_settings, 'identifier')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'client_name'):
+		%Menu/BridgeSettings/BPIO/ClientName/Input.text = UserSettings.get_value(UserSettings.Section.bpio_settings, 'client_name')
+	if UserSettings.get_value(UserSettings.Section.bpio_settings, 'address'):
+		%Menu/BridgeSettings/BPIO/Address/Input.text = UserSettings.get_value(UserSettings.Section.bpio_settings, 'address')
 	
-	if user_settings.has_section_key('xtoys_settings', 'port'):
-		%Menu/BridgeSettings/XToys/Port/Input.value = user_settings.get_value(
-				'xtoys_settings', 'port')
-	if user_settings.has_section_key('xtoys_settings', 'max_msg_frequency'):
+	if UserSettings.get_value(UserSettings.Section.xtoys_settings, 'port'):
+		%Menu/BridgeSettings/XToys/Port/Input.value = UserSettings.get_value(UserSettings.Section.xtoys_settings, 'port')
+	if UserSettings.get_value(UserSettings.Section.xtoys_settings, 'max_msg_frequency'):
 		%Menu/BridgeSettings/XToys/MaxMsgFrequency/Input.set_value_no_signal(
-				user_settings.get_value('xtoys_settings', 'max_msg_frequency'))
-	if user_settings.has_section_key('xtoys_settings', 'use_command_duration'):
-		%Menu/BridgeSettings/XToys/UseCommandDuration.button_pressed = user_settings.get_value(
-				'xtoys_settings', 'use_command_duration')
+				UserSettings.get_value(UserSettings.Section.xtoys_settings, 'max_msg_frequency'))
+	if UserSettings.get_value(UserSettings.Section.xtoys_settings, 'use_command_duration'):
+		%Menu/BridgeSettings/XToys/UseCommandDuration.button_pressed = UserSettings.get_value(UserSettings.Section.xtoys_settings, 'use_command_duration')
 	
-	if user_settings.has_section_key('video_player', 'player_address'):
-		%VideoPlayer.player_address = user_settings.get_value('video_player', 'player_address')
+	if UserSettings.get_value(UserSettings.Section.video_player, 'player_address'):
+		%VideoPlayer.player_address = UserSettings.get_value(UserSettings.Section.video_player, 'player_address')
 		%VideoPlayer/Main/PlayerAddress/Input.text = %VideoPlayer.player_address
-	if user_settings.has_section_key('video_player', 'vlc_password'):
-		%VideoPlayer.vlc_password = user_settings.get_value('video_player', 'vlc_password')
+	if UserSettings.get_value(UserSettings.Section.video_player, 'vlc_password'):
+		%VideoPlayer.vlc_password = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_password')
 		%VideoPlayer/Main/VLCPassword/Input.text = %VideoPlayer.vlc_password
-	if user_settings.has_section_key('video_player', 'video_offset_ms'):
-		%VideoPlayer/Main/VideoOffset/Input.value = user_settings.get_value('video_player', 'video_offset_ms')
-	if user_settings.has_section_key('video_player', 'vlc_seek_correction'):
-		%VideoPlayer/Main/VLCSeekCorrection/Input.value = user_settings.get_value('video_player', 'vlc_seek_correction')
-	if user_settings.has_section_key('video_player', 'player_type'):
-		var vp_type: int = user_settings.get_value('video_player', 'player_type')
+	if UserSettings.get_value(UserSettings.Section.video_player, 'video_offset_ms'):
+		%VideoPlayer/Main/VideoOffset/Input.value = UserSettings.get_value(UserSettings.Section.video_player, 'video_offset_ms')
+	if UserSettings.get_value(UserSettings.Section.video_player, 'vlc_seek_correction'):
+		%VideoPlayer/Main/VLCSeekCorrection/Input.value = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_seek_correction')
+	if UserSettings.get_value(UserSettings.Section.video_player, 'player_type'):
+		var vp_type: int = UserSettings.get_value(UserSettings.Section.video_player, 'player_type')
 		if OS.get_name() != "Android" and vp_type == 4:
 			vp_type = 0
 		%VideoPlayer/Main/PlayerSelection.select(vp_type)
 		%VideoPlayer._on_player_selection_item_selected(vp_type)
 	
-	if user_settings.has_section_key('app_settings', 'mode'):
-		$Menu.select_mode(user_settings.get_value('app_settings', 'mode'))
-	else:
-		$Menu.select_mode(1)
+	$Menu.select_mode(UserSettings.get_value(UserSettings.Section.app_settings, 'mode', 1))
 
 
 func apply_device_settings():
-	if user_settings.has_section_key('speed_slider', 'max_speed'):
-		var value = user_settings.get_value('speed_slider', 'max_speed', 25000)
-		$Settings/VBox/Sliders/MaxSpeed/Input.value = int(value)
-	
-	if user_settings.has_section_key('accel_slider', 'max_acceleration'):
-		var value = user_settings.get_value('accel_slider', 'max_acceleration', 500000)
-		$Settings/VBox/Sliders/MaxAcceleration/Input.value = int(value)
-	
-	if user_settings.has_section_key('speed_slider', 'position_percent'):
-		$SpeedPanel.set_speed_slider_pos(
-				user_settings.get_value('speed_slider', 'position_percent', 0.6))
-	else:
-		$SpeedPanel.set_speed_slider_pos(0.6)
-	
-	if user_settings.has_section_key('accel_slider', 'position_percent'):
-		$SpeedPanel.set_acceleration_slider_pos(
-				user_settings.get_value('accel_slider', 'position_percent', 0.4))
-	else:
-		$SpeedPanel.set_acceleration_slider_pos(0.4)
-	
-	if user_settings.has_section_key('range_slider_min', 'position_percent'):
-		$RangePanel.set_min_slider_pos(
-				user_settings.get_value('range_slider_min', 'position_percent', 0))
-	else:
-		$RangePanel.set_min_slider_pos(0)
-	
-	if user_settings.has_section_key('range_slider_max', 'position_percent'):
-		$RangePanel.set_max_slider_pos(
-				user_settings.get_value('range_slider_max', 'position_percent', 1))
-	else:
-		$RangePanel.set_max_slider_pos(1)
-	
-	if user_settings.has_section_key('device_settings', 'syncing_speed'):
-		$Settings/VBox/SyncingSpeed/Input.set_value_no_signal(
-				int(user_settings.get_value('device_settings', 'syncing_speed', 1000)))
-	
-	if user_settings.has_section_key('device_settings', 'homing_trigger'):
-		$Settings/VBox/HomingTrigger/Input.set_value_no_signal(
-				float(user_settings.get_value('device_settings', 'homing_trigger' , 1.5)))
+	$Settings.set_max_speed(UserSettings.get_value(UserSettings.Section.speed_slider, 'max_speed', 25000))
+	$Settings.set_max_acceleration(UserSettings.get_value(UserSettings.Section.accel_slider, 'max_acceleration', 500000))
+	$SpeedPanel.set_speed_slider_percent(UserSettings.get_value(UserSettings.Section.speed_slider, 'position_percent', 0.6))
+	$SpeedPanel.set_acceleration_slider_percent(UserSettings.get_value(UserSettings.Section.accel_slider, 'position_percent', 0.4))
+	$RangePanel.set_min_slider_percent(UserSettings.get_value(UserSettings.Section.range_slider_min, 'position_percent', 0))
+	$RangePanel.set_max_slider_percent(UserSettings.get_value(UserSettings.Section.range_slider_max, 'position_percent', 1))
+	$Settings.set_syncing_speed(UserSettings.get_value(UserSettings.Section.device_settings, 'syncing_speed', 1000))
+	$Settings.set_homing_trigger(UserSettings.get_value(UserSettings.Section.device_settings, 'homing_trigger', 1.5))
 	
 	$SpeedPanel.send_speed_limits()
 	$RangePanel.send_range_limits()
-
-
-func create_move_command(ms_timing: int, depth: float, trans: int, ease: int, auxiliary: int):
-	var network_packet: PackedByteArray
-	network_packet.resize(10)
-	network_packet.encode_u8(0, OSSM.Command.MOVE)
-	network_packet.encode_u32(1, ms_timing)
-	network_packet.encode_u16(5, round(remap(abs(motor_direction - depth), 0, 1, 0, 10000)))
-	network_packet.encode_u8(7, trans)
-	network_packet.encode_u8(8, ease)
-	network_packet.encode_u8(9, auxiliary)
-	return network_packet
 
 
 func round_to(value: float, decimals: int) -> float:
@@ -500,82 +361,22 @@ func round_to(value: float, decimals: int) -> float:
 	return round(value * factor) / factor
 
 
-func load_path(file_name: String) -> bool:
-	var file = paths_open_read(file_name)
-	if not file:
+func load_path(filePath: String) -> bool:
+	var funscript = Funscript.new(filePath, ticks_per_second, PATH_TOP, PATH_BOTTOM)
+	if not funscript._marker_data:
 		printerr("Error: Failed to read file.")
 		return false
-	var file_text := file.get_as_text()
-	file.close()
-	
-	var file_data: Dictionary
-	
-	if file_name.ends_with(".funscript"):
-		file_text = file_text.replace("\n", "")
-		var parsed_funscript = JSON.parse_string(file_text)
-		var inverted := false
-		if parsed_funscript is Dictionary and parsed_funscript.get("inverted", false):
-			inverted = true
-	
-		var actions_pattern = RegEx.new()
-		actions_pattern.compile('"[Aa]ctions":\\s*\\[.*?\\]')
-		var actions_regex = actions_pattern.search(file_text)
-		if not actions_regex:
-			actions_pattern.compile('"[Rr]aw[Aa]ctions":\\s*\\[.*?\\]')
-			actions_regex = actions_pattern.search(file_text)
-		if actions_regex:
-			var actions_text = actions_regex.get_string(0)
-			actions_text = actions_text.replace("'", '"')
-			actions_text = actions_text.insert(0, "{")
-			actions_text = actions_text.insert(actions_text.length(), "}")
-			var actions_data = JSON.parse_string(actions_text)
-			if actions_data:
-				var actions_list = actions_data[actions_data.keys()[0]]
-				var first_depth = round_to(clamp(actions_list[0].pos / 100, 0, 1), 4)
-				if inverted:
-					first_depth = round_to(1.0 - first_depth, 4)
-				file_data[0] = [first_depth, 1, 2, 0]
-				for action in actions_list:
-					var frame: int = action.at / (1000.0 / 60.0)
-					var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
-					if inverted:
-						depth = round_to(1.0 - depth, 4)
-					file_data[frame] = [depth, 1, 2, 0]
-			else:
-				printerr("Failed to parse funscript JSON")
-		else:
-			printerr("No actions data found in the funscript")
-	else:
-		file_data = JSON.parse_string(file_text)
-		if not file_data:
-			printerr("Error: No JSON data found in file.")
-			return false
-		if file_data.has("meta"):
-			var meta = file_data["meta"]
-			if meta is Dictionary and meta.has("video_offset_ms"):
-				%VideoPlayer/Main/VideoOffset/Input.value = meta["video_offset_ms"]
-		if file_data.has("markers"):
-			file_data = file_data["markers"]
-	
-	var marker_data: Dictionary = file_data
-	if marker_data.size() < 6:
+
+	if funscript._marker_data.size() < buffer_size:
 		printerr("Error: Insufficient path data in file.")
 		return false
 	
-	var sorted_keys := marker_data.keys()
-	sorted_keys.sort_custom(func(a, b): return int(a) < int(b))
-	
-	var network_packets: Array
-	for marker_frame in sorted_keys:
-		var marker = marker_data[marker_frame]
-		var ms_timing := int(round((float(marker_frame) / 60) * 1000))
-		network_packets.append(create_move_command(ms_timing, marker[0], marker[1], marker[2], marker[3]))
-		# Adjust for physics tick rate change from BounceX (60Hz to 50Hz)
-		marker_data[round(int(marker_frame) / 1.2)] = marker
-		marker_data.erase(marker_frame)
-	
-	network_paths.append(network_packets)
-	
+	funscripts.append(funscript)
+	create_path_lines(funscript._marker_data)
+
+	return true
+
+func create_path_lines(marker_data: Dictionary):
 	var previous_depth: float
 	var previous_frame: int
 	var marker_list: Array = marker_data.keys()
@@ -607,13 +408,13 @@ func load_path(file_name: String) -> bool:
 				path_line.add_point(Vector2(x_pos, y_pos))
 		previous_depth = depth
 		previous_frame = marker_frame
-	paths.append(path)
-	marker_frames.append(frames)
 	$PathDisplay/Paths.add_child(path_line)
-	return true
 
 
 func create_delay(duration: float):
+	if Global.active_path_index == null:
+		return
+
 	var delay_path: PackedFloat32Array
 	var path_line := Line2D.new()
 	path_line.hide()
@@ -621,42 +422,45 @@ func create_delay(duration: float):
 		delay_path.append(-1)
 	var frames: PackedInt32Array
 	var network_packets: Array
-	for timing in 6:
-		var move_command = create_move_command(timing, 0, 0, 0, 0)
+	for timing in buffer_size:
+		var move_command = OSSMCommand.create_move_command(timing, 0, 0, 0, 0)
 		network_packets.append(move_command)
 		frames.append(timing)
-	var end_move = create_move_command(duration * 1000, 0, 0, 0, 0)
+	var end_move = OSSMCommand.create_move_command(duration * 1000, 0, 0, 0, 0)
 	network_packets.append(end_move)
-	network_paths.append(network_packets)
-	paths.append(delay_path)
-	marker_frames.append(frames)
+	current_funscript.network_paths.append(network_packets)
+	current_funscript.paths.append(delay_path)
+	current_funscript.marker_frames.append(frames)
 	$PathDisplay/Paths.add_child(path_line)
 	$Menu/Playlist.add_item("delay(%s)" % [duration])
 
 
 func display_active_path_index(pause := true, send_buffer := true):
-	paused = pause
-	frame = 0
+	if Global.active_path_index == null:
+		return
+
+	Global.paused = pause
+	Global.frame = 0
 	marker_index = 0
 	play_offset_ms = 0
 	$SeekSlider.set_value_no_signal(0)
 	update_time_display()
 	if send_buffer:
 		if %WebSocket.ossm_connected:
-			send_command(OSSM.Command.RESET)
-			var start_depth:float = paths[active_path_index][0]
+			%OSSMCommand.reset()
+			var start_depth:float = current_funscript.paths[0]
 			home_to(round(start_depth * 10000))
-			await homing_complete
+			await Global.homing_complete
 			if not %WebSocket.ossm_connected:
 				return
 			buffer_sent = 0
-			while buffer_sent < 6 and marker_index < network_paths[active_path_index].size():
-				%WebSocket.server.broadcast_binary(network_paths[active_path_index][marker_index])
+			while buffer_sent < buffer_size and marker_index < current_funscript.network_paths.size():
+				%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
 				marker_index += 1
 				buffer_sent += 1
 	else:
-		marker_index = 6
-		buffer_sent = 6
+		marker_index = buffer_size
+		buffer_sent = buffer_size
 	
 	$ActionPanel.clear_selections()
 	if pause:
@@ -664,10 +468,10 @@ func display_active_path_index(pause := true, send_buffer := true):
 		$ActionPanel/Play.show()
 	for path in $PathDisplay/Paths.get_children():
 		path.hide()
-	var path = $PathDisplay/Paths.get_child(active_path_index)
+	var path = $PathDisplay/Paths.get_child(Global.active_path_index)
 	path.position.x = ($PathDisplay/PathArea.size.x / 2) + path_speed
 	path.show()
-	$PathDisplay/Ball.position.y = render_depth(paths[active_path_index][0])
+	$PathDisplay/Ball.position.y = render_depth(current_funscript.paths[0])
 	$PathDisplay/Ball.show()
 	$PathDisplay.show()
 	if %VideoPlayer.is_active() and AppMode.active == AppMode.MOVE:
@@ -675,18 +479,18 @@ func display_active_path_index(pause := true, send_buffer := true):
 
 
 func seek() -> void:
-	if active_path_index == null or _seeking:
+	if Global.active_path_index == null or _seeking:
 		return
 	_seeking = true
-	if not paused:
-		paused = true
-		send_command(OSSM.Command.PAUSE)
+	if not Global.paused:
+		Global.paused = true
+		%OSSMCommand.pause()
 		%ActionPanel.clear_selections()
 		%ActionPanel/Pause.hide()
 		%ActionPanel/Play.show()
 		%CircleSelection.hide()
 	
-	var active_path = paths[active_path_index]
+	var active_path = current_funscript.paths
 	if active_path.is_empty():
 		_seeking = false
 		return
@@ -699,7 +503,7 @@ func seek() -> void:
 	play_offset_ms = int(target_frame * 1000.0 / ticks_per_second)
 	
 	# Find the first marker_frame index AFTER target_frame
-	var frames = marker_frames[active_path_index]
+	var frames = current_funscript.marker_frames
 	var buffer_start := 0
 	var cascade_index := 0
 	for i in frames.size():
@@ -710,30 +514,30 @@ func seek() -> void:
 			break
 	
 	# Update display
-	frame = target_frame
-	var path_line = $PathDisplay/Paths.get_child(active_path_index)
+	Global.frame = target_frame
+	var path_line = $PathDisplay/Paths.get_child(Global.active_path_index)
 	path_line.position.x = ($PathDisplay/PathArea.size.x / 2) + path_speed - (target_frame * path_speed)
 	$PathDisplay/Ball.position.y = render_depth(target_depth)
 	update_time_display()
 	
 	if %WebSocket.ossm_connected:
-		send_command(OSSM.Command.RESET)
+		%OSSMCommand.reset()
 		home_to(round(target_depth * 10000))
-		await homing_complete
+		await Global.homing_complete
 		if not %WebSocket.ossm_connected:
 			_seeking = false
 			return
 		# Send cascade packet (timestamp <= play_offset, firmware immediately skips it)
-		var cascade_packet = network_paths[active_path_index][cascade_index]
-		%WebSocket.server.broadcast_binary(cascade_packet)
+		var cascade_packet = current_funscript.network_paths[cascade_index]
+		%OSSMCommand.broadcast_binary(cascade_packet)
 		# Send buffer packets from seek position
 		marker_index = buffer_start
 		buffer_sent = 0
-		while buffer_sent < 6 and marker_index < network_paths[active_path_index].size():
-			var packet = network_paths[active_path_index][marker_index]
+		while buffer_sent < buffer_size and marker_index < current_funscript.network_paths.size():
+			var packet = current_funscript.network_paths[marker_index]
 			var packet_ms = packet.decode_u32(1)
 			var packet_depth = packet.decode_u16(5)
-			%WebSocket.server.broadcast_binary(packet)
+			%OSSMCommand.broadcast_binary(packet)
 			marker_index += 1
 			buffer_sent += 1
 	
@@ -749,9 +553,9 @@ func _on_seek_slider_drag_started() -> void:
 
 
 func _on_seek_slider_value_changed(value: float) -> void:
-	if active_path_index == null:
+	if Global.active_path_index == null:
 		return
-	var total_frames: int = paths[active_path_index].size()
+	var total_frames: int = current_funscript.paths.size()
 	var total_sec := (total_frames - 1) / ticks_per_second
 	var current_sec := int(value * total_sec)
 	if total_sec >= 3600:
@@ -765,8 +569,8 @@ func _on_seek_slider_value_changed(value: float) -> void:
 
 
 func update_time_display():
-	var total_frames: int = paths[active_path_index].size()
-	var current_sec := frame / ticks_per_second
+	var total_frames: int = current_funscript.paths.size()
+	var current_sec := Global.frame / ticks_per_second
 	var total_sec := (total_frames - 1) / ticks_per_second
 	if total_sec >= 3600:
 		$TimeDisplay.text = "%d:%02d:%02d / %d:%02d:%02d" % [
@@ -786,7 +590,10 @@ func activate_move_mode():
 	set_physics_process(true)
 	%ActionPanel/Play.show()
 	%ActionPanel/Pause.hide()
+	%PathDisplay/PathArea.show()
 	%PathDisplay/Paths.show()
+	# %PathDisplay/TimeLabel.show()
+	# %PathDisplay/ChapterLabel.show()
 	%PathDisplay/Ball.show()
 	$SeekSlider.show()
 	$TimeDisplay.show()
@@ -796,7 +603,7 @@ func activate_move_mode():
 	%Menu/Main/LoopAndVideoButtons/VideoPlayerSync.show()
 	%Menu/PathControls.show()
 	%Menu/Playlist.show()
-	if active_path_index != null:
+	if Global.active_path_index != null:
 		display_active_path_index()
 	%Menu.refresh_selection()
 
@@ -807,6 +614,9 @@ func deactivate_move_mode():
 	%ActionPanel/Pause.show()
 	%PathDisplay.hide()
 	%PathDisplay/Paths.hide()
+	%PathDisplay/PathArea.hide()
+	# %PathDisplay/TimeLabel.hide()
+	# %PathDisplay/ChapterLabel.hide()
 	%PathDisplay/Ball.hide()
 	$SeekSlider.hide()
 	$TimeDisplay.hide()
@@ -840,7 +650,7 @@ func _input(event: InputEvent) -> void: # Handle ui element outside click
 func _on_window_size_changed():
 	if OS.get_name() != "Android":
 		var window_size = DisplayServer.window_get_size()
-		user_settings.set_value('window', 'size', window_size)
+		UserSettings.set_value(UserSettings.Section.window, 'size', window_size)
 
 
 func _notification(what):
@@ -852,52 +662,48 @@ func _notification(what):
 
 
 func exit():
-	user_settings.save(cfg_path)
+	UserSettings.save()
 	%BPIOBridge.stop_client()
 	%BPIOBridge.stop_device()
 	%XToysBridge.stop_xtoys()
 	if %WebSocket.ossm_connected:
-		paused = true
-		send_command(OSSM.Command.PAUSE)
-		const MIN_RANGE = 0
-		const MAX_RANGE = 1
-		var command: PackedByteArray
-		command.resize(4)
-		command.encode_u8(0, OSSM.Command.SET_RANGE_LIMIT)
-		command.encode_u8(1, MIN_RANGE if motor_direction == 0 else MAX_RANGE)
-		command.encode_u16(2, motor_direction * 10000)
-		%WebSocket.server.broadcast_binary(command)
+		Global.paused = true
+		%OSSMCommand.pause()
+		if Global.motor_direction == 0:
+			%OSSMCommand.set_range_limit_min(Global.motor_direction * 10000)
+		else:
+			%OSSMCommand.set_range_limit_max(Global.motor_direction * 10000)
 		home_to(1500)
 
 
 func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
-	if active_path_index == null or not paused or AppMode.active != AppMode.MOVE:
+	if Global.active_path_index == null or not Global.paused or AppMode.active != AppMode.MOVE:
 		return
 	if from_stopped:
-		var path_time = float(frame) / ticks_per_second
+		var path_time = float(Global.frame) / ticks_per_second
 		%VideoPlayer.pause_and_seek(path_time)
 		return
-	var total_frames: int = paths[active_path_index].size()
+	var total_frames: int = current_funscript.paths.size()
 	if total_frames == 0:
 		return
 	
 	var target_frame = clampi(int(video_time_seconds * ticks_per_second), 0, total_frames - 1)
-	frame = target_frame
+	Global.frame = target_frame
 	
 	# Realign buffer tracking to new frame position
-	var frames = marker_frames[active_path_index]
+	var frames = current_funscript.marker_frames
 	var cascade_index := 0
 	for i in frames.size():
 		if frames[i] <= target_frame:
 			cascade_index = i
 		else:
 			break
-	marker_index = mini(cascade_index + 1 + buffer_sent, network_paths[active_path_index].size())
+	marker_index = mini(cascade_index + 1 + buffer_sent, current_funscript.network_paths.size())
 	
 	# Update display
-	var path_line = $PathDisplay/Paths.get_child(active_path_index)
+	var path_line = $PathDisplay/Paths.get_child(Global.active_path_index)
 	path_line.position.x = ($PathDisplay/PathArea.size.x / 2) + path_speed - (target_frame * path_speed)
-	$PathDisplay/Ball.position.y = render_depth(paths[active_path_index][target_frame])
+	$PathDisplay/Ball.position.y = render_depth(current_funscript.paths[target_frame])
 	$SeekSlider.set_value_no_signal(float(target_frame) / (total_frames - 1))
 	update_time_display()
 	
@@ -910,7 +716,7 @@ func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
 
 
 func _on_video_player_paused():
-	if paused or AppMode.active != AppMode.MOVE:
+	if Global.paused or AppMode.active != AppMode.MOVE:
 		return
 	%ActionPanel.clear_selections()
 	%ActionPanel/Pause.hide()
@@ -919,9 +725,9 @@ func _on_video_player_paused():
 
 
 func _on_video_player_seeked(video_time_seconds: float):
-	if active_path_index == null or AppMode.active != AppMode.MOVE:
+	if Global.active_path_index == null or AppMode.active != AppMode.MOVE:
 		return
-	var total_frames: int = paths[active_path_index].size()
+	var total_frames: int = current_funscript.paths.size()
 	if total_frames == 0:
 		return
 	var target_frame = clampi(int(video_time_seconds * ticks_per_second), 0, total_frames - 1)
@@ -1186,7 +992,7 @@ func _resolve_storage_dir(category: String) -> String:
 		if saf_paths_uri.is_empty():
 			return ""
 		return _saf_tree_uri_to_fs_path(saf_paths_uri)
-	return paths_dir if category == "paths" else playlists_dir
+	return Global.paths_dir if category == "paths" else Global.playlists_dir
 
 
 func _saf_tree_uri_to_fs_path(tree_uri: String) -> String:

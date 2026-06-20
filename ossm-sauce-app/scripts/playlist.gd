@@ -22,12 +22,12 @@ func _on_item_selected(item):
 	selected_index = index
 	
 	var restart_button = %Menu/PathControls/HBox/Restart
-	if owner.active_path_index == index and owner.frame > 0:
+	if Global.active_path_index == index and Global.frame > 0:
 		restart_button.show()
 	else:
 		restart_button.hide()
 	
-	if not owner.paused and owner.active_path_index == index:
+	if not Global.paused and Global.active_path_index == index:
 		%Menu.show_pause()
 	else:
 		%Menu.show_play()
@@ -39,9 +39,10 @@ func _on_item_selected(item):
 		double_tap_timer.start()
 
 
-func add_item(item_text:String):
+func add_item(item_text:String, item_path:String):
 	var item = Item.duplicate()
 	item.get_node('Label').text = item_text
+	item.get_node('FilePath').text = item_path
 	$Scroll/VBox.add_child(item)
 	var item_button = item.get_node('Button')
 	item_button.connect('pressed', _on_item_selected.bind(item))
@@ -55,28 +56,20 @@ func move_item(current_index, new_index):
 	%PathDisplay/Paths.move_child(path, new_index)
 	selected_index = new_index
 	
-	var path_data = owner.paths[current_index]
-	owner.paths.remove_at(current_index)
-	owner.paths.insert(new_index, path_data)
+	var funscript_data = owner.funscripts[current_index]
+	owner.funscripts.remove_at(current_index)
+	owner.funscripts.insert(new_index, funscript_data)
 	
-	var marker_data = owner.marker_frames[current_index]
-	owner.marker_frames.remove_at(current_index)
-	owner.marker_frames.insert(new_index, marker_data)
-	
-	var network_data = owner.network_paths[current_index]
-	owner.network_paths.remove_at(current_index)
-	owner.network_paths.insert(new_index, network_data)
-	
-	if owner.active_path_index == current_index:
-		owner.active_path_index = new_index
-	elif owner.active_path_index == new_index:
-		owner.active_path_index = current_index
+	if Global.active_path_index == current_index:
+		Global.active_path_index = new_index
+	elif Global.active_path_index == new_index:
+		Global.active_path_index = current_index
 
 
 func get_items() -> Array:
 	var items:Array
 	for item in $Scroll/VBox.get_children():
-		items.append(item.get_node('Label').text)
+		items.append(item.get_node('FilePath').text)
 	return items
 
 
@@ -95,14 +88,12 @@ func deselect_all():
 
 
 func clear():
-	if owner.active_path_index != null:
-		owner.active_path_index = null
+	if Global.active_path_index != null:
+		Global.active_path_index = null
 		%Menu/PathControls.hide()
-		if not owner.paused:
+		if not Global.paused:
 			%Menu._on_pause_pressed()
-	owner.paths.clear()
-	owner.marker_frames.clear()
-	owner.network_paths.clear()
+	owner.funscripts.clear()
 	for item in $Scroll/VBox.get_children():
 		$Scroll/VBox.remove_child(item)
 	for path in %PathDisplay/Paths.get_children():

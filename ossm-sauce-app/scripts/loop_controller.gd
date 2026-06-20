@@ -68,8 +68,8 @@ func map_stroke_duration():
 			slider.position.y,
 			max_y,
 			off_y,
-			owner.min_stroke_duration,
-			owner.max_stroke_duration), 0.01)
+			Global.min_stroke_duration,
+			Global.max_stroke_duration), 0.01)
 
 
 func reset_stroke_duration_slider():

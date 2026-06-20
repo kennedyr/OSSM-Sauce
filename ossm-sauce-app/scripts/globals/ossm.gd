@@ -18,3 +18,9 @@ enum Command {
   SET_HOMING_TRIGGER,
   SMOOTH_MOVE,
 }
+
+
+enum RangeLimitType {
+  MIN_RANGE,
+  MAX_RANGE,
+}

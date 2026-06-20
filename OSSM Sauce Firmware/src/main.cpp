@@ -13,12 +13,9 @@ StrokeCommand loopPush;
 StrokeCommand loopPull;
 
 QueueHandle_t moveQueue;
-const char moveQueueSize = 10;
+const char moveQueueSize = 50;
 bool moveQueueIsEmpty = true;
 
-QueueHandle_t positionQueue;
-const char positionQueueSize = 50;
-bool positionQueueIsEmpty = true;
 int previousTargetPosition;
 
 StrokeCommand smoothMoveCommand;
@@ -55,11 +52,21 @@ void moveStart() {
   short lastTargetDepth = activeMove.depth;
   if (!xQueueReceive(moveQueue, &activeMove, (TickType_t)10))
     Serial.println("ERROR: Queue empty.");
-  if (activeMove.endTimeMs == 0 && uxQueueSpacesAvailable(moveQueue) < moveQueueSize) { // start of next path
+
+  // start of next path
+  if (activeMove.endTimeMs == 0 && uxQueueSpacesAvailable(moveQueue) < moveQueueSize) {
     playTimeMs = 0;
     playStartTime = millis();
-  } else if (activeMove.endTimeMs == 0 || activeMove.depth == lastTargetDepth)
+  } else if (activeMove.endTimeMs == 0 || activeMove.depth == lastTargetDepth) {
     return;
+  }
+
+  // if activeMove has already expired, recurse
+  if (playTimeMs >= activeMove.endTimeMs) {
+    Serial.println("WARN: Queued move already expired.");
+    moveStart();
+  }
+
   short constrainedPosition = constrain(activeMove.depth, 0, 10000);
   activeMove.targetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
   activeMove.playTimeStartedMs = playTimeMs;
@@ -79,8 +86,12 @@ void sendResponse(CommandType responseCommand) {
   esp_websocket_client_send_bin(wsClient, message, messageSize, portMAX_DELAY);
 }
 
+void sendTextResponse(char* message, int messageSize) {
+  esp_websocket_client_send_text(wsClient, message, messageSize, portMAX_DELAY);
+}
 
-void parseMessage(esp_websocket_event_data_t *data) {
+
+void parseBinaryMessage(esp_websocket_event_data_t *data) {
   byte* message = (byte*)data->data_ptr;
   size_t messageLength = data->data_len;
 
@@ -95,8 +106,12 @@ void parseMessage(esp_websocket_event_data_t *data) {
     case MOVE: {
       if (messageLength != 10)
         break;
-      if(!xQueueSend(moveQueue, &(message[1]), (TickType_t)10))
+
+      if(!xQueueSend(moveQueue, &(message[1]), (TickType_t)10)) {
         Serial.println("ERROR: Failed to add move command to queue. Is queue full?");
+        break;
+      }
+
       if (moveQueueIsEmpty)
         moveStart();
       moveQueueIsEmpty = false;
@@ -193,6 +208,7 @@ void parseMessage(esp_websocket_event_data_t *data) {
 
     case PAUSE: {
       movementMode = MODE_IDLE;
+      stepper->stopMove();
       break;
     }
 
@@ -200,7 +216,6 @@ void parseMessage(esp_websocket_event_data_t *data) {
       movementMode = MODE_IDLE;
       playTimeMs = 0;
       xQueueReset(moveQueue);
-      xQueueReset(positionQueue);
       moveQueueIsEmpty = true;
       break;
     }
@@ -271,8 +286,10 @@ void parseMessage(esp_websocket_event_data_t *data) {
     case SET_HOMING_TRIGGER: {
       float homingTriggerInput;
       memcpy(&homingTriggerInput, message + 1, 4);
-      powerAvgRangeMultiplier = constrain(homingTriggerInput, 0.1, 10) ;
-      preferences.putFloat("homing_trigger", powerAvgRangeMultiplier);
+      powerAvgRangeMultiplier = constrain(homingTriggerInput, 0.1, 2);
+      if(enablePreferences) {
+        preferences.putFloat("homing_trigger", powerAvgRangeMultiplier);
+      }
       break;
     }
 
@@ -293,6 +310,27 @@ void parseMessage(esp_websocket_event_data_t *data) {
   }
 }
 
+char* substr(char* arr, int begin, int len)
+{
+    char* res = new char[len + 1];
+    for (int i = 0; i < len; i++)
+        res[i] = *(arr + begin + i);
+    res[len] = 0;
+    return res;
+}
+
+void parseTextMessage(esp_websocket_event_data_t *data)
+{
+    char *message = (char *)data->data_ptr;
+    size_t messageLength = data->data_len;
+    if (strncmp(message, "PING", strlen("PING")) == 0)
+    {
+        char buf[messageLength + 1];
+        strcpy(buf, "PONG");
+        strcat(buf, substr(message, 4, messageLength));
+        sendTextResponse(buf, data->data_len);
+    }
+}
 
 static void websocket_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
   esp_websocket_event_data_t *data = (esp_websocket_event_data_t *)event_data;
@@ -307,7 +345,11 @@ static void websocket_event_handler(void *arg, esp_event_base_t event_base, int3
       setLEDStatus(LED_ERROR);  // Update LED status
       break;
     case WEBSOCKET_EVENT_DATA:
-      parseMessage(data);
+      if (data->op_code == 1) {
+        parseTextMessage(data);
+      } else if (data->op_code == 2){
+        parseBinaryMessage(data);
+      }
       break;
   }
 }
@@ -341,7 +383,6 @@ void setup() {
   Serial.println("");
 
   moveQueue = xQueueCreate(moveQueueSize, 9);
-  positionQueue = xQueueCreate(positionQueueSize, 4);
 
   sensorlessHoming();
 
@@ -363,7 +404,7 @@ void loop() {
       playTimeMs = millis() - playStartTime;
       if (playTimeMs >= activeMove.endTimeMs)
         moveStart();
-      else if (activeMove.active)
+      if (activeMove.active)
         processStroke(&activeMove, playTimeMs - activeMove.playTimeStartedMs);
       break;
     }

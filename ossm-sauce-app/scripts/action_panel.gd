@@ -1,12 +1,51 @@
 extends Panel
 
+var increment = 0.05
+
+func _input(event):
+	if Input.is_action_just_pressed("PauseResume"):
+		if $Play.visible:
+			_on_play_button_pressed()
+		else:
+			_on_pause_button_pressed()
+
+	if Input.is_action_just_pressed("ShiftUp"):
+		var current_max = %RangePanel.get_max_slider_percent()
+		%RangePanel.set_max_slider_percent(current_max + increment)
+
+		var current_min = %RangePanel.get_min_slider_percent()
+		%RangePanel.set_min_slider_percent(current_min + increment)
+
+	if Input.is_action_just_pressed("ShiftDown"):
+		var current_max = %RangePanel.get_max_slider_percent()
+		%RangePanel.set_max_slider_percent(current_max - increment)
+
+		var current_min = %RangePanel.get_min_slider_percent()
+		%RangePanel.set_min_slider_percent(current_min - increment)
+
+	if Input.is_action_just_pressed("IncreaseMaxRange"):
+		var current_pos = %RangePanel.get_max_slider_percent()
+		%RangePanel.set_max_slider_percent(current_pos + increment)
+
+	if Input.is_action_just_pressed("DecreaseMaxRange"):
+		var current_pos = %RangePanel.get_max_slider_percent()
+		%RangePanel.set_max_slider_percent(current_pos - increment)
+
+	if Input.is_action_just_pressed("IncreaseMinRange"):
+		var current_pos = %RangePanel.get_min_slider_percent()
+		%RangePanel.set_min_slider_percent(current_pos + increment)
+
+	if Input.is_action_just_pressed("DecreaseMinRange"):
+		var current_pos = %RangePanel.get_min_slider_percent()
+		%RangePanel.set_min_slider_percent(current_pos - increment)
+
 
 func _on_play_button_pressed():
 	flash_button($Play)
 	$Timer.start()
 	match AppMode.active:
 		AppMode.MOVE:
-			if owner.active_path_index == null:
+			if Global.active_path_index == null:
 				return
 		AppMode.POSITION:
 			%PositionControls.set_physics_process(true)

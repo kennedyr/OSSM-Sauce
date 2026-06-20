@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://bcl1axbtw05ci" path="res://scripts/ossm_sauce.gd" id="2_ru8sx"]
 [ext_resource type="Texture2D" uid="uid://da3nxjs8pqcoy" path="res://textures/dot_small.svg" id="3_3abtc"]
 [ext_resource type="Script" uid="uid://cxtahcwhofid1" path="res://scripts/path_area.gd" id="3_8ho8d"]
+[ext_resource type="Texture2D" uid="uid://ge4gxwchc2p7" path="res://textures/background.svg" id="4_dyutb"]
 [ext_resource type="Script" uid="uid://brrct0qmqq407" path="res://scripts/position_controls.gd" id="4_qnwk1"]
 [ext_resource type="Texture2D" uid="uid://du8j273r744tn" path="res://textures/straight.svg" id="5_hjbjw"]
 [ext_resource type="Texture2D" uid="uid://bm14gbhhm3uqb" path="res://textures/smooth.svg" id="6_hej02"]
@@ -55,6 +56,8 @@
 [ext_resource type="Script" uid="uid://dpq3eqxv0c6tc" path="res://scripts/homing_trigger_popup.gd" id="47_04y8j"]
 [ext_resource type="Script" uid="uid://bblfppboahqc1" path="res://scripts/websocket_mcp_bridge.gd" id="47_j3fne"]
 [ext_resource type="Script" uid="uid://4ocyantcsgu3" path="res://scripts/mcp_command_server.gd" id="48_bme4d"]
+[ext_resource type="Script" uid="uid://b22ei68mm0444" path="res://scripts/ossm_command.gd" id="49_2hygl"]
+[ext_resource type="Script" uid="uid://c6t3pf40n6wrh" path="res://scripts/mpv.gd" id="50_ov553"]
 [ext_resource type="Script" uid="uid://y456l2fev7al" path="res://scripts/video_player.gd" id="55_04y8j"]
 
 [sub_resource type="StyleBoxFlat" id="button_hover"]
@@ -351,7 +354,7 @@ func _on_accept_pressed():
 
 
 func _on_dont_show_toggled(toggled_on):
-	owner.user_settings.set_value('app_settings', 'show_splash', !toggled_on)
+	UserSettings.set_value(UserSettings.Section.app_settings, 'show_splash', !toggled_on)
 "
 
 [node name="OSSMSauce" type="Control" unique_id=732584772]
@@ -386,6 +389,16 @@ metadata/_edit_use_anchors_ = true
 
 [node name="Timer" type="Timer" parent="PathDisplay/PathArea" unique_id=1492239332]
 wait_time = 0.3
+
+[node name="TextureRect" type="TextureRect" parent="PathDisplay/PathArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("4_dyutb")
+expand_mode = 1
 
 [node name="Paths" type="Control" parent="PathDisplay" unique_id=1983399160]
 anchors_preset = 0
@@ -2700,6 +2713,23 @@ theme_override_font_sizes/font_size = 48
 clip_text = true
 text_overrun_behavior = 3
 
+[node name="FilePath" type="Label" parent="Menu/Playlist/Scroll/VBox/Item"]
+visible = false
+self_modulate = Color(1, 1, 1, 0.764706)
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 8.0
+offset_top = -37.0
+offset_right = 988.0
+offset_bottom = 37.0
+grow_vertical = 2
+theme_override_font_sizes/font_size = 48
+clip_text = true
+text_overrun_behavior = 3
+
+
 [node name="Icon" type="TextureRect" parent="Menu/Playlist/Scroll/VBox/Item" unique_id=378431718]
 visible = false
 layout_mode = 1
@@ -3847,6 +3877,15 @@ grow_vertical = 2
 wait_time = 0.5
 one_shot = true
 
+[node name="FileDialog" type="FileDialog" parent="AddFile"]
+title = "Open a File"
+position = Vector2i(0, 36)
+size = Vector2i(1137, 1871)
+ok_button_text = "Open"
+file_mode = 0
+access = 2
+use_native_dialog = true
+
 [node name="CircleSelection" type="Control" parent="." unique_id=808786019]
 unique_name_in_owner = true
 visible = false
@@ -4091,6 +4130,14 @@ script = ExtResource("47_j3fne")
 [node name="MCPCommandServer" type="Node" parent="MCPBridge" unique_id=1342975163]
 unique_name_in_owner = true
 script = ExtResource("48_bme4d")
+
+[node name="OSSMCommand" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("49_2hygl")
+
+[node name="MPV" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("50_ov553")
 
 [connection signal="gui_input" from="PathDisplay/PathArea" to="PathDisplay/PathArea" method="_on_gui_input"]
 [connection signal="timeout" from="PathDisplay/PathArea/Timer" to="PathDisplay/PathArea" method="_on_timer_timeout"]

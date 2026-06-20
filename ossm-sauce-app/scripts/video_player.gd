@@ -792,7 +792,7 @@ func _on_player_selection_item_selected(index: int) -> void:
 	$Main/VLCPassword.hide()
 	$Main/VLCSeekCorrection.hide()
 	player_type = index as PlayerType
-	owner.user_settings.set_value('video_player', 'player_type', index)
+	UserSettings.set_value(UserSettings.Section.video_player, 'player_type', index)
 	match player_type:
 		PlayerType.OFF:
 			$Main/PlayerAddress.hide()
@@ -806,22 +806,22 @@ func _on_player_selection_item_selected(index: int) -> void:
 		PlayerType.VLC:
 			$Main/VLCPassword.show()
 			$Main/VLCSeekCorrection.show()
-			player_port = owner.user_settings.get_value('video_player', 'vlc_port', 8080)
-			delay_ms = owner.user_settings.get_value('video_player', 'vlc_delay_ms', 0)
-			advance_ms = owner.user_settings.get_value('video_player', 'vlc_advance_ms', 100)
+			player_port = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_port', 8080)
+			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_delay_ms', 0)
+			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_advance_ms', 100)
 		PlayerType.MPC:
-			player_port = owner.user_settings.get_value('video_player', 'mpc_port', 13579)
-			delay_ms = owner.user_settings.get_value('video_player', 'mpc_delay_ms', 0)
-			advance_ms = owner.user_settings.get_value('video_player', 'mpc_advance_ms', 100)
+			player_port = UserSettings.get_value(UserSettings.Section.video_player, 'mpc_port', 13579)
+			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpc_delay_ms', 0)
+			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpc_advance_ms', 100)
 		PlayerType.MPV:
-			player_port = owner.user_settings.get_value('video_player', 'mpv_port', 9001)
-			delay_ms = owner.user_settings.get_value('video_player', 'mpv_delay_ms', 0)
-			advance_ms = owner.user_settings.get_value('video_player', 'mpv_advance_ms', 100)
+			player_port = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_port', 9001)
+			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_delay_ms', 0)
+			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_advance_ms', 100)
 		PlayerType.MPV_ANDROID:
 			$Main/PlayerAddress.hide()
 			$Main/PlayerPort.hide()
-			delay_ms = owner.user_settings.get_value('video_player', 'mpv_android_delay_ms', 0)
-			advance_ms = owner.user_settings.get_value('video_player', 'mpv_android_advance_ms', 100)
+			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_android_delay_ms', 0)
+			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_android_advance_ms', 100)
 	$Main/PlayerPort/Input.set_value_no_signal(player_port)
 	$Main/DelayMs/Input.value = delay_ms
 	$Main/AdvanceMs/Input.value = advance_ms
@@ -842,7 +842,7 @@ func _on_player_selection_item_selected(index: int) -> void:
 
 func _on_player_address_text_submitted(new_text: String) -> void:
 	player_address = new_text
-	owner.user_settings.set_value('video_player', 'player_address', new_text)
+	UserSettings.set_value(UserSettings.Section.video_player, 'player_address', new_text)
 	reconnect(player_type)
 
 
@@ -850,18 +850,18 @@ func _on_player_port_value_changed(value: float) -> void:
 	player_port = int(value)
 	match player_type:
 		PlayerType.VLC:
-			owner.user_settings.set_value('video_player', 'vlc_port', player_port)
+			UserSettings.set_value(UserSettings.Section.video_player, 'vlc_port', player_port)
 		PlayerType.MPC:
-			owner.user_settings.set_value('video_player', 'mpc_port', player_port)
+			UserSettings.set_value(UserSettings.Section.video_player, 'mpc_port', player_port)
 		PlayerType.MPV:
-			owner.user_settings.set_value('video_player', 'mpv_port', player_port)
+			UserSettings.set_value(UserSettings.Section.video_player, 'mpv_port', player_port)
 			MPVBridgeInstaller.update_port(player_port)
 	reconnect(player_type)
 
 
 func _on_vlc_password_text_submitted(new_text: String) -> void:
 	vlc_password = new_text
-	owner.user_settings.set_value('video_player', 'vlc_password', new_text)
+	UserSettings.set_value(UserSettings.Section.video_player, 'vlc_password', new_text)
 	reconnect(player_type)
 
 
@@ -869,36 +869,36 @@ func _on_delay_ms_value_changed(value: float) -> void:
 	delay_ms = int(value)
 	match player_type:
 		PlayerType.VLC:
-			owner.user_settings.set_value('video_player', 'vlc_delay_ms', delay_ms)
+			UserSettings.set_value(UserSettings.Section.video_player, 'vlc_delay_ms', delay_ms)
 		PlayerType.MPC:
-			owner.user_settings.set_value('video_player', 'mpc_delay_ms', delay_ms)
+			UserSettings.set_value(UserSettings.Section.video_player, 'mpc_delay_ms', delay_ms)
 		PlayerType.MPV:
-			owner.user_settings.set_value('video_player', 'mpv_delay_ms', delay_ms)
+			UserSettings.set_value(UserSettings.Section.video_player, 'mpv_delay_ms', delay_ms)
 		PlayerType.MPV_ANDROID:
-			owner.user_settings.set_value('video_player', 'mpv_android_delay_ms', delay_ms)
+			UserSettings.set_value(UserSettings.Section.video_player, 'mpv_android_delay_ms', delay_ms)
 
 
 func _on_advance_ms_value_changed(value: float) -> void:
 	advance_ms = int(value)
 	match player_type:
 		PlayerType.VLC:
-			owner.user_settings.set_value('video_player', 'vlc_advance_ms', advance_ms)
+			UserSettings.set_value(UserSettings.Section.video_player, 'vlc_advance_ms', advance_ms)
 		PlayerType.MPC:
-			owner.user_settings.set_value('video_player', 'mpc_advance_ms', advance_ms)
+			UserSettings.set_value(UserSettings.Section.video_player, 'mpc_advance_ms', advance_ms)
 		PlayerType.MPV:
-			owner.user_settings.set_value('video_player', 'mpv_advance_ms', advance_ms)
+			UserSettings.set_value(UserSettings.Section.video_player, 'mpv_advance_ms', advance_ms)
 		PlayerType.MPV_ANDROID:
-			owner.user_settings.set_value('video_player', 'mpv_android_advance_ms', advance_ms)
+			UserSettings.set_value(UserSettings.Section.video_player, 'mpv_android_advance_ms', advance_ms)
 
 
 func _on_video_offset_ms_value_changed(value: float) -> void:
 	video_offset_ms = int(value)
-	owner.user_settings.set_value('video_player', 'video_offset_ms', video_offset_ms)
+	UserSettings.set_value(UserSettings.Section.video_player, 'video_offset_ms', video_offset_ms)
 
 
 func _on_vlc_seek_correction_value_changed(value: float) -> void:
 	vlc_seek_correction = value
-	owner.user_settings.set_value('video_player', 'vlc_seek_correction', vlc_seek_correction)
+	UserSettings.set_value(UserSettings.Section.video_player, 'vlc_seek_correction', vlc_seek_correction)
 
 
 func _on_mpv_bridge_pick_pressed() -> void:
@@ -958,7 +958,7 @@ func _on_mpv_bridge_cancel_pressed() -> void:
 	_mpv_android_pending_player_type = PlayerType.OFF
 	$Main/PlayerSelection.select(PlayerType.OFF)
 	player_type = PlayerType.OFF
-	owner.user_settings.set_value('video_player', 'player_type', PlayerType.OFF)
+	UserSettings.set_value(UserSettings.Section.video_player, 'player_type', PlayerType.OFF)
 	deactivate()
 
 
@@ -990,7 +990,7 @@ func _on_mpv_bridge_install_cancel_pressed() -> void:
 	_mpv_desktop_pending_player_type = PlayerType.OFF
 	$Main/PlayerSelection.select(PlayerType.OFF)
 	player_type = PlayerType.OFF
-	owner.user_settings.set_value('video_player', 'player_type', PlayerType.OFF)
+	UserSettings.set_value(UserSettings.Section.video_player, 'player_type', PlayerType.OFF)
 	deactivate()
 
 
