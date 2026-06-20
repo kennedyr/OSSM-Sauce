@@ -110,12 +110,8 @@ func _physics_process(delta) -> void:
 			marker_index += 1
 	
 	var depth: float = current_funscript.path[Global.frame]
-	# var ms_timing: int = round((float(Global.frame) / 50) * 1000)
-	# var minutes: int = floori(ms_timing / 60000.0)
-	# var seconds: int = floori((ms_timing % 60000) / 1000)
 	$PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
-	# $PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
 	
 	# var chapter = current_funscript.get_current_chapter_name(ms_timing)
 	# var next_chapter = current_funscript.get_next_chapter_name(ms_timing)
@@ -506,7 +502,6 @@ func display_active_path_index(pause := true, send_buffer := true):
 	$PathDisplay/Ball.position.y = render_depth(current_funscript.path[0])
 	$PathDisplay/Ball.show()
 	$PathDisplay.show()
-	# $PathDisplay/TimeLabel.text = "%02d:%02d" % [0, 0]
 	# var chapter = current_funscript.get_current_chapter_name(0)
 	# var next_chapter = current_funscript.get_next_chapter_name(0)
 	# if chapter or next_chapter:
@@ -630,7 +625,6 @@ func activate_move_mode():
 	%ActionPanel/Pause.hide()
 	%PathDisplay/PathArea.show()
 	%PathDisplay/Paths.show()
-	# %PathDisplay/TimeLabel.show()
 	# %PathDisplay/ChapterLabel.show()
 	%PathDisplay/Ball.show()
 	$SeekSlider.show()
@@ -653,7 +647,6 @@ func deactivate_move_mode():
 	%PathDisplay.hide()
 	%PathDisplay/Paths.hide()
 	%PathDisplay/PathArea.hide()
-	# %PathDisplay/TimeLabel.hide()
 	# %PathDisplay/ChapterLabel.hide()
 	%PathDisplay/Ball.hide()
 	$SeekSlider.hide()
@@ -801,58 +794,6 @@ func _on_storage_folder_picked(
 		return
 	%FileUtil.storage_folder_picked(_paths)
 	$FolderPickSplash.hide()
-
-
-# func create_gradient(colors: Array[Color]) -> Gradient:
-# 	var gradient = Gradient.new() 	# creates black to white gradient with two points
-# 	gradient.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_LINEAR
-# 	# check colors array size
-# 	var amount: int = colors.size()
-# 	if amount < 1:
-# 		printerr("gradient cant have less than one color")
-# 		return gradient # return default gradient
-
-# 	# remove default end color
-# 	gradient.remove_point(1)
-# 	# set or add new colors in equal intervals from 0 to 1
-# 	for i in range(amount):
-# 		var pos = lerp(0, 1, i/(amount-1.0))
-# 		if gradient.get_point_count() <= i:
-# 			gradient.add_point(pos, colors[i])
-# 		else:
-# 			gradient.set_color(i, colors[i])
-# 			gradient.set_offset(i, pos)
-
-# 	return gradient
-
-
-# func create_line_gradient(line_colors: Array[Variant]) -> Gradient:
-# 	var gradient = Gradient.new()
-# 	gradient.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_LINEAR
-# 	if line_colors.size() < 1:
-# 		printerr("gradient cant have less than one color")
-# 		return gradient # return default gradient
-
-# 	# remove default end color
-# 	gradient.remove_point(1)
-# 	var first = line_colors.front()
-# 	var last = line_colors.back()
-# 	var total_length = last["length"]
-# 	gradient.set_color(0, first["color"])
-# 	var prev = first
-# 	var index = 0
-# 	for lc in line_colors:
-# 		var length = lc["length"] - prev["length"]
-# 		if lc["color"] != prev["color"]:
-# 			if length >= 100:
-# 				gradient.add_point(lc["length"] / total_length, lc["color"])
-# 			else:
-# 				if index < line_colors.size() && line_colors[index + 1]["color"] == lc["color"]:
-# 					gradient.add_point(lc["length"] / total_length, lc["color"])
-# 		prev = lc
-# 		index += 1
-
-# 	return gradient
 
 
 # func get_speed(prevMarker, prevDepth, marker, depth):
