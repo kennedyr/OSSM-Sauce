@@ -390,7 +390,7 @@ metadata/_edit_use_anchors_ = true
 [node name="Timer" type="Timer" parent="PathDisplay/PathArea" unique_id=1492239332]
 wait_time = 0.3
 
-[node name="TextureRect" type="TextureRect" parent="PathDisplay/PathArea"]
+[node name="TextureRect" type="TextureRect" parent="PathDisplay/PathArea" unique_id=1632181323]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -2713,7 +2713,7 @@ theme_override_font_sizes/font_size = 48
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="FilePath" type="Label" parent="Menu/Playlist/Scroll/VBox/Item"]
+[node name="FilePath" type="Label" parent="Menu/Playlist/Scroll/VBox/Item" unique_id=879243651]
 visible = false
 self_modulate = Color(1, 1, 1, 0.764706)
 layout_mode = 1
@@ -2728,7 +2728,6 @@ grow_vertical = 2
 theme_override_font_sizes/font_size = 48
 clip_text = true
 text_overrun_behavior = 3
-
 
 [node name="Icon" type="TextureRect" parent="Menu/Playlist/Scroll/VBox/Item" unique_id=378431718]
 visible = false
@@ -3877,7 +3876,7 @@ grow_vertical = 2
 wait_time = 0.5
 one_shot = true
 
-[node name="FileDialog" type="FileDialog" parent="AddFile"]
+[node name="FileDialog" type="FileDialog" parent="AddFile" unique_id=882165205]
 title = "Open a File"
 position = Vector2i(0, 36)
 size = Vector2i(1137, 1871)
@@ -4131,11 +4130,11 @@ script = ExtResource("47_j3fne")
 unique_name_in_owner = true
 script = ExtResource("48_bme4d")
 
-[node name="OSSMCommand" type="Node" parent="."]
+[node name="OSSMCommand" type="Node" parent="." unique_id=1451527540]
 unique_name_in_owner = true
 script = ExtResource("49_2hygl")
 
-[node name="MPV" type="Node" parent="."]
+[node name="MPV" type="Node" parent="." unique_id=1494414108]
 unique_name_in_owner = true
 script = ExtResource("50_ov553")
 
@@ -4159,7 +4158,6 @@ script = ExtResource("50_ov553")
 [connection signal="toggled" from="BridgeControls/Controls/Enable" to="BridgeControls" method="_on_enable_toggled"]
 [connection signal="pressed" from="BridgeControls/Controls/AutoScroll" to="BridgeControls" method="_on_autoscroll_pressed"]
 [connection signal="pressed" from="BridgeControls/Controls/ClearLog" to="BridgeControls" method="_on_clear_log_pressed"]
-[connection signal="drag_ended" from="SeekSlider" to="." method="seek" unbinds=1]
 [connection signal="drag_started" from="SeekSlider" to="." method="_on_seek_slider_drag_started"]
 [connection signal="value_changed" from="SeekSlider" to="." method="_on_seek_slider_value_changed"]
 [connection signal="pressed" from="ActionPanel/Play/Button" to="ActionPanel" method="_on_play_button_pressed"]

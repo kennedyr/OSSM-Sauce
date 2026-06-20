@@ -42,7 +42,7 @@ func show_playlists():
 	$Label.text = owner.get_storage_label("playlists")
 
 	if OS.get_name() != 'Android':
- 		$FileDialog.clear_filters()
+		$FileDialog.clear_filters()
 		$FileDialog.current_dir = lastPlaylist if lastPlaylist else Global.playlists_dir
 		$FileDialog.filters = ["*.bxpl"]
 		$FileDialog.show()
@@ -109,6 +109,6 @@ func _on_load_playlist(file_path: String):
 func _on_back_pressed():
 	if OS.get_name() != 'Android':
 		$FileDialog.hide()
-	else
+	else:
 		hide()
 	%Menu.show()
