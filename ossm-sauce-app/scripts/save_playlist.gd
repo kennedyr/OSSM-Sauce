@@ -17,7 +17,7 @@ func _on_text_edit_text_changed():
 
 func _on_save_pressed():
 	var filename:String = $TextEdit.text
-	var file = owner.playlists_open_write(filename + ".bxpl")
+	var file = %FileUtil.playlists_open_write(filename + ".bxpl")
 	for path_name in %Menu/Playlist.get_items():
 		file.store_line(path_name)
 	file.close()

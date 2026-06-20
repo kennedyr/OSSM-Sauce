@@ -57,8 +57,9 @@
 [ext_resource type="Script" uid="uid://bblfppboahqc1" path="res://scripts/websocket_mcp_bridge.gd" id="47_j3fne"]
 [ext_resource type="Script" uid="uid://4ocyantcsgu3" path="res://scripts/mcp_command_server.gd" id="48_bme4d"]
 [ext_resource type="Script" uid="uid://b22ei68mm0444" path="res://scripts/ossm_command.gd" id="49_2hygl"]
-[ext_resource type="Script" uid="uid://c6t3pf40n6wrh" path="res://scripts/mpv.gd" id="50_ov553"]
+[ext_resource type="Script" uid="uid://bmhgbqvvo8fww" path="res://scripts/funscript.gd" id="50_ov553"]
 [ext_resource type="Script" uid="uid://y456l2fev7al" path="res://scripts/video_player.gd" id="55_04y8j"]
+[ext_resource type="Script" uid="uid://di51ypvl18cvx" path="res://scripts/file_util.gd" id="59_0eolm"]
 
 [sub_resource type="StyleBoxFlat" id="button_hover"]
 content_margin_left = 12.0
@@ -4134,9 +4135,13 @@ script = ExtResource("48_bme4d")
 unique_name_in_owner = true
 script = ExtResource("49_2hygl")
 
-[node name="MPV" type="Node" parent="." unique_id=1494414108]
+[node name="Funscript" type="Node" parent="." unique_id=1494414108]
 unique_name_in_owner = true
 script = ExtResource("50_ov553")
+
+[node name="FileUtil" type="Node" parent="." unique_id=1494414108]
+unique_name_in_owner = true
+script = ExtResource("59_0eolm")
 
 [connection signal="gui_input" from="PathDisplay/PathArea" to="PathDisplay/PathArea" method="_on_gui_input"]
 [connection signal="timeout" from="PathDisplay/PathArea/Timer" to="PathDisplay/PathArea" method="_on_timer_timeout"]

@@ -46,3 +46,4 @@ static var playlists_dir: String:
 static var cfg_path: String:
 	get:
 		return storage_dir + "/OSSM Sauce/UserSettings.cfg"
+

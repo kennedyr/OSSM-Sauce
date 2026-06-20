@@ -151,7 +151,7 @@ func _on_client_disconnected_cleanup():
 			%Menu]
 	for node in display:
 		node.modulate.a = 1
-	owner.emit_signal("homing_complete")
+	Global.emit_signal("homing_complete")
 
 
 func _on_server_error(error):

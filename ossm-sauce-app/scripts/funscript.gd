@@ -1,6 +1,6 @@
-class_name Funscript
-
 extends Node
+
+class_name Funscript
 
 var TICKS_PER_SECOND:int
 var path_speed:int = 30

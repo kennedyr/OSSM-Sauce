@@ -539,7 +539,7 @@ func _mpv_send_command(arr: Array):
 
 func _mpv_android_saf_path(rel: String) -> String:
 	# Builds a Godot SAF FileAccess path from the picked bridge tree URI.
-	var uri: String = owner.saf_mpv_bridge_uri
+	var uri: String = %FileUtil.saf_mpv_bridge_uri
 	if uri.is_empty():
 		return ""
 	return uri + "#" + rel
@@ -566,7 +566,7 @@ func _mpv_android_disconnect():
 func _mpv_android_clear_command_queue():
 	# Stale commands from a previous session would otherwise be eaten by
 	# the bridge as soon as it sees them, with no relation to current intent.
-	var uri: String = owner.saf_mpv_bridge_uri
+	var uri: String = %FileUtil.saf_mpv_bridge_uri
 	if uri.is_empty():
 		return
 	var DocumentsContract = JavaClassWrapper.wrap("android.provider.DocumentsContract")
@@ -600,7 +600,7 @@ func _mpv_android_clear_command_queue():
 
 func _mpv_android_ensure_subdir(rel_path: String) -> bool:
 	# Walks rel_path and creates each missing component as a directory.
-	var uri: String = owner.saf_mpv_bridge_uri
+	var uri: String = %FileUtil.saf_mpv_bridge_uri
 	if uri.is_empty():
 		return false
 	var DocumentsContract = JavaClassWrapper.wrap("android.provider.DocumentsContract")
@@ -825,7 +825,7 @@ func _on_player_selection_item_selected(index: int) -> void:
 	$Main/PlayerPort/Input.set_value_no_signal(player_port)
 	$Main/DelayMs/Input.value = delay_ms
 	$Main/AdvanceMs/Input.value = advance_ms
-	if player_type == PlayerType.MPV_ANDROID and owner.saf_mpv_bridge_uri.is_empty():
+	if player_type == PlayerType.MPV_ANDROID and %FileUtil.saf_mpv_bridge_uri.is_empty():
 		# Defer activation until SAF folder is granted.
 		_mpv_android_pending_player_type = PlayerType.MPV_ANDROID
 		_mpv_android_ensure_mpv_media_dir()
@@ -926,9 +926,9 @@ func _on_mpv_bridge_folder_picked(
 			"Please pick the 'is.xyz.mpv' folder inside Android/media.",
 			"Wrong folder")
 		return
-	owner.saf_mpv_bridge_uri = uri
-	owner.save_saf_mpv_bridge_uri(uri)
-	owner._take_persistable_uri_permission(uri)
+	%FileUtil.saf_mpv_bridge_uri = uri
+	%FileUtil.save_saf_mpv_bridge_uri(uri)
+	%FileUtil.take_persistable_uri_permission(uri)
 	if not _mpv_android_install_lua():
 		push_warning("MPV_ANDROID: lua install failed")
 	$MPVBridgeSplash.hide()

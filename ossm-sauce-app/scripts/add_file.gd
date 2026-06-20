@@ -10,42 +10,44 @@ func _ready() -> void:
 		$FileDialog.canceled.connect(_on_cancel)
 
 func create_file_list(category: String, file_types: PackedStringArray):
-	for file_name in owner.list_files(category, file_types):
+	for file_name in %FileUtil.list_files(category, file_types):
 		$FileList.add_item(file_name)
 
 
 func show_paths():
-	show()
 	$FileList.clear()
 	$FileList.mode = $FileList.Mode.PATH
 	$HBox/AddPath.disabled = true
 	$HBox/AddPath.show()
 	$HBox/LoadPlaylist.hide()
-	create_file_list("paths", [".bx", ".funscript"])
-	$Label.text = owner.get_storage_label("paths")
 
 	if OS.get_name() != 'Android':
 		$FileDialog.clear_filters()
 		$FileDialog.current_dir = lastPath if lastPath else Global.paths_dir
 		$FileDialog.filters = ["*.funscript"]
 		$FileDialog.show()
+	else:
+		show()
+		create_file_list("paths", [".bx", ".funscript"])
+		$Label.text = %FileUtil.get_storage_label("paths")
 
 
 func show_playlists():
-	show()
 	$FileList.clear()
 	$FileList.mode = $FileList.Mode.PLAYLIST
 	$HBox/LoadPlaylist.disabled = true
 	$HBox/LoadPlaylist.show()
 	$HBox/AddPath.hide()
-	create_file_list("playlists", [".bxpl"])
-	$Label.text = owner.get_storage_label("playlists")
 
 	if OS.get_name() != 'Android':
 		$FileDialog.clear_filters()
 		$FileDialog.current_dir = lastPlaylist if lastPlaylist else Global.playlists_dir
 		$FileDialog.filters = ["*.bxpl"]
 		$FileDialog.show()
+	else:
+		show()
+		create_file_list("playlists", [".bxpl"])
+		$Label.text = %FileUtil.get_storage_label("playlists")
 
 
 func _on_file_selected(path: String):
@@ -54,40 +56,30 @@ func _on_file_selected(path: String):
 		_on_load_playlist(path)
 	else:
 		_on_add_path(path)
-	%Menu.show()
-	# hide()
+	close()
 
 
 func _on_add_path_pressed():
 	var file_name: String = $FileList.get_item_text($FileList.selected_index)
 	if owner.load_path(file_name):
 		%Menu/Playlist.add_item(file_name)
-	%Menu.show()
-	hide()
+	close()
 
 
 func _on_add_path(file_path: String):
 	lastPath = file_path.get_base_dir()
 	if owner.load_path(file_path):
 		%Menu/Playlist.add_item(file_path.get_file(), file_path)
-		# MPV.try_load_video(file_path)
 
 
 func _on_cancel():
-	$HBox/AddPath.disabled = false
-	%Menu.show()
-	# hide() 
-
-
+	close()
 func _on_load_playlist_pressed():
 	var file_name: String = $FileList.get_item_text($FileList.selected_index)
 	_on_load_playlist(file_name)
 
-
 func _on_load_playlist(file_path: String):
 	var file = FileAccess.open(file_path, FileAccess.READ)
-	#var file = owner.playlists_open_read(file_name)
-
 	if not file:
 		return
 	lastPlaylist = file_path.get_base_dir()
@@ -102,11 +94,14 @@ func _on_load_playlist(file_path: String):
 		elif owner.load_path(line):
 			%Menu/Playlist.add_item(line.get_file(), line)
 	%OSSMCommand.reset()
-	%Menu.show()
-	hide()
+	close()
 
 
 func _on_back_pressed():
+	close()
+
+func close():
+	$HBox/AddPath.disabled = false
 	if OS.get_name() != 'Android':
 		$FileDialog.hide()
 	else:

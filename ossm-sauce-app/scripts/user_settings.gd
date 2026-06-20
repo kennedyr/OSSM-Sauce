@@ -36,11 +36,7 @@ func _init():
 
 static func initialize():
 	if _user_settings == null:
-		var storage_dir: String
-		if OS.get_name() == 'Android':
-			storage_dir = OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP)
-		else:
-			storage_dir = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+		var storage_dir = Global.storage_dir
 		_user_settings_path = storage_dir + "/OSSM Sauce/UserSettings.cfg"
 
 		_user_settings = ConfigFile.new()
