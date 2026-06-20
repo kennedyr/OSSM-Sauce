@@ -57,7 +57,7 @@
 [ext_resource type="Script" uid="uid://bblfppboahqc1" path="res://scripts/websocket_mcp_bridge.gd" id="47_j3fne"]
 [ext_resource type="Script" uid="uid://4ocyantcsgu3" path="res://scripts/mcp_command_server.gd" id="48_bme4d"]
 [ext_resource type="Script" uid="uid://b22ei68mm0444" path="res://scripts/ossm_command.gd" id="49_2hygl"]
-[ext_resource type="Script" uid="uid://bmhgbqvvo8fww" path="res://scripts/funscript.gd" id="50_ov553"]
+[ext_resource type="Script" uid="uid://bmhgbqvvo8fww" path="res://scripts/fun_script.gd" id="50_ov553"]
 [ext_resource type="Script" uid="uid://y456l2fev7al" path="res://scripts/video_player.gd" id="55_04y8j"]
 [ext_resource type="Script" uid="uid://di51ypvl18cvx" path="res://scripts/file_util.gd" id="59_0eolm"]
 
