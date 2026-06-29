@@ -29,15 +29,16 @@ func load_path(filePath: String) -> bool:
 		file_data = map_funscript_data(parsed_data)
 	else:
 		file_data = map_other_data(parsed_data)
-	marker_data = file_data.actions
-	if not marker_data:
+	var raw_marker_data = file_data.actions
+	if not raw_marker_data:
 		printerr("Error: Failed to read file.")
 		return false
-	if marker_data.size() < 6:
+	if raw_marker_data.size() < 6:
 		printerr("Error: Insufficient path data in file.")
 		return false
-
-	network_paths = create_network_packets()
+	var network_packet_result = create_network_packets(raw_marker_data)
+	network_paths = network_packet_result.network_packets
+	marker_data = network_packet_result.marker_data
 	path = create_path_lines()
 	chapters = create_chapters(file_data.chapters)
 
@@ -120,15 +121,16 @@ func map_other_data(parsed_data: Dictionary) -> Dictionary:
 	}
 
 
-func create_network_packets():
+func create_network_packets(raw_marker_data: Dictionary[int, Array]):
 	var previous_ms_timing: int
 	var network_packets: Array[PackedByteArray]
+	var marker_data_result: Dictionary[int, Array] = {}
 
-	var sorted_keys := marker_data.keys()
+	var sorted_keys := raw_marker_data.keys()
 	sorted_keys.sort_custom(func(a, b): return int(a) < int(b))
-	
+
 	for marker_frame in sorted_keys:
-		var marker = marker_data[marker_frame]
+		var marker = raw_marker_data[marker_frame]
 		var ms_timing := int(round((float(marker_frame) / 60) * 1000))
 		
 		# override trans type for very short transitions
@@ -144,11 +146,13 @@ func create_network_packets():
 		network_packets.append(network_packet)
 		# Adjust for physics tick rate change from BounceX (60Hz to 50Hz)
 		var corrected_frame: int = int(round(marker_frame / 1.2))
-		marker_data[corrected_frame] = marker
-		marker_data.erase(marker_frame)
+		marker_data_result[corrected_frame] = marker
 		previous_ms_timing = ms_timing
 
-	return network_packets
+	return {
+		"network_packets": network_packets,
+		"marker_data": marker_data_result
+	}
 
 
 func create_path_lines():
@@ -197,12 +201,12 @@ func create_chapters(chappy: Array) -> Array:
 	
 	var sorted_keys: Array[int] = marker_data.keys()
 	sorted_keys.sort_custom(func(a, b): return int(a) < int(b))
-	
+
 	if chapter_data.is_empty():
 		for n in range(300, sorted_keys.back(), 300):
 			var idx = sorted_keys.bsearch(n)
-			if idx < sorted_keys.size():
-				var frame = sorted_keys[idx]
+			if idx > 0:
+				var frame = sorted_keys[idx - 1]
 				var minutes = int(frame / 3600.0)
 				chapter_data.append({
 					"name": "%d minutes" % minutes,
@@ -243,9 +247,9 @@ func find_prev_marker_for_frame(frame: int) -> int:
 func parse_time(time_string: String) -> float:
 	var segments: PackedStringArray = time_string.split(":")
 	var length = segments.size()
-	var seconds
-	var minutes
-	var hours
+	var seconds = 0
+	var minutes = 0
+	var hours = 0
 	if length >= 1:
 		seconds = segments[length - 1]
 	if length >= 2:
@@ -257,29 +261,40 @@ func parse_time(time_string: String) -> float:
 
 
 func find_frame_for_time_string(time_string: String, marker_list: Array[int]) -> int:
-	var frame = parse_time(time_string) * 60.0
+	var marker_frame = parse_time(time_string) * 60.0
+	var frame = int(round(marker_frame / 1.2))
 	var idx = marker_list.bsearch(frame)
-	if idx < marker_list.size():
-		return marker_list[idx]
-	return marker_list[-1]
+	if idx > 0:
+		return marker_list[idx - 1]
+	return marker_list[0]
+
+
+func get_nearest_chapters(frame: int):
+	var idx = get_chapter_idx(frame)
+	var results = []
+	if idx >= 0 :
+		results.append(chapters[idx])
+	
+	if idx < chapters.size() - 2:
+		results.append(chapters[idx + 1])
+
+	return results
 
 
 func get_current_chapter(frame: int):
 	var idx = get_chapter_idx(frame)
-	var chapter = chapters[idx]
-	if frame < chapter['endFrame']:
-		return chapter
+	if idx >= 0:
+		var chapter = chapters[idx]
+		if frame < chapter['endFrame']:
+			return chapter
 	
 
 func get_chapter_idx(frame: int) -> int:
 	var idx = chapters.bsearch_custom({'beginFrame': frame}, chapter_sorter)
-	if idx < chapters.size():
-		return idx
-	else: 
-		return chapters.size() - 1
+	return idx - 1
 
 
 func get_next_chapter(frame: int):
 	var idx = get_chapter_idx(frame)
-	if idx < chapters.size() - 1:
+	if idx < chapters.size() - 2:
 		return chapters[idx + 1]

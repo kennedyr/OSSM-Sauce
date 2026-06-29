@@ -20,6 +20,7 @@
 [ext_resource type="Script" uid="uid://chirlya65yehq" path="res://scripts/action_panel.gd" id="15_flajy"]
 [ext_resource type="Texture2D" uid="uid://dkpllak4evknm" path="res://textures/play.svg" id="16_0xvdx"]
 [ext_resource type="Texture2D" uid="uid://dcx71x8114vuv" path="res://textures/selection.svg" id="17_l5cbh"]
+[ext_resource type="Script" uid="uid://30x55uytwcua" path="res://scripts/chapter_list.gd" id="18_2hnso"]
 [ext_resource type="Texture2D" uid="uid://fxyub7xy8ha5" path="res://textures/pause.svg" id="18_xjxk6"]
 [ext_resource type="Texture2D" uid="uid://dd4yrbph2jgxm" path="res://textures/speed.svg" id="19_l1tpd"]
 [ext_resource type="Texture2D" uid="uid://df1fg8fsnax6k" path="res://textures/range.svg" id="20_gjk78"]
@@ -60,6 +61,11 @@
 [ext_resource type="Script" uid="uid://bmhgbqvvo8fww" path="res://scripts/fun_script.gd" id="50_ov553"]
 [ext_resource type="Script" uid="uid://y456l2fev7al" path="res://scripts/video_player.gd" id="55_04y8j"]
 [ext_resource type="Script" uid="uid://di51ypvl18cvx" path="res://scripts/file_util.gd" id="59_0eolm"]
+
+[sub_resource type="DPITexture" id="DPITexture_2hnso"]
+_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"8\" height=\"4\"><path fill=\"#fff\" fill-opacity=\".25\" d=\"M0 3V1h16v2z\"/></svg>
+"
+base_scale = 3.0
 
 [sub_resource type="StyleBoxFlat" id="button_hover"]
 content_margin_left = 12.0
@@ -1410,6 +1416,25 @@ offset_right = 122.0
 offset_bottom = 1690.0
 max_value = 1.0
 step = 0.001
+
+[node name="ChapterList" type="Panel" parent="SeekSlider" unique_id=521067336]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("18_2hnso")
+
+[node name="ChapterTick" type="TextureRect" parent="SeekSlider/ChapterList" unique_id=1430411221]
+layout_mode = 0
+offset_left = 36.0
+offset_top = 4.0
+offset_right = 76.0
+offset_bottom = 44.0
+mouse_filter = 1
+texture = SubResource("DPITexture_2hnso")
 
 [node name="TimeDisplay" type="Label" parent="." unique_id=1039559277]
 layout_mode = 1

@@ -392,7 +392,7 @@ func create_path_lines(marker_data: Dictionary):
 		previous_frame = marker_frame
 	$PathDisplay/Paths.add_child(path_line)
 
-
+#TODO
 func create_delay(duration: float):
 	if Global.active_path_index == null:
 		return
@@ -425,7 +425,7 @@ func display_active_path_index(pause := true, send_buffer := true):
 	Global.frame = 0
 	marker_index = 0
 	play_offset_ms = 0
-	$SeekSlider.set_value_no_signal(0)
+	init_seek_slider()
 	update_time_display()
 	if send_buffer:
 		if %WebSocket.ossm_connected:
@@ -461,7 +461,13 @@ func display_active_path_index(pause := true, send_buffer := true):
 		%VideoPlayer.sync_seek(0.0)
 
 
-func seek() -> void:
+func init_seek_slider():
+	$SeekSlider.set_value_no_signal(0)
+	var total_frames: int = current_funscript.path.size()
+	$SeekSlider/ChapterList.initialize(current_funscript.chapters, total_frames)
+
+
+func seek(snap = true) -> void:
 	if Global.active_path_index == null or _seeking:
 		return
 	_seeking = true
@@ -484,7 +490,14 @@ func seek() -> void:
 	var target_frame := clampi(roundi(value * (total_frames - 1)), 0, total_frames - 1)
 	var target_depth: float = active_path[target_frame]
 	play_offset_ms = int(target_frame * 1000.0 / ticks_per_second)
-	
+	if snap:
+		current_funscript.get_nearest_chapters(target_frame)
+  		# TODO Snap to nearest chapter
+		var nearest_chapter = 0
+		if value != nearest_chapter:
+			$SeekSlider.set_value_no_signal(0)
+			target_frame = 0
+
 	# Find the first marker_frame index AFTER target_frame
 	var frames = current_funscript.frames
 	var buffer_start := 0
@@ -518,8 +531,6 @@ func seek() -> void:
 		buffer_sent = 0
 		while buffer_sent < buffer_size and marker_index < current_funscript.network_paths.size():
 			var packet = current_funscript.network_paths[marker_index]
-			var packet_ms = packet.decode_u32(1)
-			var packet_depth = packet.decode_u16(5)
 			%OSSMCommand.broadcast_binary(packet)
 			marker_index += 1
 			buffer_sent += 1
@@ -714,7 +725,7 @@ func _on_video_player_seeked(video_time_seconds: float):
 		return
 	var target_frame = clampi(int(video_time_seconds * ticks_per_second), 0, total_frames - 1)
 	$SeekSlider.set_value_no_signal(float(target_frame) / (total_frames - 1))
-	seek()
+	seek(false)
 
 
 func _check_storage_setup() -> void:
