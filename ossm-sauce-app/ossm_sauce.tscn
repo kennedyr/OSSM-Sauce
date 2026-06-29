@@ -4163,6 +4163,7 @@ script = ExtResource("59_0eolm")
 [connection signal="toggled" from="BridgeControls/Controls/Enable" to="BridgeControls" method="_on_enable_toggled"]
 [connection signal="pressed" from="BridgeControls/Controls/AutoScroll" to="BridgeControls" method="_on_autoscroll_pressed"]
 [connection signal="pressed" from="BridgeControls/Controls/ClearLog" to="BridgeControls" method="_on_clear_log_pressed"]
+[connection signal="drag_ended" from="SeekSlider" to="." method="seek" unbinds=1]
 [connection signal="drag_started" from="SeekSlider" to="." method="_on_seek_slider_drag_started"]
 [connection signal="value_changed" from="SeekSlider" to="." method="_on_seek_slider_value_changed"]
 [connection signal="pressed" from="ActionPanel/Play/Button" to="ActionPanel" method="_on_play_button_pressed"]

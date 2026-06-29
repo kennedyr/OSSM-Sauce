@@ -2,14 +2,14 @@ extends Node
 
 class_name Funscript
 
-var TICKS_PER_SECOND:int
-var path_speed:int = 30
+var TICKS_PER_SECOND: int
+var path_speed: int = 30
 
-var _marker_data: Dictionary
+var marker_data: Dictionary[int, Array]
 var path: PackedFloat32Array
 var frames: PackedInt32Array
-var network_paths: Array
-var chapters:Array
+var network_paths: Array[PackedByteArray]
+var chapters: Array
 var PATH_TOP
 var PATH_BOTTOM
 
@@ -21,16 +21,15 @@ func _init(filePath: String, ticks_per_second: int, path_top: float, path_bottom
 	load_path(filePath)
 
 
-func load_path(filePath:String) -> bool:
+func load_path(filePath: String) -> bool:
 	var parsed_data = parse_file(filePath)
 	var is_funscript = filePath.ends_with(".funscript")
-	var file_data = parsed_data
+	var file_data: Dictionary
 	if is_funscript:
 		file_data = map_funscript_data(parsed_data)
 	else:
 		file_data = map_other_data(parsed_data)
-	_marker_data = file_data.actions
-	var marker_data = _marker_data
+	marker_data = file_data.actions
 	if not marker_data:
 		printerr("Error: Failed to read file.")
 		return false
@@ -38,9 +37,9 @@ func load_path(filePath:String) -> bool:
 		printerr("Error: Insufficient path data in file.")
 		return false
 
-	network_paths = create_network_packets(marker_data)
-	create_path_lines(marker_data)
-	chapters = create_chapters(file_data.chapters, parsed_data.actions.back().at)
+	network_paths = create_network_packets()
+	path = create_path_lines()
+	chapters = create_chapters(file_data.chapters)
 
 	return true
 
@@ -59,7 +58,7 @@ func parse_file(filePath: String) -> Dictionary:
 
 	
 func map_funscript_data(parsed_data: Dictionary) -> Dictionary:
-	var file_data: Dictionary
+	var file_data: Dictionary[int, Array]
 	var chapt: Array
 	var inverted := false
 
@@ -93,7 +92,7 @@ func map_funscript_data(parsed_data: Dictionary) -> Dictionary:
 			var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
 			file_data[0] = [first_depth, trans, ease, 0]
 			for action in actions_list:
-				var frame: int = action.at / (1000.0 / 60.0)
+				var frame: int = int(action.at / (1000.0 / 60.0))
 				var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
 				if inverted:
 					depth = round_to(1.0 - depth, 4)
@@ -103,7 +102,7 @@ func map_funscript_data(parsed_data: Dictionary) -> Dictionary:
 		else:
 			print("Failed to parse funscript JSON")
 
-	return { 
+	return {
 		"actions": file_data,
 		"chapters": chapt
 	}
@@ -115,14 +114,15 @@ func map_other_data(parsed_data: Dictionary) -> Dictionary:
 		if meta is Dictionary and meta.has("video_offset_ms"):
 			%VideoPlayer/Main/VideoOffset/Input.value = meta["video_offset_ms"]
 
-	return { 
+	return {
 		"actions": parsed_data["markers"],
 		"chapters": []
 	}
-	
-func create_network_packets(marker_data: Dictionary):
+
+
+func create_network_packets():
 	var previous_ms_timing: int
-	var network_packets: Array
+	var network_packets: Array[PackedByteArray]
 
 	var sorted_keys := marker_data.keys()
 	sorted_keys.sort_custom(func(a, b): return int(a) < int(b))
@@ -139,18 +139,21 @@ func create_network_packets(marker_data: Dictionary):
 		var trans = marker[1]
 		@warning_ignore("shadowed_global_identifier")
 		var ease = marker[2]
-		var auxiliary:int = marker[3]
+		var auxiliary: int = marker[3]
 		var network_packet = OSSMCommand.create_move_command(ms_timing, Util.safe_map_physical_position(depth), trans, ease, auxiliary)
 		network_packets.append(network_packet)
 		# Adjust for physics tick rate change from BounceX (60Hz to 50Hz)
-		marker_data[round(int(marker_frame) / 1.2)] = marker
+		var corrected_frame: int = int(round(marker_frame / 1.2))
+		marker_data[corrected_frame] = marker
 		marker_data.erase(marker_frame)
 		previous_ms_timing = ms_timing
 
 	return network_packets
 
 
-func create_path_lines(marker_data: Dictionary):
+func create_path_lines():
+	var path_lines: PackedFloat32Array
+
 	var previous_depth: float
 	var previous_frame: int
 	var marker_list: Array = marker_data.keys()
@@ -172,55 +175,51 @@ func create_path_lines(marker_data: Dictionary):
 						steps,
 						trans,
 						ease)
-				path.append(step_depth)
+				path_lines.append(step_depth)
 		previous_depth = depth
 		previous_frame = marker_frame
+	return path_lines
 
 
-func format_time(msTime: int):
+func format_time(msTime: int) -> String:
 	var hours = int(msTime / 3600000.0)
 	var remainder = msTime - hours * 3600000
 	var minutes = int(remainder / 60000.0)
 	remainder = remainder - minutes * 60000
 	var seconds = int(remainder / 1000.0)
 	remainder = remainder - seconds * 1000
-	var timeString =  "%d:%d:%d.%d" % [hours, minutes, seconds, remainder]
+	var timeString = "%d:%d:%d.%d" % [hours, minutes, seconds, remainder]
 	return timeString
 
 
-@warning_ignore("shadowed_variable")
-func create_chapters(chappy: Array, lastAt: int):
-	var chapters = chappy if chappy else []
-	if chappy.is_empty():
-		chapters.append({
-			"name": "Beginning",
-			"startTime": format_time(0),
-			"chapterBeginSeconds": 0
-		})
-		for n in range(300000, lastAt, 300000):
-			var minutes = int(n/60000.0)
-			chapters.append({
-				"name": "%d minutes" % minutes,
-				"startTime": "00:%d:00.000" % minutes,
-				"chapterBeginSeconds": n / 1000.0
-			})
-		chapters.append({
-			"name": "End",
-			"startTime": format_time(lastAt),
-			"chapterBeginSeconds": lastAt / 1000.0 - 1
-		})
-	else:
-		for chapter in chapters:
-			chapter['chapterBeginSeconds'] = parse_time(chapter.startTime)
-			chapter['chapterEndSeconds'] = parse_time(chapter.endTime)
+func create_chapters(chappy: Array) -> Array:
+	var chapter_data = chappy if chappy else []
 	
-	chapters.sort_custom(chapter_sorter)
+	var sorted_keys : Array[int] = marker_data.keys()
+	sorted_keys.sort_custom(func(a, b): return int(a) < int(b))
+	
+	if chapter_data.is_empty():
+		for n in range(300, sorted_keys.back(), 300):
+			var idx = sorted_keys.bsearch(n)
+			if idx < sorted_keys.size():
+				var frame = sorted_keys[idx]
+				var minutes = int(frame / 3600.0)
+				chapter_data.append({
+					"name": "%d minutes" % minutes,
+					"beginFrame": frame,
+				})
+	else:
+		for chapter in chapter_data:
+			chapter['beginFrame'] = find_frame_for_time_string(chapter.startTime, sorted_keys)
+			chapter['endFrame'] = find_frame_for_time_string(chapter.endTime, sorted_keys)
+	
+	chapter_data.sort_custom(chapter_sorter)
 
-	return chapters
+	return chapter_data
 
 
 func chapter_sorter(a, b) -> bool:
-	if a['chapterBeginSeconds'] < b['chapterBeginSeconds']:
+	if a['beginFrame'] < b['beginFrame']:
 		return true
 	return false
 
@@ -234,18 +233,14 @@ func render_depth(depth) -> float:
 	return PATH_BOTTOM + depth * (PATH_TOP - PATH_BOTTOM)
 
 
-func find_prev_marker_for_frame(frame: int):
-	var marker_list_keys = Array(frames)
-	var future_keys = marker_list_keys.filter(func(number): return number >= frame)
-	future_keys.sort()
-	var next_marker_frame = future_keys.pop_front()
-	var next_marker_frame_index = marker_list_keys.find(next_marker_frame)
-	if (next_marker_frame_index > 0):
-		return next_marker_frame_index - 1
+func find_prev_marker_for_frame(frame: int) -> int:
+	var idx = frames.bsearch(frame)
+	if (idx > 0):
+		return idx - 1
 	return 0
 
 
-func parse_time(time_string: String):
+func parse_time(time_string: String) -> float:
 	var segments: PackedStringArray = time_string.split(":")
 	var length = segments.size()
 	var seconds
@@ -258,23 +253,31 @@ func parse_time(time_string: String):
 	if length >= 3:
 		hours = segments[length - 3]
 
-	return float(seconds) + int(minutes) * 60 + int(hours) * 60 * 60
+	return float(seconds) + int(minutes) * 60 + int(hours) * 3600
 
 
-func get_current_chapter_name(ms_timing: int):
-	var seconds: float = ms_timing / 1000.0
-	var chapterName = ""
-	for chapter in chapters:
-		if seconds >= chapter['chapterBeginSeconds']:
-			if (!chapter.has('chapterEndSeconds') or seconds < chapter['chapterEndSeconds']):
-				chapterName = chapter['name']
-		
-	return chapterName
+func find_frame_for_time_string(time_string: String, marker_list: Array[int]) -> int:
+	var frame = parse_time(time_string) * 60.0
+	var idx = marker_list.bsearch(frame)
+	if idx < marker_list.size():
+		return marker_list[idx]
+	return marker_list[-1]
+
+
+func get_current_chapter(frame: int):
+	var idx = get_chapter_idx(frame)
+	if idx < chapters.size() - 1:
+		var chapter = chapters[idx + 1]
+		if frame < chapter['endFrame']:
+			return chapter
 	
 
-func get_next_chapter_name(ms_timing: int):
-	var seconds: float = ms_timing / 1000.0
-	for chapter in chapters:
-		if seconds < chapter['chapterBeginSeconds']:
-			return chapter['name']
-	return ""
+func get_chapter_idx(frame: int) -> int:
+	var idx = chapters.bsearch_custom(frame, chapter_sorter)
+	return idx
+
+
+func get_next_chapter(frame: int):
+	var idx = get_chapter_idx(frame)
+	if idx < chapters.size() - 1:
+		return chapters[idx + 1]

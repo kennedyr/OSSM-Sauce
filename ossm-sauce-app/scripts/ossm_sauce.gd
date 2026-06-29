@@ -391,16 +391,16 @@ func round_to(value: float, decimals: int) -> float:
 
 func load_path(filePath: String) -> bool:
 	var funscript = Funscript.new(filePath, ticks_per_second, PATH_TOP, PATH_BOTTOM)
-	if not funscript._marker_data:
+	if not funscript.marker_data:
 		printerr("Error: Failed to read file.")
 		return false
 
-	if funscript._marker_data.size() < buffer_size:
+	if funscript.marker_data.size() < buffer_size:
 		printerr("Error: Insufficient path data in file.")
 		return false
 
 	funscripts.append(funscript)
-	create_path_lines(funscript._marker_data)
+	create_path_lines(funscript.marker_data)
 
 	return true
 
