@@ -112,11 +112,6 @@ func _physics_process(delta) -> void:
 	var depth: float = current_funscript.path[Global.frame]
 	$PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
 	$PathDisplay/Ball.position.y = render_depth(depth)
-	
-	# var chapter = current_funscript.get_current_chapter_name(ms_timing)
-	# var next_chapter = current_funscript.get_next_chapter_name(ms_timing)
-	# if chapter or next_chapter:
-		# $PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
 
 	if not _seek_dragging:
 		$SeekSlider.set_value_no_signal(float(Global.frame) / (total_frames - 1))
@@ -234,47 +229,6 @@ func pause():
 	# Return to position
 	nudge.encode_u16(5, clampi(depth_val, 0, 10000))
 	%OSSMCommand.broadcast_binary(nudge)
-
-# func seek_to(play_time_ms:int):
-# 	print("seek_to ", play_time_ms)
-# 	if Global.active_path_index == null:
-# 		return
-
-# 	if not Global.paused:
-# 		print("Must be paused to seek")
-# 		return
-
-# 	var frame = round((play_time_ms / 1000.0) * 50)
-
-# 	print("seek_to frame", frame)
-# 	Global.frame = frame
-
-# 	# Set to prev move
-# 	marker_index = current_funscript.find_prev_marker_for_frame(frame)
-# 	marker_index += 1
-# 	%OSSMCommand.reset()
-
-# 	if %WebSocket.ossm_connected:
-# 		var bufferTo = marker_index + buffer_size
-# 		while marker_index < bufferTo:
-# 			%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
-# 			marker_index += 1
-
-# 	Global.next_play_time_ms = play_time_ms
-# 	# MPV.seek_to(play_time_ms)
-# 	var original_path_start_position = ($PathDisplay/PathArea.size.x / 2) + path_speed
-# 	$PathDisplay/Paths.get_child(Global.active_path_index).position.x = original_path_start_position - (frame * path_speed)
-# 	var new_current_depth = render_depth(current_funscript.path[(frame - 1 if frame > 0 else 0)])
-# 	$PathDisplay/Ball.position.y = new_current_depth
-	
-# 	var minutes: int = floori(play_time_ms / 60000.0)
-# 	var seconds: int = floori((play_time_ms % 60000) / 1000.0)
-
-# 	$PathDisplay/TimeLabel.text = "%02d:%02d" % [minutes, seconds]
-# 	var chapter = current_funscript.get_current_chapter_name(play_time_ms)
-# 	var next_chapter = current_funscript.get_next_chapter_name(play_time_ms)
-# 	if chapter or next_chapter:
-# 		$PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
 
 
 func apply_user_settings():
@@ -502,10 +456,6 @@ func display_active_path_index(pause := true, send_buffer := true):
 	$PathDisplay/Ball.position.y = render_depth(current_funscript.path[0])
 	$PathDisplay/Ball.show()
 	$PathDisplay.show()
-	# var chapter = current_funscript.get_current_chapter_name(0)
-	# var next_chapter = current_funscript.get_next_chapter_name(0)
-	# if chapter or next_chapter:
-	# 	$PathDisplay/ChapterLabel.text = str(chapter) + " - " + str(next_chapter)
 
 	if %VideoPlayer.is_active() and AppMode.active == AppMode.MOVE:
 		%VideoPlayer.sync_seek(0.0)
@@ -588,22 +538,17 @@ func _on_seek_slider_drag_started() -> void:
 func _on_seek_slider_value_changed(value: float) -> void:
 	if Global.active_path_index == null:
 		return
+	update_time_display(value)
+
+
+func update_time_display(percent: float = -1) -> void:
+	var frame: int
 	var total_frames: int = current_funscript.path.size()
-	var total_sec := (total_frames - 1) / ticks_per_second
-	var current_sec := int(value * total_sec)
-	if total_sec >= 3600:
-		$TimeDisplay.text = "%d:%02d:%02d / %d:%02d:%02d" % [
-			current_sec / 3600, current_sec % 3600 / 60, current_sec % 60,
-			total_sec / 3600, total_sec % 3600 / 60, total_sec % 60]
+	if percent < 0 or percent > 1:
+		frame = Global.frame
 	else:
-		$TimeDisplay.text = "%d:%02d / %d:%02d" % [
-			current_sec / 60, current_sec % 60,
-			total_sec / 60, total_sec % 60]
-
-
-func update_time_display():
-	var total_frames: int = current_funscript.path.size()
-	var current_sec := Global.frame / ticks_per_second
+		frame = clampi(roundi(percent * (total_frames - 1)), 0, total_frames - 1)
+	var current_sec := frame / ticks_per_second
 	var total_sec := (total_frames - 1) / ticks_per_second
 	if total_sec >= 3600:
 		$TimeDisplay.text = "%d:%02d:%02d / %d:%02d:%02d" % [
@@ -613,6 +558,12 @@ func update_time_display():
 		$TimeDisplay.text = "%d:%02d / %d:%02d" % [
 			current_sec / 60, current_sec % 60,
 			total_sec / 60, total_sec % 60]
+
+	var chapter = current_funscript.get_current_chapter(frame)
+	var next_chapter = current_funscript.get_next_chapter(frame)
+	$ChapterDisplay.text = "%s / %s" % [
+		chapter["name"] if chapter else "" ,
+		next_chapter["name"] if next_chapter else "" ]
 
 
 func render_depth(depth) -> float:
@@ -625,10 +576,10 @@ func activate_move_mode():
 	%ActionPanel/Pause.hide()
 	%PathDisplay/PathArea.show()
 	%PathDisplay/Paths.show()
-	# %PathDisplay/ChapterLabel.show()
 	%PathDisplay/Ball.show()
 	$SeekSlider.show()
 	$TimeDisplay.show()
+	$ChapterDisplay.show()
 	%Menu/Main/PlaylistButtons.show()
 	%Menu/Main/PathButtons.show()
 	%Menu/Main/LoopAndVideoButtons/LoopPlaylistButton.show()
@@ -647,10 +598,10 @@ func deactivate_move_mode():
 	%PathDisplay.hide()
 	%PathDisplay/Paths.hide()
 	%PathDisplay/PathArea.hide()
-	# %PathDisplay/ChapterLabel.hide()
 	%PathDisplay/Ball.hide()
 	$SeekSlider.hide()
 	$TimeDisplay.hide()
+	$ChapterDisplay.hide()
 	%Menu/Main/PlaylistButtons.hide()
 	%Menu/Main/PathButtons.hide()
 	%Menu/Main/LoopAndVideoButtons/LoopPlaylistButton.hide()

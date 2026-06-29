@@ -195,7 +195,7 @@ func format_time(msTime: int) -> String:
 func create_chapters(chappy: Array) -> Array:
 	var chapter_data = chappy if chappy else []
 	
-	var sorted_keys : Array[int] = marker_data.keys()
+	var sorted_keys: Array[int] = marker_data.keys()
 	sorted_keys.sort_custom(func(a, b): return int(a) < int(b))
 	
 	if chapter_data.is_empty():
@@ -266,15 +266,17 @@ func find_frame_for_time_string(time_string: String, marker_list: Array[int]) ->
 
 func get_current_chapter(frame: int):
 	var idx = get_chapter_idx(frame)
-	if idx < chapters.size() - 1:
-		var chapter = chapters[idx + 1]
-		if frame < chapter['endFrame']:
-			return chapter
+	var chapter = chapters[idx]
+	if frame < chapter['endFrame']:
+		return chapter
 	
 
 func get_chapter_idx(frame: int) -> int:
-	var idx = chapters.bsearch_custom(frame, chapter_sorter)
-	return idx
+	var idx = chapters.bsearch_custom({'beginFrame': frame}, chapter_sorter)
+	if idx < chapters.size():
+		return idx
+	else: 
+		return chapters.size() - 1
 
 
 func get_next_chapter(frame: int):
