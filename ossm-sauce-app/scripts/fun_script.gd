@@ -89,16 +89,15 @@ func map_funscript_data(parsed_data: Dictionary) -> Dictionary:
 			if inverted:
 				first_depth = round_to(1.0 - first_depth, 4)
 			var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 1)
-			@warning_ignore("shadowed_global_identifier")
-			var ease: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
-			file_data[0] = [first_depth, trans, ease, 0]
+			var ease_val: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
+			file_data[0] = [first_depth, trans, ease_val, 0]
 			for action in actions_list:
 				var frame: int = int(action.at / (1000.0 / 60.0))
 				var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
 				if inverted:
 					depth = round_to(1.0 - depth, 4)
 				var aux = 0
-				file_data[frame] = [depth, trans, ease, aux]
+				file_data[frame] = [depth, trans, ease_val, aux]
 
 		else:
 			print("Failed to parse funscript JSON")
@@ -139,10 +138,9 @@ func create_network_packets(raw_marker_data: Dictionary[int, Array]):
 
 		var depth = marker[0]
 		var trans = marker[1]
-		@warning_ignore("shadowed_global_identifier")
-		var ease = marker[2]
+		var ease_val = marker[2]
 		var auxiliary: int = marker[3]
-		var network_packet = OSSMCommand.create_move_command(ms_timing, Util.safe_map_physical_position(depth), trans, ease, auxiliary)
+		var network_packet = OSSMCommand.create_move_command(ms_timing, Util.safe_map_physical_position(depth), trans, ease_val, auxiliary)
 		network_packets.append(network_packet)
 		# Adjust for physics tick rate change from BounceX (60Hz to 50Hz)
 		var corrected_frame: int = int(round(marker_frame / 1.2))
@@ -166,8 +164,7 @@ func create_path_lines():
 		var marker = marker_data[marker_frame]
 		var depth = marker[0]
 		var trans = marker[1]
-		@warning_ignore("shadowed_global_identifier")
-		var ease = marker[2]
+		var ease_val = marker[2]
 		if marker_frame > 0:
 			var steps: int = marker_frame - previous_frame
 			frames.append(previous_frame)
@@ -178,7 +175,7 @@ func create_path_lines():
 						step,
 						steps,
 						trans,
-						ease)
+						ease_val)
 				path_lines.append(step_depth)
 		previous_depth = depth
 		previous_frame = marker_frame

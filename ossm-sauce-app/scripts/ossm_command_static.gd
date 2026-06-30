@@ -36,8 +36,7 @@ extends Node
 # - 1: EASE_OUT
 # - 2: EASE_IN_OUT
 # - 3: EASE_OUT_IN
-@warning_ignore("shadowed_global_identifier")
-static func create_move_command(ms_timing: int, target_position: int, trans: int, ease: int, auxiliary: int):
+static func create_move_command(ms_timing: int, target_position: int, trans: int, ease_val: int, auxiliary: int):
 	var network_packet:PackedByteArray
 	network_packet.resize(10)
 
@@ -45,7 +44,7 @@ static func create_move_command(ms_timing: int, target_position: int, trans: int
 	network_packet.encode_u32(1, ms_timing)
 	network_packet.encode_u16(5, abs(Global.motor_direction * 10000 - target_position))
 	network_packet.encode_u8(7, trans)
-	network_packet.encode_u8(8, ease)
+	network_packet.encode_u8(8, ease_val)
 	network_packet.encode_u8(9, auxiliary)
 
 	return network_packet
@@ -75,12 +74,12 @@ static func create_loop_command(in_duration: float, in_trans: int, in_ease: int,
 	network_packet.resize(19)
 
 	network_packet.encode_u8(0, OSSM.Command.LOOP)
-	network_packet.encode_u32(1, in_duration * 1000)
+	network_packet.encode_u32(1, int(in_duration * 1000.0))
 	network_packet.encode_u16(5, 10000)
 	network_packet.encode_u8(7, in_trans)
 	network_packet.encode_u8(8, in_ease)
 	network_packet.encode_u8(9, in_auxiliary)
-	network_packet.encode_u32(10, out_duration * 1000)
+	network_packet.encode_u32(10, int(out_duration * 1000.0))
 	network_packet.encode_u16(14, 0)
 	network_packet.encode_u8(16, out_trans)
 	network_packet.encode_u8(17, out_ease)
@@ -424,7 +423,7 @@ static func create_set_homing_trigger_command(threshold_voltage: int):
 ## - 1: EASE_OUT
 ## - 2: EASE_IN_OUT
 ## - 3: EASE_OUT_IN
-static func create_smooth_move_command(ms_duration: int, target_position: int, trans: int, ease: int, auxiliary: int):
+static func create_smooth_move_command(ms_duration: int, target_position: int, trans: int, ease_val: int, auxiliary: int):
 	var network_packet: PackedByteArray
 	network_packet.resize(10)
 
@@ -432,7 +431,7 @@ static func create_smooth_move_command(ms_duration: int, target_position: int, t
 	network_packet.encode_u32(1, ms_duration)
 	network_packet.encode_u16(5, abs(Global.motor_direction * 10000 - target_position))
 	network_packet.encode_u8(7, trans)
-	network_packet.encode_u8(8, ease)
+	network_packet.encode_u8(8, ease_val)
 	network_packet.encode_u8(9, auxiliary)
 
 	return network_packet

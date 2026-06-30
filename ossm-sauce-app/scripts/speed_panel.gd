@@ -119,16 +119,16 @@ func _on_acceleration_slider_gui_input(event):
 
 
 func tween(activating := true):
-	var tween = get_tree().create_tween()
-	tween.set_trans(Tween.TRANS_QUART)
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_parallel()
+	var tween_tmp = get_tree().create_tween()
+	tween_tmp.set_trans(Tween.TRANS_QUART)
+	tween_tmp.set_ease(Tween.EASE_OUT)
+	tween_tmp.set_parallel()
 	var outside_pos := Vector2(-size.x, position.y)
 	var inside_pos := Vector2(0, outside_pos.y)
 	var positions: Array = [outside_pos, inside_pos]
 	if not activating:
 		positions.reverse()
-	tween.tween_method(set_position, position, positions[1], Global.ANIM_TIME)
+	tween_tmp.tween_method(set_position, position, positions[1], Global.ANIM_TIME)
 	var start_color: Color = $BackTexture.self_modulate
 	var end_color: Color = start_color
 	start_color.a = 0
@@ -137,12 +137,12 @@ func tween(activating := true):
 	if not activating:
 		colors.reverse()
 		$BackButton.hide()
-		tween.tween_callback(anim_finished).set_delay(Global.ANIM_TIME)
+		tween_tmp.tween_callback(anim_finished).set_delay(Global.ANIM_TIME)
 	else:
 		$BackButton.show()
 	var visuals = [$BackTexture, $LabelTop, $LabelBot]
 	for node in visuals:
-		tween.tween_method(
+		tween_tmp.tween_method(
 			node.set_self_modulate,
 			colors[0],
 			colors[1],

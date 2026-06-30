@@ -4,12 +4,11 @@ const DEBUG = false
 
 ## MOVE Command (0x01)
 ## Controls point-to-point motion with easing curves.
-@warning_ignore("shadowed_global_identifier")
-func move(ms_timing: int, target_position: int, trans: int, ease: int, auxiliary: int):
+func move(ms_timing: int, target_position: int, trans: int, ease_val: int, auxiliary: int):
 	if DEBUG:
-		print("Sending smooth move command: timing=%d, target_position=%d, trans=%d, ease=%d, aux=%d" % [ms_timing, target_position, trans, ease, auxiliary])
+		print("Sending smooth move command: timing=%d, target_position=%d, trans=%d, ease=%d, aux=%d" % [ms_timing, target_position, trans, ease_val, auxiliary])
 	
-	var command = OSSMCommand.create_move_command(ms_timing, target_position, trans, ease, auxiliary)
+	var command = OSSMCommand.create_move_command(ms_timing, target_position, trans, ease_val, auxiliary)
 	broadcast_binary(command)
 
 
@@ -160,12 +159,11 @@ func set_homing_trigger(threshold_voltage: int):
 
 ## SMOOTH_MOVE Command (0x0F)
 ## Controls point-to-point motion with easing curves.
-@warning_ignore("shadowed_global_identifier")
-func smooth_move(ms_duration: int, target_position: int, trans: int, ease: int, auxiliary: int):
+func smooth_move(ms_duration: int, target_position: int, trans: int, ease_val: int, auxiliary: int):
 	if DEBUG:
-		print("Sending smooth move command: duration=%d, target_position=%d, trans=%d, ease=%d, aux=%d" % [ms_duration, target_position, trans, ease, auxiliary])
+		print("Sending smooth move command: duration=%d, target_position=%d, trans=%d, ease=%d, aux=%d" % [ms_duration, target_position, trans, ease_val, auxiliary])
 
-	var command = OSSMCommand.create_smooth_move_command(ms_duration, target_position, trans, ease, auxiliary)
+	var command = OSSMCommand.create_smooth_move_command(ms_duration, target_position, trans, ease_val, auxiliary)
 	broadcast_binary(command)
 
 func broadcast_binary(command: PackedByteArray):

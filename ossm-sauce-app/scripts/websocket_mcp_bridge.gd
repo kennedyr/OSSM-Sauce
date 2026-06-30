@@ -26,7 +26,7 @@ func _on_mcp_command_received(command_data):
 			_log("Command data: " + command_data.hex_encode())
 
 
-func handle_websocket_connect(url: String):
+func handle_websocket_connect(_url: String):
 	_log("WebSocket MCP Bridge: Starting WebSocket server")
 	if not %WebSocket.server.is_listening():
 		%WebSocket.start_server()

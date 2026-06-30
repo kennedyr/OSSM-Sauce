@@ -168,7 +168,7 @@ func _translate_and_forward(tcode_cmd: String):
 				pass # TODO: Map to OSSM vibrate
 
 
-func send_smooth_move(ms_duration: int, depth: int, trans: int, ease: int, auxiliary: int):
+func send_smooth_move(ms_duration: int, depth: int, trans: int, ease_val: int, auxiliary: int):
 	if not %WebSocket.ossm_connected:
 		return
 	var command: PackedByteArray
@@ -177,7 +177,7 @@ func send_smooth_move(ms_duration: int, depth: int, trans: int, ease: int, auxil
 	command.encode_u32(1, ms_duration)
 	command.encode_u16(5, abs(Global.motor_direction * 10000 - depth))
 	command.encode_u8(7, trans)
-	command.encode_u8(8, ease)
+	command.encode_u8(8, ease_val)
 	command.encode_u8(9, auxiliary)
 	%WebSocket.server.broadcast_binary(command)
 

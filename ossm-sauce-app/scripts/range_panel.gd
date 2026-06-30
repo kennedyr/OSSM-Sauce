@@ -135,10 +135,10 @@ func get_range_percent():
 
 
 func tween(activating:bool = true):
-	var tween = get_tree().create_tween()
-	tween.set_trans(Tween.TRANS_QUART)
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_parallel()
+	var tween_tmp = get_tree().create_tween()
+	tween_tmp.set_trans(Tween.TRANS_QUART)
+	tween_tmp.set_ease(Tween.EASE_OUT)
+	tween_tmp.set_parallel()
 	var viewport_right_edge = get_viewport_rect().size.x
 	var viewport_middle = get_viewport_rect().size.x / 2
 	var outside_pos := Vector2(viewport_right_edge, position.y)
@@ -146,7 +146,7 @@ func tween(activating:bool = true):
 	var positions: Array = [outside_pos, inside_pos]
 	if not activating:
 		positions.reverse()
-	tween.tween_method(set_position, position, positions[1], Global.ANIM_TIME)
+	tween_tmp.tween_method(set_position, position, positions[1], Global.ANIM_TIME)
 	var start_color: Color = $BackTexture.self_modulate
 	var end_color: Color = start_color
 	start_color.a = 0
@@ -155,12 +155,12 @@ func tween(activating:bool = true):
 	if not activating:
 		colors.reverse()
 		$BackButton.hide()
-		tween.tween_callback(anim_finished).set_delay(Global.ANIM_TIME)
+		tween_tmp.tween_callback(anim_finished).set_delay(Global.ANIM_TIME)
 	else:
 		$BackButton.show()
 	var visuals = [$BackTexture, $LabelBot, $LabelTop]
 	for node in visuals:
-		tween.tween_method(
+		tween_tmp.tween_method(
 				node.set_self_modulate,
 				colors[0],
 				colors[1],

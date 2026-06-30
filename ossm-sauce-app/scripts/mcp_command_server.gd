@@ -54,12 +54,12 @@ func handle_http_request(client: StreamPeerTCP):
 	
 	var path = request_line[1]
 	
-	var content_length: int = 0
+	var _content_length: int = 0
 	var body_start: int = -1
 	
 	for i in range(lines.size()):
 		if lines[i].begins_with("Content-Length:"):
-			content_length = lines[i].split(":")[1].strip_edges().to_int()
+			_content_length = lines[i].split(":")[1].strip_edges().to_int()
 		elif lines[i] == "":
 			body_start = i + 1
 			break

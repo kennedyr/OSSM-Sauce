@@ -36,7 +36,7 @@ func start_server():
 
 
 # Process signals from the main thread to listen for incoming messages
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if server and server.is_listening():
 		server.process()
 

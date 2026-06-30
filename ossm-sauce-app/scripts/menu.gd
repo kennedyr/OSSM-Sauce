@@ -143,12 +143,12 @@ func show_pause():
 
 
 func flash_button(button:Node):
-	var tween = get_tree().create_tween()
-	tween.set_trans(Tween.TRANS_QUART)
-	tween.set_ease(Tween.EASE_OUT)
+	var tween_tmp = get_tree().create_tween()
+	tween_tmp.set_trans(Tween.TRANS_QUART)
+	tween_tmp.set_ease(Tween.EASE_OUT)
 	var start_color := Color.DARK_ORANGE
 	var end_color := Color.WHITE
-	tween.tween_method(button.set_self_modulate, start_color, end_color, 0.6)
+	tween_tmp.tween_method(button.set_self_modulate, start_color, end_color, 0.6)
 
 
 @onready var buttons:Array = [
@@ -161,10 +161,10 @@ func flash_button(button:Node):
 
 const ANIM_TIME = 0.35
 func tween(activating: bool = true):
-	var tween = get_tree().create_tween()
-	tween.set_trans(Tween.TRANS_QUART)
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_parallel()
+	var tween_tmp = get_tree().create_tween()
+	tween_tmp.set_trans(Tween.TRANS_QUART)
+	tween_tmp.set_ease(Tween.EASE_OUT)
+	tween_tmp.set_parallel()
 	var start_color: Color = modulate
 	var end_color: Color = start_color
 	start_color.a = 0
@@ -177,8 +177,8 @@ func tween(activating: bool = true):
 			button.disabled = true
 		colors.reverse()
 		%ActionPanel.show()
-		tween.tween_callback(anim_finished).set_delay(ANIM_TIME)
-	tween.tween_method(set_modulate, colors[0], colors[1], ANIM_TIME)
+		tween_tmp.tween_callback(anim_finished).set_delay(ANIM_TIME)
+	tween_tmp.tween_method(set_modulate, colors[0], colors[1], ANIM_TIME)
 
 
 func anim_finished():

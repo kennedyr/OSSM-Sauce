@@ -62,7 +62,7 @@ func _ready():
 
 
 var marker_index: int
-func _physics_process(delta) -> void:
+func _physics_process(_delta) -> void:
 	if Global.paused or Global.active_path_index == null:
 		return
 
@@ -372,7 +372,7 @@ func create_path_lines(marker_data: Dictionary):
 		var marker = marker_data[marker_frame]
 		var depth = marker[0]
 		var trans = marker[1]
-		var ease = marker[2]
+		var ease_val = marker[2]
 		if marker_frame > 0:
 			var steps: int = marker_frame - previous_frame
 			frames.append(previous_frame)
@@ -383,7 +383,7 @@ func create_path_lines(marker_data: Dictionary):
 						step,
 						steps,
 						trans,
-						ease)
+						ease_val)
 				path.append(step_depth)
 				var x_pos = (previous_frame * path_speed) + (step * path_speed)
 				var y_pos = render_depth(step_depth)
@@ -408,7 +408,7 @@ func create_delay(duration: float):
 		var move_command = OSSMCommand.create_move_command(timing, 0, 0, 0, 0)
 		network_packets.append(move_command)
 		frames.append(timing)
-	var end_move = OSSMCommand.create_move_command(duration * 1000, 0, 0, 0, 0)
+	var end_move = OSSMCommand.create_move_command(int(duration * 1000), 0, 0, 0, 0)
 	network_packets.append(end_move)
 	current_funscript.network_paths.append(network_packets)
 	current_funscript.path.append(delay_path)
@@ -417,11 +417,11 @@ func create_delay(duration: float):
 	$Menu/Playlist.add_item("delay(%s)" % [duration])
 
 
-func display_active_path_index(pause := true, send_buffer := true):
+func display_active_path_index(pause_now := true, send_buffer := true):
 	if Global.active_path_index == null:
 		return
 
-	Global.paused = pause
+	Global.paused = pause_now
 	Global.frame = 0
 	marker_index = 0
 	play_offset_ms = 0
@@ -445,7 +445,7 @@ func display_active_path_index(pause := true, send_buffer := true):
 		buffer_sent = buffer_size
 	
 	$ActionPanel.clear_selections()
-	if pause:
+	if pause_now:
 		$ActionPanel/Pause.hide() 
 		$ActionPanel/Play.show()
 	for path in $PathDisplay/Paths.get_children():
@@ -563,16 +563,16 @@ func update_time_display(percent: float = -1) -> void:
 		frame = Global.frame
 	else:
 		frame = clampi(roundi(percent * (total_frames - 1)), 0, total_frames - 1)
-	var current_sec := frame / ticks_per_second
-	var total_sec := (total_frames - 1) / ticks_per_second
+	var current_sec := int(frame / float(ticks_per_second))
+	var total_sec := int((total_frames - 1) / float(ticks_per_second))
 	if total_sec >= 3600:
 		$TimeDisplay.text = "%d:%02d:%02d / %d:%02d:%02d" % [
-			current_sec / 3600, current_sec % 3600 / 60, current_sec % 60,
-			total_sec / 3600, total_sec % 3600 / 60, total_sec % 60]
+			int(current_sec / 3600.0), int(current_sec % 3600 / 60.0), current_sec % 60,
+			int(total_sec / 3600.0), int(total_sec % 3600 / 60.0), total_sec % 60]
 	else:
 		$TimeDisplay.text = "%d:%02d / %d:%02d" % [
-			current_sec / 60, current_sec % 60,
-			total_sec / 60, total_sec % 60]
+			int(current_sec / 60.0), current_sec % 60,
+			int(total_sec / 60.0), total_sec % 60]
 
 	var chapter = current_funscript.get_current_chapter(frame)
 	var next_chapter = current_funscript.get_next_chapter(frame)

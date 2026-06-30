@@ -21,6 +21,7 @@ var max_stroke_duration:float
 
 var motor_direction: int = 0
 
+@warning_ignore("unused_signal")
 signal homing_complete
 signal active_path_index_changed
 

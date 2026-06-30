@@ -78,8 +78,8 @@ func _ready():
 	if OS.get_name() != "Android":
 		$Main/PlayerSelection.set_item_disabled(PlayerType.MPV_ANDROID, true)
 	
-	connection_changed.connect(func(is_connected: bool):
-			if is_connected:
+	connection_changed.connect(func(is_conn: bool):
+			if is_conn:
 				$Main/ConnectionIndicator.show()
 			else:
 				$Main/ConnectionIndicator.hide())
@@ -285,9 +285,9 @@ func _send_seek(time_seconds: float):
 				_vlc_headers())
 		PlayerType.MPC:
 			var total_ms = int(time_seconds * 1000)
-			var h = total_ms / 3600000
-			var m = (total_ms % 3600000) / 60000
-			var s = (total_ms % 60000) / 1000
+			var h = int(total_ms / 3600000.0)
+			var m = int((total_ms % 3600000) / 60000.0)
+			var s = int((total_ms % 60000) / 1000.0)
 			var ms = total_ms % 1000
 			_command_http.request(
 				_base_url() + "/command.html?wm_command=-1&position=" \
@@ -483,9 +483,9 @@ func _mpv_handle_line(line: String):
 func _mpv_handle_event(msg: Dictionary):
 	match msg.get("event", ""):
 		"property-change":
-			var name: String = msg.get("name", "")
+			var prop_name: String = msg.get("name", "")
 			var value = msg.get("data")
-			match name:
+			match prop_name:
 				"pause":
 					if value is bool:
 						_mpv_pause = value
@@ -590,8 +590,8 @@ func _mpv_android_clear_command_queue():
 	var doc_id_col = cursor.getColumnIndex("document_id")
 	var name_col = cursor.getColumnIndex("_display_name")
 	while cursor.moveToNext():
-		var name: String = cursor.getString(name_col)
-		if name.begins_with("cmd_"):
+		var name_val: String = cursor.getString(name_col)
+		if name_val.begins_with("cmd_"):
 			var doc_id = cursor.getString(doc_id_col)
 			var doc_uri = DocumentsContract.buildDocumentUriUsingTree(tree_uri_obj, doc_id)
 			DocumentsContract.deleteDocument(resolver, doc_uri)

@@ -54,7 +54,7 @@ func stop_xtoys():
 	_log("xtoys bridge stopped")
 
 
-func _process(delta):
+func _process(_delta):
 	if ws_server and ws_server.is_listening():
 		ws_server.process()
 
@@ -69,7 +69,7 @@ func _on_client_disconnected(client_id, code):
 	$SpeedTimer.stop()
 
 
-func _on_message_received(client_id, message):
+func _on_message_received(_client_id, message):
 	var xtoys_command:Dictionary = JSON.parse_string(message)
 	
 	if not xtoys_command:
@@ -117,10 +117,10 @@ func position_command(xtoys_command):
 	var stroke_target_position: int = int(remap(clampf(xtoys_command.position, 0, 100), 0, 100, 0, 10000))
 	
 	var trans: int = %BridgeControls.auto_smoothing
-	var ease: int = EASE_IN_OUT
+	var ease_val: int = EASE_IN_OUT
 	var auxiliary: int = 0
 	
-	send_smooth_move(stroke_duration_ms, stroke_target_position, trans, ease, auxiliary)
+	send_smooth_move(stroke_duration_ms, stroke_target_position, trans, ease_val, auxiliary)
 
 func speed_command(xtoys_command):
 	_log("Speed command received")
@@ -139,10 +139,10 @@ func speed_command(xtoys_command):
 		return
 	
 	var _min_depth: int = clamp(int(xtoys_command.lower), 0, 100)
-	speed_mode_min_depth = remap(_min_depth, 0, 100, 0, 10000)
+	speed_mode_min_depth = int(remap(_min_depth, 0, 100, 0, 10000))
 	
 	var _max_depth: int = clamp(int(xtoys_command.upper), 0, 100)
-	speed_mode_max_depth = remap(_max_depth, 0, 100, 0, 10000)
+	speed_mode_max_depth = int(remap(_max_depth, 0, 100, 0, 10000))
 	
 	push_stroke = true
 	_on_speed_timer_timeout() # Start immediately
@@ -152,20 +152,20 @@ func speed_command(xtoys_command):
 
 func _on_speed_timer_timeout():
 	var trans: int = %BridgeControls.auto_smoothing
-	var ease: int = EASE_IN_OUT
+	var ease_val: int = EASE_IN_OUT
 	var aux: int = 0
 	
 	if push_stroke:
-		send_smooth_move(speed_mode_stroke_duration_ms, speed_mode_min_depth, trans, ease, aux)
+		send_smooth_move(speed_mode_stroke_duration_ms, speed_mode_min_depth, trans, ease_val, aux)
 	else:
-		send_smooth_move(speed_mode_stroke_duration_ms, speed_mode_max_depth, trans, ease, aux)
+		send_smooth_move(speed_mode_stroke_duration_ms, speed_mode_max_depth, trans, ease_val, aux)
 	
 	push_stroke = !push_stroke
 
 
-func send_smooth_move(ms_duration: int, depth: int, trans: int, ease: int, auxiliary: int):
-	_log("  → duration=%d, depth=%d, trans=%d, ease=%d" % [ms_duration, depth, trans, ease])
-	%OSSMCommand.smooth_move(ms_duration, abs(Global.motor_direction * 10000 - depth), trans, ease, auxiliary)
+func send_smooth_move(ms_duration: int, depth: int, trans: int, ease_val: int, auxiliary: int):
+	_log("  → duration=%d, depth=%d, trans=%d, ease=%d" % [ms_duration, depth, trans, ease_val])
+	%OSSMCommand.smooth_move(ms_duration, abs(Global.motor_direction * 10000 - depth), trans, ease_val, auxiliary)
 
 
 func _on_ping_timer_timeout():
