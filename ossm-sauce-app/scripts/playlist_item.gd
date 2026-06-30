@@ -18,3 +18,9 @@ func deselect():
 		$Label.self_modulate.a = 0.765
 		$Icon.hide()
 		$Animation.stop()
+
+func get_item() -> Dictionary:
+	return {
+		"file_name": get_node('Label').text,
+		"file_path": get_node('FilePath').text
+	}

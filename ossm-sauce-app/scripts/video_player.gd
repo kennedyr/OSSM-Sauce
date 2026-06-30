@@ -127,6 +127,31 @@ func is_active() -> bool:
 	return player_type != PlayerType.OFF
 
 
+func try_load_video(funscript_path: String):
+	var extensionless_path = funscript_path.get_basename()
+	var mp4Path = extensionless_path + ".mp4"
+	if FileAccess.file_exists(mp4Path):
+		_load_video(mp4Path)
+		return
+
+	var mkvPath = extensionless_path + ".mkv"
+	if FileAccess.file_exists(mkvPath):
+		_load_video(mkvPath)
+		return
+
+	# try stripping off one more "." level
+	extensionless_path = extensionless_path.get_basename()
+	mp4Path = extensionless_path + ".mp4"
+	if FileAccess.file_exists(mp4Path):
+		_load_video(mp4Path)
+		return
+
+
+func _load_video(path: String):
+	var command = r'mpv "' + path + r'"'
+	OS.create_process("cmd", ["/c", command])
+
+
 func activate(type: PlayerType):
 	deactivate()
 	player_type = type

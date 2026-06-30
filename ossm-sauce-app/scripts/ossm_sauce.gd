@@ -342,9 +342,12 @@ func round_to(value: float, decimals: int) -> float:
 	var factor = pow(10, decimals)
 	return round(value * factor) / factor
 
+func load_path_file_name(file_name: String) -> bool:
+	var file_path = %FileUtil._resolve_storage_path(file_name, "paths")
+	return load_path(file_path)
 
-func load_path(filePath: String) -> bool:
-	var funscript = Funscript.new(filePath, ticks_per_second, PATH_TOP, PATH_BOTTOM)
+func load_path(file_path: String) -> bool:
+	var funscript = Funscript.new(file_path, ticks_per_second, PATH_TOP, PATH_BOTTOM)
 	if not funscript.marker_data:
 		printerr("Error: Failed to read file.")
 		return false

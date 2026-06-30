@@ -38,7 +38,12 @@ func _on_play_pressed():
 	if not Global.active_path_index == index:
 		Global.active_path_index = index
 		owner.display_active_path_index()
-		$Playlist/Scroll/VBox.get_child(index).set_active()
+		var playlist_item = $Playlist/Scroll/VBox.get_child(index)
+		playlist_item.set_active()
+		if %VideoPlayer.is_active() and AppMode.active == AppMode.MOVE:
+			var item_data = playlist_item.get_item()
+			if item_data.file_path:
+				%VideoPlayer.try_load_video(item_data.file_path)
 		if %WebSocket.ossm_connected:
 			return
 	%CircleSelection.show_play()

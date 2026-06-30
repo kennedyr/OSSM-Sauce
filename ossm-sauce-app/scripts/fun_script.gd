@@ -14,16 +14,16 @@ var PATH_TOP
 var PATH_BOTTOM
 
 
-func _init(filePath: String, ticks_per_second: int, path_top: float, path_bottom: float):
+func _init(file_path: String, ticks_per_second: int, path_top: float, path_bottom: float):
 	TICKS_PER_SECOND = ticks_per_second
 	PATH_TOP = path_top
 	PATH_BOTTOM = path_bottom
-	load_path(filePath)
+	load_path(file_path)
 
 
-func load_path(filePath: String) -> bool:
-	var parsed_data = parse_file(filePath)
-	var is_funscript = filePath.ends_with(".funscript")
+func load_path(file_path: String) -> bool:
+	var parsed_data = parse_file(file_path)
+	var is_funscript = file_path.ends_with(".funscript")
 	var file_data: Dictionary
 	if is_funscript:
 		file_data = map_funscript_data(parsed_data)
@@ -45,9 +45,9 @@ func load_path(filePath: String) -> bool:
 	return true
 
 
-func parse_file(filePath: String) -> Dictionary:
+func parse_file(file_path: String) -> Dictionary:
 	var file_data: Dictionary
-	var file = FileAccess.open(filePath, FileAccess.READ)
+	var file = FileAccess.open(file_path, FileAccess.READ)
 	if file:
 		var file_text = file.get_as_text().replace("\n", "")
 		file_data = JSON.parse_string(file_text)

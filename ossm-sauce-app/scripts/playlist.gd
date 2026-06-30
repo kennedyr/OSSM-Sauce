@@ -39,7 +39,7 @@ func _on_item_selected(item):
 		double_tap_timer.start()
 
 
-func add_item(item_text:String, item_path:String):
+func add_item(item_text:String, item_path:String = ""):
 	var item = Item.duplicate()
 	item.get_node('Label').text = item_text
 	item.get_node('FilePath').text = item_path

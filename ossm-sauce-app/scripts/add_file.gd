@@ -61,7 +61,7 @@ func _on_file_selected(path: String):
 
 func _on_add_path_pressed():
 	var file_name: String = $FileList.get_item_text($FileList.selected_index)
-	if owner.load_path(file_name):
+	if owner.load_path_file_name(file_name):
 		%Menu/Playlist.add_item(file_name)
 	close()
 
