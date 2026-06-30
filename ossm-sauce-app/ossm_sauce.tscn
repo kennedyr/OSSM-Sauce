@@ -22,6 +22,7 @@
 [ext_resource type="Texture2D" uid="uid://dcx71x8114vuv" path="res://textures/selection.svg" id="17_l5cbh"]
 [ext_resource type="Script" uid="uid://30x55uytwcua" path="res://scripts/chapter_list.gd" id="18_2hnso"]
 [ext_resource type="Texture2D" uid="uid://fxyub7xy8ha5" path="res://textures/pause.svg" id="18_xjxk6"]
+[ext_resource type="Script" uid="uid://bk5rlrc7hej7v" path="res://scripts/chapter_tick.gd" id="19_flajy"]
 [ext_resource type="Texture2D" uid="uid://dd4yrbph2jgxm" path="res://textures/speed.svg" id="19_l1tpd"]
 [ext_resource type="Texture2D" uid="uid://df1fg8fsnax6k" path="res://textures/range.svg" id="20_gjk78"]
 [ext_resource type="Texture2D" uid="uid://biyi8wy11rxn2" path="res://textures/menu.svg" id="21_ob2g7"]
@@ -1433,8 +1434,8 @@ offset_left = 36.0
 offset_top = 4.0
 offset_right = 76.0
 offset_bottom = 44.0
-mouse_filter = 1
 texture = SubResource("DPITexture_2hnso")
+script = ExtResource("19_flajy")
 
 [node name="TimeDisplay" type="Label" parent="." unique_id=1039559277]
 layout_mode = 1

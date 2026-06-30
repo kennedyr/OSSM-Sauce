@@ -269,16 +269,27 @@ func find_frame_for_time_string(time_string: String, marker_list: Array[int]) ->
 	return marker_list[0]
 
 
-func get_nearest_chapters(frame: int):
-	var idx = get_chapter_idx(frame)
-	var results = []
-	if idx >= 0 :
-		results.append(chapters[idx])
+func get_nearest_chapter(frame: int):
+	var total_frames = path.size()
+	var delta = int(total_frames / 70.0)
 	
-	if idx < chapters.size() - 2:
-		results.append(chapters[idx + 1])
+	var idx = get_chapter_idx(frame)
+	if idx >= 0:
+		var chapter = chapters[idx]
+		if chapter['beginFrame'] > frame - delta and chapter['beginFrame'] < frame + delta:
+			return {
+				"chapter": chapter,
+				"index": idx
+			}
 
-	return results
+	if idx < chapters.size() - 2:
+		var chapter = chapters[idx + 1]
+		if chapter['beginFrame'] > frame - delta and chapter['beginFrame'] < frame + delta:
+			return {
+				"chapter": chapter,
+				"index": idx + 1
+			}
+
 
 
 func get_current_chapter(frame: int):

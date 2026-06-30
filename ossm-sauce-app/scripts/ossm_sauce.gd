@@ -462,7 +462,7 @@ func display_active_path_index(pause := true, send_buffer := true):
 
 
 func init_seek_slider():
-	$SeekSlider.set_value_no_signal(0)
+	$SeekSlider.set_value_no_signal(0.0)
 	var total_frames: int = current_funscript.path.size()
 	$SeekSlider/ChapterList.initialize(current_funscript.chapters, total_frames)
 
@@ -488,15 +488,19 @@ func seek(snap = true) -> void:
 	
 	var total_frames: int = active_path.size()
 	var target_frame := clampi(roundi(value * (total_frames - 1)), 0, total_frames - 1)
+
+	if snap:
+		var nearest_chapter = current_funscript.get_nearest_chapter(target_frame)
+		if nearest_chapter:
+			var new_target_frame = nearest_chapter.chapter["beginFrame"]
+			$SeekSlider.set_value_no_signal(float(new_target_frame) / (total_frames - 1))
+			var snapped_chapter_tick: TextureRect = $SeekSlider/ChapterList.get_child(nearest_chapter.index)
+			if snapped_chapter_tick:
+				snapped_chapter_tick.flash()
+			target_frame = new_target_frame
+
 	var target_depth: float = active_path[target_frame]
 	play_offset_ms = int(target_frame * 1000.0 / ticks_per_second)
-	if snap:
-		current_funscript.get_nearest_chapters(target_frame)
-  		# TODO Snap to nearest chapter
-		var nearest_chapter = 0
-		if value != nearest_chapter:
-			$SeekSlider.set_value_no_signal(0)
-			target_frame = 0
 
 	# Find the first marker_frame index AFTER target_frame
 	var frames = current_funscript.frames
