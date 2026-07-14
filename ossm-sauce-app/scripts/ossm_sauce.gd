@@ -327,10 +327,10 @@ func apply_user_settings():
 func apply_device_settings():
 	Global.max_speed = UserSettings.get_value(UserSettings.Section.speed_slider, 'max_speed', 25000)
 	Global.max_acceleration = UserSettings.get_value(UserSettings.Section.accel_slider, 'max_acceleration', 500000)
-	$SpeedPanel.set_speed_slider_percent(UserSettings.get_value(UserSettings.Section.speed_slider, 'position_percent', 0.6))
-	$SpeedPanel.set_acceleration_slider_percent(UserSettings.get_value(UserSettings.Section.accel_slider, 'position_percent', 0.4))
-	$RangePanel.set_min_slider_percent(UserSettings.get_value(UserSettings.Section.range_slider_min, 'position_percent', 0))
-	$RangePanel.set_max_slider_percent(UserSettings.get_value(UserSettings.Section.range_slider_max, 'position_percent', 1))
+	$SpeedPanel.set_speed_slider_pos(UserSettings.get_value(UserSettings.Section.speed_slider, 'position_percent', 0.6))
+	$SpeedPanel.set_acceleration_slider_pos(UserSettings.get_value(UserSettings.Section.accel_slider, 'position_percent', 0.4))
+	$RangePanel.set_min_slider_pos(UserSettings.get_value(UserSettings.Section.range_slider_min, 'position_percent', 0))
+	$RangePanel.set_max_slider_pos(UserSettings.get_value(UserSettings.Section.range_slider_max, 'position_percent', 1))
 	$Settings.set_syncing_speed(UserSettings.get_value(UserSettings.Section.device_settings, 'syncing_speed', 1000))
 	$Settings.set_homing_trigger(UserSettings.get_value(UserSettings.Section.device_settings, 'homing_trigger', 1.5))
 

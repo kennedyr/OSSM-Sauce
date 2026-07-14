@@ -30,12 +30,17 @@ func get_speed_slider_percent():
 	return percent
 
 
-func set_speed_slider_percent(percent):
+func set_speed_slider_pos(percent):
 	speed_slider.position.y = Util.safe_map_slider_position(
 		percent,
 		speed_slider_min_pos,
 		speed_slider_max_pos)
-	update_speed()
+	update_speed(true)
+
+
+func set_speed_slider_percent(percent):
+	set_speed_slider_pos(percent)
+	send_speed_limits()
 
 
 func get_acceleration_slider_percent():
@@ -44,40 +49,49 @@ func get_acceleration_slider_percent():
 	return percent
 
 
-func set_acceleration_slider_percent(percent):
+func set_acceleration_slider_pos(percent):
 	acceleration_slider.position.y = Util.safe_map_slider_position(
 		percent,
 		accel_slider_min_pos,
 		accel_slider_max_pos)
-	update_acceleration()
+	update_acceleration(true)
 
 
-func update_speed():
+func set_acceleration_slider_percent(percent):
+	set_acceleration_slider_pos(percent)
+	send_speed_limits()
+
+
+func update_speed(label_only := false):
 	var slider_pos = speed_slider.position.y
 	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
 	speed_limit = Util.safe_map_value(
 		percent,
 		0,
 		Global.max_speed)
+	var text_value = str(round(percent * 100))
+	$LabelTop.text = "Max Speed:\n" + text_value + "%"
+	# $LabelTop.text = "Max Speed:\n" + str(speed_limit) + " steps/sec"
+	if not label_only:
+		UserSettings.set_value(UserSettings.Section.speed_slider, 'position_percent', percent)
+		if $DebounceTimer.is_stopped():
+			$DebounceTimer.start()
 
-	$LabelTop.text = "Max Speed:\n" + str(speed_limit) + " steps/sec"
-	UserSettings.set_value(UserSettings.Section.speed_slider, 'position_percent', percent)
-	if $DebounceTimer.is_stopped():
-		$DebounceTimer.start()
 
-
-func update_acceleration():
+func update_acceleration(label_only := false):
 	var slider_pos = acceleration_slider.position.y
 	var percent = Util.safe_map_slider_percent(slider_pos, accel_slider_min_pos, accel_slider_max_pos)
 	acceleration_limit = Util.safe_map_value(
 		percent,
 		1000,
 		Global.max_acceleration)
-
-	$LabelBot.text = "Acceleration:\n" + str(acceleration_limit) + " steps/sec²"
-	UserSettings.set_value(UserSettings.Section.accel_slider, 'position_percent', percent)
-	if $DebounceTimer.is_stopped():
-		$DebounceTimer.start()
+	var text_value = str(round(percent * 100))
+	$LabelBot.text = "Acceleration:\n" + text_value + "%"
+	# $LabelBot.text = "Acceleration:\n" + str(acceleration_limit) + " steps/sec²"
+	if not label_only:
+		UserSettings.set_value(UserSettings.Section.accel_slider, 'position_percent', percent)
+		if $DebounceTimer.is_stopped():
+			$DebounceTimer.start()
 
 
 func send_speed_limits():

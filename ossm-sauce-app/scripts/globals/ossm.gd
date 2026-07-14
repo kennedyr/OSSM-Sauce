@@ -24,3 +24,15 @@ enum RangeLimitType {
   MIN_RANGE,
   MAX_RANGE,
 }
+
+
+enum TransType {
+  LINEAR,
+  SINE,
+  CIRC,
+  EXPO,
+  QUAD,
+  CUBIC,
+  QUART,
+  QUINT
+}

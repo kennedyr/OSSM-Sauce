@@ -11,17 +11,21 @@ func _input(_event):
 
 	if Input.is_action_just_pressed("ShiftUp"):
 		var current_max = %RangePanel.get_max_slider_percent()
-		%RangePanel.set_max_slider_percent(current_max + increment)
-
 		var current_min = %RangePanel.get_min_slider_percent()
-		%RangePanel.set_min_slider_percent(current_min + increment)
+		%RangePanel.set_max_slider_pos(current_max + increment)
+		%RangePanel.set_min_slider_pos(current_min + increment)
+
+		%RangePanel.send_range_limits()
+		
 
 	if Input.is_action_just_pressed("ShiftDown"):
 		var current_max = %RangePanel.get_max_slider_percent()
-		%RangePanel.set_max_slider_percent(current_max - increment)
-
 		var current_min = %RangePanel.get_min_slider_percent()
-		%RangePanel.set_min_slider_percent(current_min - increment)
+		%RangePanel.set_max_slider_pos(current_max - increment)
+		%RangePanel.set_min_slider_pos(current_min - increment)
+
+		%RangePanel.send_range_limits()
+		
 
 	if Input.is_action_just_pressed("IncreaseMaxRange"):
 		var current_pos = %RangePanel.get_max_slider_percent()
