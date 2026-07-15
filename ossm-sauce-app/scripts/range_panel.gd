@@ -4,8 +4,6 @@ enum {MIN_RANGE, MAX_RANGE}
 
 var min_range_pos: float
 var max_range_pos: float
-var min_range_limit: int
-var max_range_limit: int
 
 @onready var min_slider: TextureRect = $RangeBar/MinSlider
 @onready var max_slider: TextureRect = $RangeBar/MaxSlider
@@ -26,7 +24,7 @@ func _on_min_slider_gui_input(event):
 			var drag_pos = min_slider.position.y + event.relative.y
 			var max_range = max_slider.position.y + max_slider.size.y
 			var new_slider_position = clamp(drag_pos, max_range, min_range_pos)
-			if(new_slider_position == min_slider.position.y):
+			if (new_slider_position == min_slider.position.y):
 				return
 
 			min_slider.position.y = new_slider_position
@@ -42,7 +40,7 @@ func _on_max_slider_gui_input(event):
 			var drag_pos = max_slider.position.y + event.relative.y
 			var min_range = min_slider.position.y - min_slider.size.y
 			var new_slider_position = clamp(drag_pos, max_range_pos, min_range)
-			if(new_slider_position == max_slider.position.y):
+			if (new_slider_position == max_slider.position.y):
 				return
 
 			max_slider.position.y = new_slider_position
@@ -55,7 +53,7 @@ func _on_max_slider_gui_input(event):
 func update_min_range(label_only := false):
 	var slider_pos = min_slider.position.y
 	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
-	min_range_limit = Util.safe_map_physical_position(percent)
+	Global.min_range_limit = Util.safe_map_physical_position(percent)
 	var text_value = str(round(percent * 100))
 	$LabelBot.text = "Min Position:\n" + text_value + "%"
 
@@ -68,7 +66,7 @@ func update_min_range(label_only := false):
 func update_max_range(label_only := false):
 	var slider_pos = max_slider.position.y
 	var percent = Util.safe_map_slider_percent(slider_pos, min_range_pos, max_range_pos)
-	max_range_limit = Util.safe_map_physical_position(percent)
+	Global.max_range_limit = Util.safe_map_physical_position(percent)
 	var text_value = str(round(percent * 100))
 	$LabelTop.text = "Max Position:\n" + text_value + "%"
 
@@ -79,14 +77,12 @@ func update_max_range(label_only := false):
 
 
 func send_range_limits():
-	var min_range = abs(Global.motor_direction * 10000 - min_range_limit)
-	var max_range = abs(Global.motor_direction * 10000 - max_range_limit)
 	if Global.motor_direction == 0:
-		%OSSMCommand.set_range_limit_min(min_range)
-		%OSSMCommand.set_range_limit_max(max_range)
+		%OSSMCommand.set_range_limit_min(Global.min_range_limit)
+		%OSSMCommand.set_range_limit_max(Global.max_range_limit)
 	else:
-		%OSSMCommand.set_range_limit_min(max_range)
-		%OSSMCommand.set_range_limit_max(min_range)
+		%OSSMCommand.set_range_limit_min(Global.max_range_limit)
+		%OSSMCommand.set_range_limit_max(Global.min_range_limit)
 
 	if %WebSocket.ossm_connected:
 		if AppMode.active == AppMode.VIBRATE:
@@ -138,7 +134,7 @@ func get_range_percent():
 	return get_max_slider_percent() - get_min_slider_percent()
 
 
-func tween(activating:bool = true):
+func tween(activating: bool = true):
 	var tween_tmp = get_tree().create_tween()
 	tween_tmp.set_trans(Tween.TRANS_QUART)
 	tween_tmp.set_ease(Tween.EASE_OUT)

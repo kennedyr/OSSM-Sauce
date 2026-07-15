@@ -2,13 +2,11 @@ extends Panel
 
 var speed_slider_min_pos: float
 var speed_slider_max_pos: float
-var speed_limit: int
 @onready var speed_slider: TextureRect = $SpeedBar/Slider
 @onready var speed_bottom: TextureRect = $SpeedBar/SliderBottom
 
 var accel_slider_min_pos: float
 var accel_slider_max_pos: float
-var acceleration_limit: int
 @onready var acceleration_slider: TextureRect = $AccelerationBar/Slider
 @onready var acceleration_bottom: TextureRect = $AccelerationBar/SliderBottom
 
@@ -65,13 +63,13 @@ func set_acceleration_slider_percent(percent):
 func update_speed(label_only := false):
 	var slider_pos = speed_slider.position.y
 	var percent = Util.safe_map_slider_percent(slider_pos, speed_slider_min_pos, speed_slider_max_pos)
-	speed_limit = Util.safe_map_value(
+	Global.speed_limit = Util.safe_map_value(
 		percent,
 		0,
 		Global.max_speed)
 	var text_value = str(round(percent * 100))
 	$LabelTop.text = "Max Speed:\n" + text_value + "%"
-	# $LabelTop.text = "Max Speed:\n" + str(speed_limit) + " steps/sec"
+	# $LabelTop.text = "Max Speed:\n" + str(Global.speed_limit) + " steps/sec"
 	if not label_only:
 		UserSettings.set_value(UserSettings.Section.speed_slider, 'position_percent', percent)
 		if $DebounceTimer.is_stopped():
@@ -81,13 +79,13 @@ func update_speed(label_only := false):
 func update_acceleration(label_only := false):
 	var slider_pos = acceleration_slider.position.y
 	var percent = Util.safe_map_slider_percent(slider_pos, accel_slider_min_pos, accel_slider_max_pos)
-	acceleration_limit = Util.safe_map_value(
+	Global.acceleration_limit = Util.safe_map_value(
 		percent,
 		1000,
 		Global.max_acceleration)
 	var text_value = str(round(percent * 100))
 	$LabelBot.text = "Acceleration:\n" + text_value + "%"
-	# $LabelBot.text = "Acceleration:\n" + str(acceleration_limit) + " steps/sec²"
+	# $LabelBot.text = "Acceleration:\n" + str(Global.acceleration_limit) + " steps/sec²"
 	if not label_only:
 		UserSettings.set_value(UserSettings.Section.accel_slider, 'position_percent', percent)
 		if $DebounceTimer.is_stopped():
@@ -95,8 +93,8 @@ func update_acceleration(label_only := false):
 
 
 func send_speed_limits():
-	%OSSMCommand.set_speed_limit(speed_limit)
-	%OSSMCommand.set_acceleration_limit(acceleration_limit)
+	%OSSMCommand.set_speed_limit(Global.speed_limit)
+	%OSSMCommand.set_acceleration_limit(Global.acceleration_limit)
 	if %WebSocket.ossm_connected:
 		if AppMode.active == AppMode.VIBRATE:
 			%VibrationControls.send_vibrate_command()
@@ -110,7 +108,7 @@ func _on_speed_slider_gui_input(event):
 				drag_pos,
 				speed_slider_max_pos,
 				speed_slider_min_pos)
-			if(new_slider_pos == speed_slider.position.y):
+			if (new_slider_pos == speed_slider.position.y):
 				return
 
 			speed_slider.position.y = new_slider_pos
@@ -125,7 +123,7 @@ func _on_acceleration_slider_gui_input(event):
 				drag_pos,
 				accel_slider_max_pos,
 				accel_slider_min_pos)
-			if(new_slider_pos == acceleration_slider.position.y):
+			if (new_slider_pos == acceleration_slider.position.y):
 				return
 
 			acceleration_slider.position.y = new_slider_pos

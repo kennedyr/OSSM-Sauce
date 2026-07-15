@@ -2,22 +2,77 @@ extends Node
 
 class_name Funscript
 
-var TICKS_PER_SECOND: int
-var path_speed: int = 30
-
-var marker_data: Dictionary[int, Array]
+var marker_data: Dictionary[int, Marker]
 var path: PackedFloat32Array
 var frames: PackedInt32Array
 var network_paths: Array[PackedByteArray]
-var chapters: Array
-var PATH_TOP
-var PATH_BOTTOM
+var chapters: Array[Chapter]
 
 
-func _init(file_path: String, ticks_per_second: int, path_top: float, path_bottom: float):
-	TICKS_PER_SECOND = ticks_per_second
-	PATH_TOP = path_top
-	PATH_BOTTOM = path_bottom
+# An action at a single point in time
+class Marker:
+	var at: int:
+		get:
+			return at
+
+	var depth: float:
+		get:
+			return depth
+
+	var _auxiliary: int = 0
+
+	func _init(at_val: int, depth_val: float) -> void:
+		self.at = at_val
+		self.depth = depth_val
+	
+	func get_marker_frame_60hz() -> int:
+		return get_marker_frame(60)
+
+	func get_marker_frame(ticks_per_second = Global.ticks_per_second) -> int:
+		return int(at / (1000.0 / ticks_per_second))
+
+	func get_network_packet() -> PackedByteArray:
+		return OSSMCommand.create_move_command(at, Util.safe_map_physical_position(depth), Global.transition, Global.easing, _auxiliary)
+
+
+class Chapter:
+	var name: String:
+		get:
+			return name
+
+	var start_at: int:
+		get:
+			return start_at
+
+	var end_at: int:
+		get:
+			return end_at
+
+	func get_begin_frame(ticks_per_second = Global.ticks_per_second) -> int:
+		return ceili((start_at / 1000.0) * ticks_per_second)
+
+	func get_end_frame(ticks_per_second = Global.ticks_per_second):
+		if end_at > 0:
+			return ceili((end_at / 1000.0) * ticks_per_second)
+		return null
+
+	func _init(name: String, start_at: int, end_at: int = -1) -> void:
+		self.name = name
+		self.start_at = start_at
+		self.end_at = end_at
+
+	static func from_meta(meta: Dictionary) -> Chapter:
+		var name = meta["name"]
+		var start_time = meta["startTime"]
+		var end_time = meta["endTime"]
+		var start_at = int(round(Util.parse_time(str(start_time)) * 1000))
+		if end_time:
+			var end_at = int(round(Util.parse_time(str(end_time)) * 1000))
+			return Chapter.new(name, start_at, end_at)
+		return Chapter.new(name, start_at)
+
+
+func _init(file_path: String):
 	load_path(file_path)
 
 
@@ -29,18 +84,21 @@ func load_path(file_path: String) -> bool:
 		file_data = map_funscript_data(parsed_data)
 	else:
 		file_data = map_other_data(parsed_data)
-	var raw_marker_data = file_data.actions
+	var raw_marker_data: Array[Marker] = file_data.actions
 	if not raw_marker_data:
 		printerr("Error: Failed to read file.")
 		return false
 	if raw_marker_data.size() < 6:
 		printerr("Error: Insufficient path data in file.")
 		return false
-	var network_packet_result = create_network_packets(raw_marker_data)
-	network_paths = network_packet_result.network_packets
-	marker_data = network_packet_result.marker_data
-	path = create_path_lines()
-	chapters = create_chapters(file_data.chapters)
+	network_paths.assign(raw_marker_data.map(func(m): m.get_network_packet()))
+	raw_marker_data.map(func(m): marker_data[m.get_marker_frame()] = m)
+	path = create_path_lines(marker_data)
+	var raw_chapter_data: Array[Chapter] = file_data.chapters
+	if raw_chapter_data.is_empty():
+		chapters = create_virtual_chapters(marker_data)
+	else:
+		chapters = raw_chapter_data
 
 	return true
 
@@ -58,9 +116,9 @@ func parse_file(file_path: String) -> Dictionary:
 	return file_data
 
 	
-func map_funscript_data(parsed_data: Dictionary) -> Dictionary:
-	var file_data: Dictionary[int, Array]
-	var chapt: Array
+func map_funscript_data(parsed_data: Dictionary):
+	var file_data: Array[Marker]
+	var chapter_data: Array[Chapter]
 	var inverted := false
 
 	if parsed_data:
@@ -81,30 +139,32 @@ func map_funscript_data(parsed_data: Dictionary) -> Dictionary:
 		if "metadata" in parsed_data:
 			var meta = parsed_data["metadata"]
 			if "chapters" in meta:
-				chapt = meta["chapters"]
+				for chapt in meta["chapters"]:
+					chapter_data.append(Chapter.from_meta(chapt))
 			
 		if action_data:
-			var actions_list = action_data
-			var first_depth = round_to(clamp(actions_list[0].pos / 100, 0, 1), 4)
-			if inverted:
-				first_depth = round_to(1.0 - first_depth, 4)
-			var trans: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 1)
-			var ease_val: int = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
-			file_data[0] = [first_depth, trans, ease_val, 0]
-			for action in actions_list:
-				var frame: int = int(action.at / (1000.0 / 60.0))
+			var created_first_action = false
+			for action in action_data:
 				var depth = round_to(clamp(action.pos / 100, 0, 1), 4)
 				if inverted:
 					depth = round_to(1.0 - depth, 4)
-				var aux = 0
-				file_data[frame] = [depth, trans, ease_val, aux]
+				if !created_first_action:
+					if action.at > 0:
+						var virtual_action = Marker.new(0, depth)
+						file_data.append(virtual_action)
+					created_first_action = true
+
+				file_data.append(Marker.new(action.at, depth))
 
 		else:
 			print("Failed to parse funscript JSON")
 
+	file_data.sort_custom(marker_sorter)
+	chapter_data.sort_custom(chapter_sorter)
+	
 	return {
 		"actions": file_data,
-		"chapters": chapt
+		"chapters": chapter_data
 	}
 
 
@@ -120,107 +180,55 @@ func map_other_data(parsed_data: Dictionary) -> Dictionary:
 	}
 
 
-func create_network_packets(raw_marker_data: Dictionary[int, Array]):
-	var previous_ms_timing: int
-	var network_packets: Array[PackedByteArray]
-	var marker_data_result: Dictionary[int, Array] = {}
-
-	var sorted_keys := raw_marker_data.keys()
-	sorted_keys.sort_custom(func(a, b): return int(a) < int(b))
-
-	for marker_frame in sorted_keys:
-		var marker = raw_marker_data[marker_frame]
-		var ms_timing := int(round((float(marker_frame) / 60) * 1000))
-		
-		# override trans type for very short transitions
-		if previous_ms_timing and ms_timing - previous_ms_timing <= 125:
-			marker[1] = 0
-
-		var depth = marker[0]
-		var trans = marker[1]
-		var ease_val = marker[2]
-		var auxiliary: int = marker[3]
-		var network_packet = OSSMCommand.create_move_command(ms_timing, Util.safe_map_physical_position(depth), trans, ease_val, auxiliary)
-		network_packets.append(network_packet)
-		# Adjust for physics tick rate change from BounceX (60Hz to 50Hz)
-		var corrected_frame: int = int(round(marker_frame / 1.2))
-		marker_data_result[corrected_frame] = marker
-		previous_ms_timing = ms_timing
-
-	return {
-		"network_packets": network_packets,
-		"marker_data": marker_data_result
-	}
-
-
-func create_path_lines():
+func create_path_lines(marker_data: Dictionary[int, Marker]):
 	var path_lines: PackedFloat32Array
 
+	var marker_frames: Array = marker_data.keys()
+	marker_frames.sort()
 	var previous_depth: float
 	var previous_frame: int
-	var marker_list: Array = marker_data.keys()
-	marker_list.sort()
-	for marker_frame in marker_list:
+	for marker_frame in marker_frames:
 		var marker = marker_data[marker_frame]
-		var depth = marker[0]
-		var trans = marker[1]
-		var ease_val = marker[2]
 		if marker_frame > 0:
 			var steps: int = marker_frame - previous_frame
 			frames.append(previous_frame)
 			for step in steps:
 				var step_depth: float = Tween.interpolate_value(
 						previous_depth,
-						depth - previous_depth,
+						marker.depth - previous_depth,
 						step,
 						steps,
-						trans,
-						ease_val)
+						Global.transition,
+						Global.easing)
 				path_lines.append(step_depth)
-		previous_depth = depth
+		previous_depth = marker.depth
 		previous_frame = marker_frame
 	return path_lines
 
 
-func format_time(msTime: int) -> String:
-	var hours = int(msTime / 3600000.0)
-	var remainder = msTime - hours * 3600000
-	var minutes = int(remainder / 60000.0)
-	remainder = remainder - minutes * 60000
-	var seconds = int(remainder / 1000.0)
-	remainder = remainder - seconds * 1000
-	var timeString = "%d:%d:%d.%d" % [hours, minutes, seconds, remainder]
-	return timeString
-
-
-func create_chapters(chappy: Array) -> Array:
-	var chapter_data = chappy if chappy else []
+func create_virtual_chapters(marker_data: Dictionary[int, Marker]) -> Array[Chapter]:
+	var chapter_data: Array[Chapter]
+	var marker_frames = marker_data.keys()
+	marker_frames.sort()
+	for n in range(18000, marker_frames.back(), 18000):
+		var idx = marker_frames.bsearch(n)
+		if idx < marker_frames.size():
+			var frame = marker_frames[idx]
+			var marker = marker_data[frame]
+			var minutes = int(frame / 3600.0)
+			chapter_data.append(Chapter.new("%d minutes" % minutes, marker.at))
 	
-	var sorted_keys: Array[int] = marker_data.keys()
-	sorted_keys.sort_custom(func(a, b): return int(a) < int(b))
-
-	if chapter_data.is_empty():
-		for n in range(300, sorted_keys.back(), 300):
-			var idx = sorted_keys.bsearch(n)
-			if idx > 0:
-				var frame = sorted_keys[idx - 1]
-				var minutes = int(frame / 3600.0)
-				chapter_data.append({
-					"name": "%d minutes" % minutes,
-					"beginFrame": frame,
-				})
-	else:
-		for chapter in chapter_data:
-			chapter['beginFrame'] = find_frame_for_time_string(chapter.startTime, sorted_keys)
-			chapter['endFrame'] = find_frame_for_time_string(chapter.endTime, sorted_keys)
-	
-	chapter_data.sort_custom(chapter_sorter)
-
 	return chapter_data
 
 
-func chapter_sorter(a, b) -> bool:
-	if a['beginFrame'] < b['beginFrame']:
+func marker_sorter(a: Marker, b: Marker) -> bool:
+	if a.at < b.at:
+		return true
+	return false
+
+
+func chapter_sorter(a: Chapter, b: Chapter) -> bool:
+	if a.start_at < b.start_at:
 		return true
 	return false
 
@@ -230,42 +238,6 @@ func round_to(value: float, decimals: int) -> float:
 	return round(value * factor) / factor
 
 
-func render_depth(depth) -> float:
-	return PATH_BOTTOM + depth * (PATH_TOP - PATH_BOTTOM)
-
-
-func find_prev_marker_for_frame(frame: int) -> int:
-	var idx = frames.bsearch(frame)
-	if (idx > 0):
-		return idx - 1
-	return 0
-
-
-func parse_time(time_string: String) -> float:
-	var segments: PackedStringArray = time_string.split(":")
-	var length = segments.size()
-	var seconds = 0
-	var minutes = 0
-	var hours = 0
-	if length >= 1:
-		seconds = segments[length - 1]
-	if length >= 2:
-		minutes = segments[length - 2]
-	if length >= 3:
-		hours = segments[length - 3]
-
-	return float(seconds) + int(minutes) * 60 + int(hours) * 3600
-
-
-func find_frame_for_time_string(time_string: String, marker_list: Array[int]) -> int:
-	var marker_frame = parse_time(time_string) * 60.0
-	var frame = int(round(marker_frame / 1.2))
-	var idx = marker_list.bsearch(frame)
-	if idx > 0:
-		return marker_list[idx - 1]
-	return marker_list[0]
-
-
 func get_nearest_chapter(frame: int):
 	var total_frames = path.size()
 	var delta = int(total_frames / 70.0)
@@ -273,36 +245,45 @@ func get_nearest_chapter(frame: int):
 	var idx = get_chapter_idx(frame)
 	if idx >= 0:
 		var chapter = chapters[idx]
-		if chapter['beginFrame'] > frame - delta and chapter['beginFrame'] < frame + delta:
+		var chapter_begin_frame = chapter.get_begin_frame()
+		if chapter_begin_frame > frame - delta and chapter_begin_frame < frame + delta:
 			return {
 				"chapter": chapter,
 				"index": idx
 			}
 
-	if idx < chapters.size() - 2:
+	if idx < chapters.size() - 1:
 		var chapter = chapters[idx + 1]
-		if chapter['beginFrame'] > frame - delta and chapter['beginFrame'] < frame + delta:
+		var chapter_begin_frame = chapter.get_begin_frame()
+		if chapter_begin_frame > frame - delta and chapter_begin_frame < frame + delta:
 			return {
 				"chapter": chapter,
 				"index": idx + 1
 			}
 
 
-
 func get_current_chapter(frame: int):
 	var idx = get_chapter_idx(frame)
 	if idx >= 0:
 		var chapter = chapters[idx]
-		if frame < chapter['endFrame']:
+		var chapter_end_frame = chapter.get_end_frame()
+		if chapter_end_frame == null or frame < chapter_end_frame:
 			return chapter
 	
 
 func get_chapter_idx(frame: int) -> int:
-	var idx = chapters.bsearch_custom({'beginFrame': frame}, chapter_sorter)
+	var at = int((float(frame) / Global.ticks_per_second) * 1000.0)
+	var idx = chapters.bsearch_custom(Chapter.new("", at), chapter_sorter, false)
+	if idx == 0:
+		return idx
+
+	if chapters[idx].start_at == at and idx < chapters.size():
+		return idx
+
 	return idx - 1
 
 
 func get_next_chapter(frame: int):
 	var idx = get_chapter_idx(frame)
-	if idx < chapters.size() - 2:
+	if idx < chapters.size() - 1:
 		return chapters[idx + 1]

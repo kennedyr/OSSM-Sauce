@@ -2,7 +2,6 @@ extends Control
 
 var app_version_number: String = ProjectSettings.get_setting("application/config/version")
 
-var ticks_per_second: int
 
 var path_speed: int = 30
 
@@ -10,7 +9,7 @@ var _seek_dragging := false
 
 var funscripts: Array = []
 
-var buffer_size:int = 30
+var buffer_size: int = 30
 var buffer_sent: int
 var play_offset_ms: int
 var _seeking: bool
@@ -19,7 +18,7 @@ var _seeking: bool
 @onready var PATH_TOP = $PathDisplay/PathArea.position.y
 @onready var PATH_BOTTOM = PATH_TOP + $PathDisplay/PathArea.size.y
 
-var current_funscript :
+var current_funscript:
 	get:
 		if Global.active_path_index >= 0 and Global.active_path_index < funscripts.size():
 			return funscripts[Global.active_path_index]
@@ -29,7 +28,7 @@ func _ready():
 	OS.request_permissions()
 	
 	var physics_ticks = "physics/common/physics_ticks_per_second"
-	ticks_per_second = ProjectSettings.get_setting(physics_ticks)
+	Global.ticks_per_second = ProjectSettings.get_setting(physics_ticks)
 	
 	Global.min_stroke_duration = $Menu/LoopSettings/MinStrokeDuration/Input.value
 	Global.max_stroke_duration = $Menu/LoopSettings/MaxStrokeDuration/Input.value
@@ -106,6 +105,16 @@ func _physics_process(_delta) -> void:
 				var next_path = funscripts[0].network_paths
 				if overreach_index < next_path.size():
 					%OSSMCommand.broadcast_binary(next_path[overreach_index])
+					
+		#var current_depth: float = current_funscript.marker_data[current_marker].depth
+		#var next_depth: float = current_depth
+		#if current_marker < frames.size() - 1:
+			#next_depth = current_funscript.marker_data[current_marker + 1].depth
+		# var x = Util.scale_depth(current_depth, Global.min_range_limit, Global.max_range_limit)
+		# var y = Util.scale_depth(next_depth, Global.min_range_limit, Global.max_range_limit)
+
+		#if Util.getMoveSpeedHz(x, y, )
+
 		if current_marker < frames.size() - 1:
 			marker_index += 1
 	
@@ -160,7 +169,7 @@ func home_to(target_position: int):
 func play():
 	if AppMode.active == AppMode.MOVE and Global.active_path_index != null:
 		Global.paused = false
-		play_offset_ms = int(Global.frame * 1000.0 / ticks_per_second)
+		play_offset_ms = int(Global.frame * 1000.0 / Global.ticks_per_second)
 	if %WebSocket.ossm_connected:
 		if AppMode.active == AppMode.MOVE:
 			%OSSMCommand.set_acceleration_limit(60000)
@@ -210,12 +219,12 @@ func pause():
 	
 	# Reduce acceleration and nudge in both directions to force direction change
 	%OSSMCommand.set_acceleration_limit(60000)
-	var depth_val:int = abs(Global.motor_direction * 10000 - round(current_depth * 10000))
+	var depth_val: int = abs(Global.motor_direction * 10000 - round(current_depth * 10000))
 	var nudge: PackedByteArray
 	nudge.resize(10)
 	nudge.encode_u8(0, OSSM.Command.SMOOTH_MOVE)
-	nudge.encode_u8(7, 0)  # TRANS_LINEAR
-	nudge.encode_u8(8, 0)  # EASE_IN
+	nudge.encode_u8(7, 0) # TRANS_LINEAR
+	nudge.encode_u8(8, 0) # EASE_IN
 	nudge.encode_u8(9, 0)
 	# Nudge out
 	nudge.encode_u32(1, 100)
@@ -265,7 +274,9 @@ func apply_user_settings():
 	$Menu.set_stroke_duration_display_mode(UserSettings.get_value(UserSettings.Section.stroke_settings, 'display_mode', 0))
 	
 	$LoopControls/In/AccelerationControls/Transition.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 1))
+	Global.transition = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_trans', 1)
 	$LoopControls/In/AccelerationControls/Easing.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2))
+	Global.easing = UserSettings.get_value(UserSettings.Section.stroke_settings, 'in_ease', 2)
 	$LoopControls/Out/AccelerationControls/Transition.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'out_trans', 1))
 	$LoopControls/Out/AccelerationControls/Easing.select(UserSettings.get_value(UserSettings.Section.stroke_settings, 'out_ease', 2))
 
@@ -338,16 +349,12 @@ func apply_device_settings():
 	$RangePanel.send_range_limits()
 
 
-func round_to(value: float, decimals: int) -> float:
-	var factor = pow(10, decimals)
-	return round(value * factor) / factor
-
 func load_path_file_name(file_name: String) -> bool:
 	var file_path = %FileUtil._resolve_storage_path(file_name, "paths")
 	return load_path(file_path)
 
 func load_path(file_path: String) -> bool:
-	var funscript = Funscript.new(file_path, ticks_per_second, PATH_TOP, PATH_BOTTOM)
+	var funscript = Funscript.new(file_path)
 	if not funscript.marker_data:
 		printerr("Error: Failed to read file.")
 		return false
@@ -357,42 +364,19 @@ func load_path(file_path: String) -> bool:
 		return false
 
 	funscripts.append(funscript)
-	create_path_lines(funscript.marker_data)
+	create_path_line(funscript.path)
 
 	return true
 
-func create_path_lines(marker_data: Dictionary):
-	var previous_depth: float
-	var previous_frame: int
-	var marker_list: Array = marker_data.keys()
-	var path: PackedFloat32Array
-	var frames: PackedInt32Array
+func create_path_line(path: PackedFloat32Array):
 	var path_line := Line2D.new()
 	path_line.width = 15
 	path_line.hide()
-	marker_list.sort()
-	for marker_frame in marker_list:
-		var marker = marker_data[marker_frame]
-		var depth = marker[0]
-		var trans = marker[1]
-		var ease_val = marker[2]
-		if marker_frame > 0:
-			var steps: int = marker_frame - previous_frame
-			frames.append(previous_frame)
-			for step in steps:
-				var step_depth: float = Tween.interpolate_value(
-						previous_depth,
-						depth - previous_depth,
-						step,
-						steps,
-						trans,
-						ease_val)
-				path.append(step_depth)
-				var x_pos = (previous_frame * path_speed) + (step * path_speed)
-				var y_pos = render_depth(step_depth)
-				path_line.add_point(Vector2(x_pos, y_pos))
-		previous_depth = depth
-		previous_frame = marker_frame
+	for step in len(path):
+		var step_depth = path[step]
+		var x_pos = step * path_speed
+		var y_pos = render_depth(step_depth)
+		path_line.add_point(Vector2(x_pos, y_pos))
 	$PathDisplay/Paths.add_child(path_line)
 
 #TODO
@@ -403,7 +387,7 @@ func create_delay(duration: float):
 	var delay_path: PackedFloat32Array
 	var path_line := Line2D.new()
 	path_line.hide()
-	for point in round(duration * ticks_per_second):
+	for point in round(duration * Global.ticks_per_second):
 		delay_path.append(-1)
 	var frames: PackedInt32Array
 	var network_packets: Array
@@ -433,7 +417,7 @@ func display_active_path_index(pause_now := true, send_buffer := true):
 	if send_buffer:
 		if %WebSocket.ossm_connected:
 			%OSSMCommand.reset()
-			var start_depth:float = current_funscript.path[0]
+			var start_depth: float = current_funscript.path[0]
 			home_to(round(start_depth * 10000))
 			await Global.homing_complete
 			if not %WebSocket.ossm_connected:
@@ -449,7 +433,7 @@ func display_active_path_index(pause_now := true, send_buffer := true):
 	
 	$ActionPanel.clear_selections()
 	if pause_now:
-		$ActionPanel/Pause.hide() 
+		$ActionPanel/Pause.hide()
 		$ActionPanel/Play.show()
 	for path in $PathDisplay/Paths.get_children():
 		path.hide()
@@ -493,17 +477,17 @@ func seek(snap = true) -> void:
 	var target_frame := clampi(roundi(value * (total_frames - 1)), 0, total_frames - 1)
 
 	if snap:
-		var nearest_chapter = current_funscript.get_nearest_chapter(target_frame)
-		if nearest_chapter:
-			var new_target_frame = nearest_chapter.chapter["beginFrame"]
+		var nearest_chapter_result = current_funscript.get_nearest_chapter(target_frame)
+		if nearest_chapter_result:
+			var new_target_frame = nearest_chapter_result["chapter"].get_begin_frame()
 			$SeekSlider.set_value_no_signal(float(new_target_frame) / (total_frames - 1))
-			var snapped_chapter_tick: TextureRect = $SeekSlider/ChapterList.get_child(nearest_chapter.index)
+			var snapped_chapter_tick: TextureRect = $SeekSlider/ChapterList.get_child(nearest_chapter_result["index"])
 			if snapped_chapter_tick:
 				snapped_chapter_tick.flash()
 			target_frame = new_target_frame
 
 	var target_depth: float = active_path[target_frame]
-	play_offset_ms = int(target_frame * 1000.0 / ticks_per_second)
+	play_offset_ms = int(target_frame * 1000.0 / Global.ticks_per_second)
 
 	# Find the first marker_frame index AFTER target_frame
 	var frames = current_funscript.frames
@@ -566,8 +550,8 @@ func update_time_display(percent: float = -1) -> void:
 		frame = Global.frame
 	else:
 		frame = clampi(roundi(percent * (total_frames - 1)), 0, total_frames - 1)
-	var current_sec := int(frame / float(ticks_per_second))
-	var total_sec := int((total_frames - 1) / float(ticks_per_second))
+	var current_sec := int(frame / float(Global.ticks_per_second))
+	var total_sec := int((total_frames - 1) / float(Global.ticks_per_second))
 	if total_sec >= 3600:
 		$TimeDisplay.text = "%d:%02d:%02d / %d:%02d:%02d" % [
 			int(current_sec / 3600.0), int(current_sec % 3600 / 60.0), current_sec % 60,
@@ -580,8 +564,8 @@ func update_time_display(percent: float = -1) -> void:
 	var chapter = current_funscript.get_current_chapter(frame)
 	var next_chapter = current_funscript.get_next_chapter(frame)
 	$ChapterDisplay.text = "%s / %s" % [
-		chapter["name"] if chapter else "" ,
-		next_chapter["name"] if next_chapter else "" ]
+		chapter.name if chapter else "",
+		next_chapter.name if next_chapter else ""]
 
 
 func render_depth(depth) -> float:
@@ -680,14 +664,14 @@ func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
 	if Global.active_path_index == null or not Global.paused or AppMode.active != AppMode.MOVE:
 		return
 	if from_stopped:
-		var path_time = float(Global.frame) / ticks_per_second
+		var path_time = float(Global.frame) / Global.ticks_per_second
 		%VideoPlayer.pause_and_seek(path_time)
 		return
 	var total_frames: int = current_funscript.path.size()
 	if total_frames == 0:
 		return
 	
-	var target_frame = clampi(int(video_time_seconds * ticks_per_second), 0, total_frames - 1)
+	var target_frame = clampi(int(video_time_seconds * Global.ticks_per_second), 0, total_frames - 1)
 	Global.frame = target_frame
 	
 	# Realign buffer tracking to new frame position
@@ -730,7 +714,7 @@ func _on_video_player_seeked(video_time_seconds: float):
 	var total_frames: int = current_funscript.path.size()
 	if total_frames == 0:
 		return
-	var target_frame = clampi(int(video_time_seconds * ticks_per_second), 0, total_frames - 1)
+	var target_frame = clampi(int(video_time_seconds * Global.ticks_per_second), 0, total_frames - 1)
 	$SeekSlider.set_value_no_signal(float(target_frame) / (total_frames - 1))
 	seek(false)
 
