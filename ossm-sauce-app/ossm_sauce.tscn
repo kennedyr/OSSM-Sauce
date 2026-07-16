@@ -530,6 +530,7 @@ offset_right = 69.0
 offset_bottom = 708.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_default_cursor_shape = 2
 texture = ExtResource("8_04y8j")
 
 [node name="LoopControls" type="Control" parent="." unique_id=2027657941]
@@ -1434,6 +1435,7 @@ offset_left = 36.0
 offset_top = 4.0
 offset_right = 76.0
 offset_bottom = 44.0
+mouse_default_cursor_shape = 2
 texture = SubResource("DPITexture_2hnso")
 script = ExtResource("19_flajy")
 
@@ -1726,6 +1728,7 @@ offset_right = 69.0
 offset_bottom = -653.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_default_cursor_shape = 2
 texture = ExtResource("8_04y8j")
 
 [node name="SliderBottom" type="TextureRect" parent="SpeedPanel/SpeedBar" unique_id=491371145]
@@ -1775,6 +1778,7 @@ offset_right = 69.0
 offset_bottom = -653.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_default_cursor_shape = 2
 texture = ExtResource("8_04y8j")
 
 [node name="SliderBottom" type="TextureRect" parent="SpeedPanel/AccelerationBar" unique_id=187195291]
@@ -1898,6 +1902,7 @@ offset_top = 16.0
 offset_right = 69.0
 offset_bottom = 154.0
 grow_horizontal = 2
+mouse_default_cursor_shape = 2
 texture = ExtResource("8_04y8j")
 
 [node name="MinSlider" type="TextureRect" parent="RangePanel/RangeBar" unique_id=1855965222]
@@ -1914,6 +1919,7 @@ offset_right = 69.0
 offset_bottom = 790.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_default_cursor_shape = 2
 texture = ExtResource("8_04y8j")
 
 [node name="BackTexture" type="TextureRect" parent="RangePanel" unique_id=253655899]

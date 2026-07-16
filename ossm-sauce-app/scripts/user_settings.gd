@@ -1,5 +1,5 @@
 class_name UserSettings
-extends Node
+
 
 enum Section {
 	app_settings,

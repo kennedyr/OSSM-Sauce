@@ -1,5 +1,4 @@
 class_name OSSMCommand
-extends Node
 
 
 # MOVE Command (0x01)

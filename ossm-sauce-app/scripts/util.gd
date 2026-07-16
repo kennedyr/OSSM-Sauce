@@ -1,5 +1,3 @@
-extends Node
-
 class_name Util
 
 const PHYSICAL_RANGE_MIN = 0
@@ -30,6 +28,48 @@ static func safe_map_value(percent: float, min_value: float, max_value: float):
 	var position_map = remap(percent, 0, 1, min_value, max_value)
 	var position = round(position_map)
 	return clamp(position, min_value, max_value)
+
+
+static func scale_physical_depth(depth: float, range_min: int, range_max: int):
+	var constrained_position = safe_map_physical_position(depth)
+	return remap(constrained_position, 0, 10000, range_min, range_max)
+
+
+static func get_base_move_speed_hz(action: Marker, prev_action: Marker, range_min: int, range_max: int):
+	var target_position = scale_physical_depth(action.depth, range_min, range_max)
+	var prev_position = scale_physical_depth(prev_action.depth, range_min, range_max)
+	var move_delta = target_position - prev_position
+	var move_duration = action.at - prev_action.at
+	var linear_speed = abs(move_delta) / (move_duration * 0.001);
+	return linear_speed
+
+
+# Amplify base move speed to match traversal time with linear move
+static func get_move_speed_hz(target_position, prev_position, move_duration: int, trans_type = OSSM.TransType.LINEAR):
+	var move_delta = target_position - prev_position
+	var linear_speed = abs(move_delta) / (move_duration * 0.001);
+	var speed = round(linear_speed * get_trans_type_multiplier(trans_type))
+	return speed
+
+
+static func get_trans_type_multiplier(trans_type):
+	match trans_type:
+		OSSM.TransType.SINE:
+			return 2.73
+		OSSM.TransType.CIRC:
+			return 4.46
+		OSSM.TransType.EXPO:
+			return 6.9
+		OSSM.TransType.QUAD:
+			return 2.98
+		OSSM.TransType.CUBIC:
+			return 3.9
+		OSSM.TransType.QUART:
+			return 4.85
+		OSSM.TransType.QUINT:
+			return 5.79
+		_:
+			return 1
 
 
 static func parse_time(time_string: String) -> float:

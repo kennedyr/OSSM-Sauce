@@ -60,6 +60,7 @@ func _ready():
 		get_viewport().size_changed.connect(_on_window_size_changed)
 
 
+var buffer_marker_index: int
 var marker_index: int
 func _physics_process(_delta) -> void:
 	if Global.paused or Global.active_path_index == null:
@@ -88,35 +89,39 @@ func _physics_process(_delta) -> void:
 	
 	var frames = current_funscript.frames
 	var active_path = current_funscript.network_paths
-	var current_marker = marker_index - buffer_sent
+
+	var current_marker = buffer_marker_index - buffer_sent
 	if current_marker < frames.size() and Global.frame == frames[current_marker]:
 		if %WebSocket.server_started:
-			if marker_index < active_path.size():
+			if buffer_marker_index < active_path.size():
 				# send current frame to 
-				%OSSMCommand.broadcast_binary(active_path[marker_index])
+				%OSSMCommand.broadcast_binary(active_path[buffer_marker_index])
 			elif Global.active_path_index < funscripts.size() - 1:
-				var overreach_index = marker_index - active_path.size()
+				var overreach_index = buffer_marker_index - active_path.size()
 				var next_funscript = funscripts[Global.active_path_index + 1]
 				var next_path = next_funscript.network_paths
 				if overreach_index < next_path.size():
 					%OSSMCommand.broadcast_binary(next_path[overreach_index])
 			elif $Menu.loop_playlist:
-				var overreach_index = marker_index - active_path.size()
+				var overreach_index = buffer_marker_index - active_path.size()
 				var next_path = funscripts[0].network_paths
 				if overreach_index < next_path.size():
 					%OSSMCommand.broadcast_binary(next_path[overreach_index])
-					
-		#var current_depth: float = current_funscript.marker_data[current_marker].depth
-		#var next_depth: float = current_depth
-		#if current_marker < frames.size() - 1:
-			#next_depth = current_funscript.marker_data[current_marker + 1].depth
-		# var x = Util.scale_depth(current_depth, Global.min_range_limit, Global.max_range_limit)
-		# var y = Util.scale_depth(next_depth, Global.min_range_limit, Global.max_range_limit)
-
-		#if Util.getMoveSpeedHz(x, y, )
-
 		if current_marker < frames.size() - 1:
-			marker_index += 1
+			buffer_marker_index += 1
+
+
+	if marker_index < frames.size() - 1 and Global.frame == frames[marker_index]:
+		var current_action = current_funscript.marker_data[frames[marker_index]]
+		var next_action = current_funscript.marker_data[frames[marker_index + 1]]
+		var speed = Util.get_base_move_speed_hz(next_action, current_action, Global.min_range_limit, Global.max_range_limit)
+		var ball_color = Color.WHITE
+		if speed > Global.speed_limit:
+			ball_color = Color(1, 0.498039, 0.313726, 1) # orange
+
+		$PathDisplay/Ball.self_modulate = ball_color
+		marker_index += 1
+
 	
 	var depth: float = current_funscript.path[Global.frame]
 	$PathDisplay/Paths.get_child(Global.active_path_index).position.x -= path_speed
@@ -130,16 +135,16 @@ func _physics_process(_delta) -> void:
 
 
 func transition_to_path(next_index: int):
-	var overreach_sent = maxi(marker_index - current_funscript.network_paths.size(), 0)
+	var overreach_sent = maxi(buffer_marker_index - current_funscript.network_paths.size(), 0)
 	var next_path = funscripts[next_index].network_paths
 	Global.active_path_index = next_index
 	display_active_path_index(false, false)
 	# Top up buffer if overreach didn't cover it
-	marker_index = overreach_sent
+	buffer_marker_index = overreach_sent
 	buffer_sent = overreach_sent
-	while buffer_sent < buffer_size and marker_index < next_path.size():
-		%OSSMCommand.broadcast_binary(next_path[marker_index])
-		marker_index += 1
+	while buffer_sent < buffer_size and buffer_marker_index < next_path.size():
+		%OSSMCommand.broadcast_binary(next_path[buffer_marker_index])
+		buffer_marker_index += 1
 		buffer_sent += 1
 	var path_list = $Menu/Playlist/Scroll/VBox
 	$Menu/Playlist._on_item_selected(path_list.get_child(next_index))
@@ -210,11 +215,11 @@ func pause():
 	
 	# Send cascade packet + buffer
 	%OSSMCommand.broadcast_binary(current_funscript.network_paths[cascade_index])
-	marker_index = buffer_start
+	buffer_marker_index = buffer_start
 	buffer_sent = 0
-	while buffer_sent < buffer_size and marker_index < current_funscript.network_paths.size():
-		%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
-		marker_index += 1
+	while buffer_sent < buffer_size and buffer_marker_index < current_funscript.network_paths.size():
+		%OSSMCommand.broadcast_binary(current_funscript.network_paths[buffer_marker_index])
+		buffer_marker_index += 1
 		buffer_sent += 1
 	
 	# Reduce acceleration and nudge in both directions to force direction change
@@ -354,7 +359,8 @@ func load_path_file_name(file_name: String) -> bool:
 	return load_path(file_path)
 
 func load_path(file_path: String) -> bool:
-	var funscript = Funscript.new(file_path)
+	var funscript = Funscript.new()
+	funscript.load_path(file_path)
 	if not funscript.marker_data:
 		printerr("Error: Failed to read file.")
 		return false
@@ -411,6 +417,7 @@ func display_active_path_index(pause_now := true, send_buffer := true):
 	Global.paused = pause_now
 	Global.frame = 0
 	marker_index = 0
+	buffer_marker_index = 0
 	play_offset_ms = 0
 	init_seek_slider()
 	update_time_display()
@@ -423,12 +430,12 @@ func display_active_path_index(pause_now := true, send_buffer := true):
 			if not %WebSocket.ossm_connected:
 				return
 			buffer_sent = 0
-			while buffer_sent < buffer_size and marker_index < current_funscript.network_paths.size():
-				%OSSMCommand.broadcast_binary(current_funscript.network_paths[marker_index])
-				marker_index += 1
+			while buffer_sent < buffer_size and buffer_marker_index < current_funscript.network_paths.size():
+				%OSSMCommand.broadcast_binary(current_funscript.network_paths[buffer_marker_index])
+				buffer_marker_index += 1
 				buffer_sent += 1
 	else:
-		marker_index = buffer_size
+		buffer_marker_index = buffer_size
 		buffer_sent = buffer_size
 	
 	$ActionPanel.clear_selections()
@@ -479,7 +486,7 @@ func seek(snap = true) -> void:
 	if snap:
 		var nearest_chapter_result = current_funscript.get_nearest_chapter(target_frame)
 		if nearest_chapter_result:
-			var new_target_frame = nearest_chapter_result["chapter"].get_begin_frame()
+			var new_target_frame = nearest_chapter_result["chapter"].begin_frame
 			$SeekSlider.set_value_no_signal(float(new_target_frame) / (total_frames - 1))
 			var snapped_chapter_tick: TextureRect = $SeekSlider/ChapterList.get_child(nearest_chapter_result["index"])
 			if snapped_chapter_tick:
@@ -502,6 +509,7 @@ func seek(snap = true) -> void:
 	
 	# Update display
 	Global.frame = target_frame
+	marker_index = buffer_start
 	var path_line = $PathDisplay/Paths.get_child(Global.active_path_index)
 	path_line.position.x = ($PathDisplay/PathArea.size.x / 2) + path_speed - (target_frame * path_speed)
 	$PathDisplay/Ball.position.y = render_depth(target_depth)
@@ -518,12 +526,12 @@ func seek(snap = true) -> void:
 		var cascade_packet = current_funscript.network_paths[cascade_index]
 		%OSSMCommand.broadcast_binary(cascade_packet)
 		# Send buffer packets from seek position
-		marker_index = buffer_start
+		buffer_marker_index = buffer_start
 		buffer_sent = 0
-		while buffer_sent < buffer_size and marker_index < current_funscript.network_paths.size():
-			var packet = current_funscript.network_paths[marker_index]
+		while buffer_sent < buffer_size and buffer_marker_index < current_funscript.network_paths.size():
+			var packet = current_funscript.network_paths[buffer_marker_index]
 			%OSSMCommand.broadcast_binary(packet)
-			marker_index += 1
+			buffer_marker_index += 1
 			buffer_sent += 1
 	
 	if %VideoPlayer.is_active():
@@ -682,7 +690,8 @@ func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
 			cascade_index = i
 		else:
 			break
-	marker_index = mini(cascade_index + 1 + buffer_sent, current_funscript.network_paths.size())
+	marker_index = mini(cascade_index + 1, current_funscript.network_paths.size())
+	buffer_marker_index = mini(cascade_index + 1 + buffer_sent, current_funscript.network_paths.size())
 	
 	# Update display
 	var path_line = $PathDisplay/Paths.get_child(Global.active_path_index)
