@@ -1,11 +1,189 @@
 #include "WebsocketClient.h"
 #include "LEDStatus.h"
+#include "Ossm.h"
 
 // Global variables
 esp_websocket_client_config_t wsConfig;
 esp_websocket_client_handle_t wsClient;
 String websocketAddress;
 
+
+// Message Handling
+void parseBinaryMessage(esp_websocket_event_data_t* data) {
+  byte* message = (byte*)data->data_ptr;
+  size_t messageLength = data->data_len;
+  CommandType commandType = static_cast<CommandType>(message[0]);
+
+  switch (commandType) {
+    // noop
+  case RESPONSE:
+    return;
+
+  case CONNECTION: {
+    sendResponse(CONNECTION);
+    return;
+  }
+
+  case MOVE: {
+    if (messageLength != 10)
+      return;
+    StrokeCommand inputMove;
+    memcpy(&inputMove, message + 1, 9);
+    enqueueMove(inputMove);
+    break;
+  }
+
+  case LOOP: {
+    if (messageLength != 19)
+      return;
+    StrokeCommand loopPush;
+    memcpy(&loopPush, message + 1, 9);
+    StrokeCommand loopPull;
+    memcpy(&loopPull, message + 10, 9);
+    initiateLoop(loopPush, loopPull);
+    break;
+  }
+
+  case POSITION: {
+    u32_t inputPosition;
+    memcpy(&inputPosition, message + 1, 4);
+    moveToPosition(inputPosition);
+    break;
+  }
+
+  case VIBRATE: {
+    if (messageLength != 13)
+      return;
+    Vibration vibration;
+    memcpy(&vibration, message + 1, 12);
+    initiateVibrate(vibration);
+    break;
+  }
+
+  case SMOOTH_MOVE: {
+    if (messageLength != 10)
+      return;
+    StrokeCommand smoothMoveCommand;
+    memcpy(&smoothMoveCommand, message + 1, 9);
+    initiateSmoothMove(smoothMoveCommand);
+    break;
+  }
+
+  case PLAY: {
+    unsigned long playTimeMs = 0;
+    MovementMode movementMode;
+    memcpy(&movementMode, message + 1, 1);
+    if (messageLength == 6) {
+      memcpy(&playTimeMs, message + 2, 4);
+    }
+    play(movementMode, playTimeMs);
+    break;
+  }
+
+  case PAUSE: {
+    pauseNow();
+    break;
+  }
+
+  case RESET: {
+    resetNow();
+    break;
+  }
+
+  case HOMING: {
+    u32_t inputPosition;
+    memcpy(&inputPosition, message + 1, 4);
+    initiateHoming(inputPosition);
+    break;
+  }
+
+  case SET_SPEED_LIMIT: {
+    int speedLimit;
+    memcpy(&speedLimit, message + 1, 4);
+    setSpeedLimit(speedLimit);
+    break;
+  }
+
+  case SET_GLOBAL_ACCELERATION: {
+    int acceleration;
+    memcpy(&acceleration, message + 1, 4);
+    setGlobalAcceleration(acceleration);
+    break;
+  }
+
+  case SET_RANGE_LIMIT: {
+    short rangeLimitInput;
+    memcpy(&rangeLimitInput, message + 2, 2);
+    byte selectedRange = message[1];
+    setRangeLimit(rangeLimitInput, selectedRange);
+    break;
+  }
+
+  case SET_HOMING_SPEED: {
+    u32_t homingSpeedInputHz;
+    memcpy(&homingSpeedInputHz, message + 1, 4);
+    setHomingSpeed(homingSpeedInputHz);
+    break;
+  }
+
+  case SET_HOMING_TRIGGER: {
+    float homingTriggerInput;
+    memcpy(&homingTriggerInput, message + 1, 4);
+    setHomingTrigger(homingTriggerInput);
+    break;
+  }
+
+  default:
+    break;
+  }
+}
+
+
+char* substr(char* arr, int begin, int len) {
+  char* res = new char[len + 1];
+  for (int i = 0; i < len; i++)
+    res[i] = *(arr + begin + i);
+  res[len] = 0;
+  return res;
+}
+
+
+void parseTextMessage(esp_websocket_event_data_t* data) {
+  char* message = (char*)data->data_ptr;
+  size_t messageLength = data->data_len;
+  if (strncmp(message, "PING", strlen("PING")) == 0) {
+    char buf[messageLength + 1];
+    strcpy(buf, "PONG");
+    strcat(buf, substr(message, 4, messageLength));
+    sendTextResponse(buf, data->data_len);
+  }
+}
+
+
+static void websocket_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+  esp_websocket_event_data_t* data = (esp_websocket_event_data_t*)event_data;
+  switch (event_id) {
+  case WEBSOCKET_EVENT_CONNECTED:
+    Serial.println("Connected to WebSocket Server");
+    setLEDStatus(LED_CONNECTED);  // Update LED status
+    sendResponse(CONNECTION);
+    break;
+  case WEBSOCKET_EVENT_DISCONNECTED:
+    Serial.println("Disconnected from WebSocket Server");
+    setLEDStatus(LED_ERROR);  // Update LED status
+    break;
+  case WEBSOCKET_EVENT_DATA:
+    if (data->op_code == 1) {
+      parseTextMessage(data);
+    } else if (data->op_code == 2) {
+      parseBinaryMessage(data);
+    }
+    break;
+  }
+}
+
+
+// Connect
 bool connectToWebSocketServer() {
   currentLEDStatus = LED_CONNECTING;
 
@@ -22,8 +200,8 @@ bool connectToWebSocketServer() {
     return false;
   }
 
-  // Note: Event handler should be registered in main.cpp after calling this function
   esp_websocket_client_start(wsClient);
+  esp_websocket_register_events(wsClient, WEBSOCKET_EVENT_ANY, websocket_event_handler, (void*)wsClient);
 
   // Wait for connection with LED feedback
   int attempts = 50; // 5 seconds
@@ -46,13 +224,12 @@ bool connectToWebSocketServer() {
   }
 }
 
-void register_event_handler(esp_event_handler_t websocket_event_handler) {
-  esp_websocket_register_events(wsClient, WEBSOCKET_EVENT_ANY, websocket_event_handler, (void*)wsClient);
-}
 
+// Message Sending
 void sendTextResponse(char* message, int messageSize) {
   esp_websocket_client_send_text(wsClient, message, messageSize, portMAX_DELAY);
 }
+
 
 void sendResponse(CommandType responseCommand) {
   Response responseMessage;
