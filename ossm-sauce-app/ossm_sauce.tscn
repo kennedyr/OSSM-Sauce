@@ -591,6 +591,7 @@ offset_top = 782.0
 offset_right = 69.00009
 offset_bottom = 920.0
 grow_horizontal = 2
+mouse_default_cursor_shape = 2
 texture = ExtResource("8_04y8j")
 
 [node name="SliderStop" type="TextureRect" parent="LoopControls/In/StrokeDurationSlider" unique_id=1787445849]
@@ -710,6 +711,7 @@ offset_top = 782.0
 offset_right = 69.00009
 offset_bottom = 920.0
 grow_horizontal = 2
+mouse_default_cursor_shape = 2
 texture = ExtResource("8_04y8j")
 
 [node name="SliderStop" type="TextureRect" parent="LoopControls/Out/StrokeDurationSlider" unique_id=655924307]
@@ -969,6 +971,7 @@ offset_top = 782.0
 offset_right = 69.0
 offset_bottom = 920.0
 grow_horizontal = 2
+mouse_default_cursor_shape = 2
 texture = ExtResource("8_04y8j")
 
 [node name="SliderMax" type="TextureRect" parent="VibrationControls/RangeSlider" unique_id=1546704712]
@@ -1059,6 +1062,7 @@ offset_top = 782.0
 offset_right = 69.0
 offset_bottom = 920.0
 grow_horizontal = 2
+mouse_default_cursor_shape = 2
 texture = ExtResource("8_04y8j")
 
 [node name="SliderMax" type="TextureRect" parent="VibrationControls/FrequencySlider" unique_id=225647815]
@@ -1148,6 +1152,7 @@ offset_top = 782.0
 offset_right = 69.0
 offset_bottom = 920.0
 grow_horizontal = 2
+mouse_default_cursor_shape = 2
 texture = ExtResource("8_04y8j")
 
 [node name="MaxLimit" type="TextureRect" parent="VibrationControls/PositionSlider" unique_id=1672636979]
@@ -1492,6 +1497,7 @@ offset_top = -47.5
 offset_right = 152.0
 offset_bottom = 47.5
 grow_vertical = 2
+mouse_default_cursor_shape = 2
 texture = ExtResource("16_0xvdx")
 
 [node name="Selection" type="TextureRect" parent="ActionPanel/Play" unique_id=449359006]
@@ -1600,6 +1606,7 @@ anchor_right = 1.0
 anchor_bottom = 1.35238
 grow_horizontal = 2
 grow_vertical = 2
+mouse_default_cursor_shape = 2
 metadata/_edit_use_anchors_ = true
 
 [node name="Range" type="TextureRect" parent="ActionPanel" unique_id=1183280750]
@@ -1638,6 +1645,7 @@ anchor_right = 1.0
 anchor_bottom = 2.08772
 grow_horizontal = 2
 grow_vertical = 2
+mouse_default_cursor_shape = 2
 metadata/_edit_use_anchors_ = true
 
 [node name="Menu" type="TextureRect" parent="ActionPanel" unique_id=1203791932]
@@ -1681,6 +1689,7 @@ anchor_right = 1.36275
 anchor_bottom = 1.36275
 grow_horizontal = 2
 grow_vertical = 2
+mouse_default_cursor_shape = 2
 metadata/_edit_use_anchors_ = true
 
 [node name="Timer" type="Timer" parent="ActionPanel" unique_id=1310741589]
@@ -2067,6 +2076,7 @@ alignment = 1
 
 [node name="LoadPlaylist" type="Button" parent="Menu/Main/PlaylistButtons" unique_id=1922371626]
 layout_mode = 2
+mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 64
 text = "Load Playlist"
 
@@ -2083,6 +2093,7 @@ alignment = 1
 
 [node name="AddPath" type="Button" parent="Menu/Main/PathButtons" unique_id=91273644]
 layout_mode = 2
+mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 64
 text = "Add Path"
 
@@ -2099,6 +2110,7 @@ alignment = 1
 [node name="LoopPlaylistButton" type="Button" parent="Menu/Main/LoopAndVideoButtons" unique_id=994928288]
 layout_mode = 2
 size_flags_horizontal = 4
+mouse_default_cursor_shape = 2
 theme_override_colors/font_pressed_color = Color(0, 0.815686, 0.627451, 1)
 theme_override_font_sizes/font_size = 54
 toggle_mode = true
@@ -2107,6 +2119,7 @@ text = "Loop Playlist: OFF"
 [node name="VideoPlayerSync" type="Button" parent="Menu/Main/LoopAndVideoButtons" unique_id=741368855]
 layout_mode = 2
 size_flags_horizontal = 4
+mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 54
 text = "Video Player Sync"
 
@@ -2666,6 +2679,7 @@ offset_left = 46.0
 offset_top = 58.0
 offset_right = 169.0
 offset_bottom = 127.0
+mouse_default_cursor_shape = 2
 texture_normal = ExtResource("34_5sqpr")
 
 [node name="Up" type="TextureButton" parent="Menu/PathControls" unique_id=969734520]
@@ -2674,6 +2688,7 @@ offset_left = 200.0
 offset_top = 58.0
 offset_right = 323.0
 offset_bottom = 127.0
+mouse_default_cursor_shape = 2
 texture_normal = ExtResource("35_nt4sp")
 
 [node name="HBox" type="HBoxContainer" parent="Menu/PathControls" unique_id=8334231]
@@ -2694,6 +2709,7 @@ alignment = 2
 
 [node name="Play" type="TextureButton" parent="Menu/PathControls/HBox" unique_id=1587899378]
 layout_mode = 2
+mouse_default_cursor_shape = 2
 texture_normal = ExtResource("16_0xvdx")
 stretch_mode = 3
 
@@ -2711,6 +2727,7 @@ stretch_mode = 3
 
 [node name="Delete" type="TextureButton" parent="Menu/PathControls/HBox" unique_id=2142431064]
 layout_mode = 2
+mouse_default_cursor_shape = 2
 texture_normal = ExtResource("37_vmrs4")
 stretch_mode = 3
 
@@ -3943,6 +3960,7 @@ anchor_right = 0.755556
 anchor_bottom = 0.593229
 grow_horizontal = 2
 grow_vertical = 2
+mouse_default_cursor_shape = 2
 script = ExtResource("22_rmgx1")
 metadata/_edit_use_anchors_ = true
 
