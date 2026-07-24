@@ -63,7 +63,7 @@ float powerEMASlowDoubleSmooth;
 bool powerSpikeTriggered;
 float deltaArray[deltaSampleLength];
 void getPowerReading(bool takeDeltaSample = false, int deltaSampleIndex = 0) {
-  float sum;
+  float sum = 0;
   for (int i = 0; i < powerSampleSize; i++)
     sum += analogRead(powerSensorPin);
   float sampleAverage = sum / powerSampleSize;

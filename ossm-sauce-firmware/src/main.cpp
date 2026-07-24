@@ -91,15 +91,11 @@ void parseBinaryMessage(esp_websocket_event_data_t *data) {
       memcpy(&loopPull, message + 10, 9);
       
       if (loopPush.endTimeMs != 0) {
-        short constrainedPosition = constrain(loopPush.depth, 0, 10000);
-        //loopPush.targetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
         loopPush.targetPosition = rangeLimitUserMax;
         loopPush.durationReciprocal = 1.0 / loopPush.endTimeMs;
         loopPush.baseSpeedHz = getMoveBaseSpeedHz(loopPush, loopPush.endTimeMs, true);
       }
       if (loopPull.endTimeMs != 0) {
-        short constrainedPosition = constrain(loopPull.depth, 0, 10000);
-        //loopPull.targetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
         loopPull.targetPosition = rangeLimitUserMin;
         loopPull.durationReciprocal = 1.0 / loopPull.endTimeMs;
         loopPull.baseSpeedHz = getMoveBaseSpeedHz(loopPull, loopPull.endTimeMs, true);
@@ -424,6 +420,8 @@ void loop() {
       break;
     }
 
+    default:
+      break;
   }
   
   delay(1);
