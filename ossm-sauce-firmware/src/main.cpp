@@ -3,6 +3,9 @@
 #include "freertos/queue.h"
 #include "MotorMovement.h"
 #include "Configuration.h"
+#include "WebsocketClient.h"
+#include "WifiClient.h"
+#include "LEDStatus.h"
 
 unsigned long playStartTime;
 unsigned long playTimeMs;
@@ -21,30 +24,6 @@ int previousTargetPosition;
 StrokeCommand smoothMoveCommand;
 unsigned long smoothMoveStartTime;
 bool smoothMoveActive = false;
-
-enum CommandType:byte {
-  RESPONSE,
-  MOVE,
-  LOOP,
-  POSITION,
-  VIBRATE,
-  PLAY,
-  PAUSE,
-  RESET,
-  HOMING,
-  CONNECTION,
-  SET_SPEED_LIMIT,
-  SET_GLOBAL_ACCELERATION,
-  SET_RANGE_LIMIT,
-  SET_HOMING_SPEED,
-  SET_HOMING_TRIGGER,
-  SMOOTH_MOVE,  // 0x0F
-};
-
-struct Response {
-  CommandType commandType = RESPONSE;
-  CommandType responseType;
-};
 
 
 void moveStart() {
@@ -74,20 +53,6 @@ void moveStart() {
   activeMove.durationReciprocal = 1.0 / durationMs;
   activeMove.baseSpeedHz = getMoveBaseSpeedHz(activeMove, durationMs);
   activeMove.active = true;
-}
-
-
-void sendResponse(CommandType responseCommand) {
-  Response responseMessage;
-  int messageSize = sizeof(responseMessage);
-  responseMessage.responseType = responseCommand;
-  char message[messageSize];
-  memcpy(message, (char*)&responseMessage, messageSize);
-  esp_websocket_client_send_bin(wsClient, message, messageSize, portMAX_DELAY);
-}
-
-void sendTextResponse(char* message, int messageSize) {
-  esp_websocket_client_send_text(wsClient, message, messageSize, portMAX_DELAY);
 }
 
 
@@ -360,13 +325,12 @@ void setup() {
   Serial.flush();
 
   initializeConfiguration();
-  checkForConfigMode();
   
-  connectToWiFi();
+  withConfigMenufallback(&connectToWiFi, "Would you like to update the Wifi connection? (y/n)");
   delay(1000);
-  connectToWebSocketServer();
+  withConfigMenufallback(&connectToWebSocketServer, "Would you like to update the WebSocket server address? (y/n)");
   
-  esp_websocket_register_events(wsClient, WEBSOCKET_EVENT_ANY, websocket_event_handler, (void *)wsClient);
+  register_event_handler(websocket_event_handler);
 
   initializeMotor();
 

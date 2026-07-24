@@ -1,0 +1,25 @@
+#ifndef COMMANDTYPE_H
+#define COMMANDTYPE_H
+
+#include "Arduino.h"
+
+enum CommandType:byte {
+  RESPONSE,
+  MOVE,
+  LOOP,
+  POSITION,
+  VIBRATE,
+  PLAY,
+  PAUSE,
+  RESET,
+  HOMING,
+  CONNECTION,
+  SET_SPEED_LIMIT,
+  SET_GLOBAL_ACCELERATION,
+  SET_RANGE_LIMIT,
+  SET_HOMING_SPEED,
+  SET_HOMING_TRIGGER,
+  SMOOTH_MOVE,  // 0x0F
+};
+
+#endif

@@ -1,128 +1,36 @@
 #include "Configuration.h"
 #include "MotorMovement.h"
 #include "secrets.h"
+#include "LEDStatus.h"
+#include "WebsocketClient.h"
+#include "WifiClient.h"
 
 // Global variables
-esp_websocket_client_config_t wsConfig;
-esp_websocket_client_handle_t wsClient;
 Preferences preferences;
 
-// RGB LED variables
-CRGB leds[NUM_LEDS];
-unsigned long lastLEDUpdate = 0;
-uint8_t breatheValue = 0;
-bool breatheDirection = true;
-uint8_t ledBrightness = 25;  // 0-255, adjust as needed
-
-// LED status tracking
-LEDStatus currentLEDStatus = LED_OFF;
-
-void initializeLED() {
-  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS);
-  FastLED.setBrightness(ledBrightness);
-  setLEDColor(COLOR_OFF);
-}
-
-
-void setLEDColor(CRGB color) {
-  leds[0] = color;
-  FastLED.show();
-}
-
-
-void initializeConfiguration() {
+void initializeConfiguration(boolean fastBoot) {
   initializeLED();  // Initialize RGB LED first
-  
+
+  ssid = WIFI_SSID;
+  password = WIFI_PASSWORD;
+  websocketAddress = WS_SERVER;
+
   if (enablePreferences) {
     preferences.begin("ossm_sauce");
 
     // Set sensorless homing sensitivity
     powerAvgRangeMultiplier = preferences.getFloat("homing_trigger", 1.5);
+    ssid = preferences.getString("wifi_ssid", WIFI_SSID);
+    password = preferences.getString("wifi_pass", WIFI_PASSWORD);
+    websocketAddress = preferences.getString("ws_server", WS_SERVER);
   }
   
   Serial.println("");
   Serial.println("=== OSSM Configuration ===");
-}
 
-
-void updateLED() {
-  unsigned long now = millis();
-  
-  switch (currentLEDStatus) {
-    case LED_OFF:
-      setLEDColor(COLOR_OFF);
-      break;
-      
-    case LED_WAITING_CONFIG:
-      // Breathing blue effect
-      if (now - lastLEDUpdate >= 20) {  // Update every 20ms for smooth breathing
-        if (breatheDirection) {
-          breatheValue += 2;
-          if (breatheValue >= 255) {
-            breatheValue = 255;
-            breatheDirection = false;
-          }
-        } else {
-          breatheValue -= 2;
-          if (breatheValue <= 30) {  // Don't go completely dark
-            breatheValue = 30;
-            breatheDirection = true;
-          }
-        }
-        
-        leds[0] = CRGB(0, 0, breatheValue);  // Blue breathing
-        FastLED.show();
-        lastLEDUpdate = now;
-      }
-      break;
-      
-    case LED_CONFIG_MODE:
-      // Pulsing purple
-      if (now - lastLEDUpdate >= 500) {  // 500ms pulse
-        static bool pulseState = false;
-        pulseState = !pulseState;
-        setLEDColor(pulseState ? COLOR_CONFIG : COLOR_OFF);
-        lastLEDUpdate = now;
-      }
-      break;
-      
-    case LED_CONNECTING:
-      setLEDColor(COLOR_CONNECTING);
-      break;
-      
-    case LED_CONNECTED:
-      // Quick green flash sequence then off
-      if (now - lastLEDUpdate < 200) {
-        setLEDColor(COLOR_CONNECTED);
-      } else if (now - lastLEDUpdate < 400) {
-        setLEDColor(COLOR_OFF);
-      } else if (now - lastLEDUpdate < 600) {
-        setLEDColor(COLOR_CONNECTED);
-      } else if (now - lastLEDUpdate < 2000) {
-        setLEDColor(COLOR_OFF);
-      } else {
-        lastLEDUpdate = now;  // Reset for next cycle
-      }
-      break;
-      
-    case LED_ERROR:
-      // Flashing red
-      if (now - lastLEDUpdate >= 300) {  // 300ms flash
-        static bool errorState = false;
-        errorState = !errorState;
-        setLEDColor(errorState ? COLOR_ERROR : COLOR_OFF);
-        lastLEDUpdate = now;
-      }
-      break;
+  if (fastBoot) {
+    checkForConfigMode();
   }
-}
-
-
-void setLEDStatus(LEDStatus status) {
-  currentLEDStatus = status;
-  lastLEDUpdate = millis();  // Reset timing for new status
-  breatheValue = 30;  // Reset breathing animation
-  breatheDirection = true;
 }
 
 
@@ -168,54 +76,6 @@ String addDefaultPortIfMissing(String address) {
   
   // Add default port
   return address + ":8008";
-}
-
-
-bool testWebSocketConnection(String address) {
-  Serial.println("Testing WebSocket connection to: " + address);
-  currentLEDStatus = LED_CONNECTING;
-  
-  Serial.println("Testing connection with independent client...");
-  
-  String testUrl = "ws://" + address;
-  esp_websocket_client_config_t testConfig = {.uri = testUrl.c_str()};
-  esp_websocket_client_handle_t testClient = esp_websocket_client_init(&testConfig);
-  
-  if (!testClient) {
-    Serial.println("Failed to initialize test client");
-    currentLEDStatus = LED_ERROR;
-    return false;
-  }
-  
-  esp_websocket_client_start(testClient);
-  
-  // Wait up to 5 seconds for connection
-  int attempts = 50;
-  while (attempts > 0 && !esp_websocket_client_is_connected(testClient)) {
-    delay(100);
-    updateLED();
-    attempts--;
-  }
-  
-  bool connected = esp_websocket_client_is_connected(testClient);
-  
-  // Clean up test client
-  esp_websocket_client_stop(testClient);
-  delay(200);
-  esp_websocket_client_destroy(testClient);
-  delay(200);
-  
-  if (connected) {
-    Serial.println("✓ Connection successful!");
-    currentLEDStatus = LED_CONNECTED;
-    delay(1000);
-    return true;
-  } else {
-    Serial.println("✗ Connection failed!");
-    currentLEDStatus = LED_ERROR;
-    delay(1000);
-    return false;
-  }
 }
 
 
@@ -510,73 +370,6 @@ bool checkForConfigMode() {
   return false;
 }
 
-bool connectToWiFiInternal() {
-  WiFi.mode(WIFI_STA);
-  currentLEDStatus = LED_CONNECTING;
-  
-  Serial.println("");
-  Serial.println("-- CONNECTING TO WIFI --");
-  Serial.println("--     PLEASE WAIT    --");
-  Serial.println("");
-
-  String ssid = WIFI_SSID;
-  if (enablePreferences && preferences.isKey("wifi_ssid")) {
-    ssid = preferences.getString("wifi_ssid");
-  }
-
-  String password = WIFI_PASSWORD;
-  if (enablePreferences && preferences.isKey("wifi_pass")) {
-    password = preferences.getString("wifi_pass");
-  }
-
-  WiFi.begin(ssid.c_str(), password.c_str());
-  
-  for (int i = 0; i < 10 && WiFi.status() != WL_CONNECTED; i++) {
-    Serial.print(".");
-    updateLED();
-    delay(1000);
-  }
-
-  if (WiFi.status() != WL_CONNECTED) {
-    currentLEDStatus = LED_ERROR;
-    Serial.println("");
-    Serial.println("No WiFi connection.");
-    Serial.println(WiFi.status());
-    Serial.println("");
-    return false;
-  }
-
-  currentLEDStatus = LED_CONNECTED;
-  Serial.println("");
-  Serial.println("");
-  Serial.println("-- WiFi connected! --");
-  Serial.println("");
-  delay(500);
-  currentLEDStatus = LED_OFF;
-
-  return true;
-}
-
-void connectToWiFi() {
-  bool success = connectToWiFiInternal();
-
-  if (!success) {
-    // Offer to enter config mode on connection failure
-    Serial.println("Would you like to update the Wifi connection? (y/n)");
-    delay(4000);
-    
-    if (Serial.available()) {
-      String input = Serial.readString();
-      input.trim();
-      input.toLowerCase();
-      if (input == "y") {
-        handleConfigMenu();
-        // Try connecting again after config
-        connectToWiFiInternal();
-      }
-    }
-  }
-}
 
 String constructWebSocketAddress() {
   String serverAddress;
@@ -610,44 +403,12 @@ String constructWebSocketAddress() {
 }
 
 
-void connectToWebSocketServer() {
-  String serverAddress = constructWebSocketAddress();
-  currentLEDStatus = LED_CONNECTING;
-  
-  Serial.println("Connecting to: " + serverAddress);
-  
-  wsConfig = {.uri = serverAddress.c_str()};
-  wsClient = esp_websocket_client_init(&wsConfig);
+void withConfigMenufallback(bool (*connectFunc)(), String message) {
+  bool success = connectFunc();
 
-  if (wsClient) {
-    Serial.println("WebSocket client initialized");
-  } else {
-    Serial.println("Failed to initialize WebSocket client");
-    currentLEDStatus = LED_ERROR;
-    return;
-  }
-
-  // Note: Event handler should be registered in main.cpp after calling this function
-  esp_websocket_client_start(wsClient);
-
-  // Wait for connection with LED feedback
-  int attempts = 50;  // 5 seconds
-  while (attempts > 0 && !esp_websocket_client_is_connected(wsClient)) {
-    delay(100);
-    updateLED();
-    attempts--;
-  }
-
-  if (esp_websocket_client_is_connected(wsClient)) {
-    Serial.println("WebSocket client connected successfully");
-    currentLEDStatus = LED_CONNECTED;
-    esp_websocket_client_send_text(wsClient, "Hello WebSocket", strlen("Hello WebSocket"), portMAX_DELAY);
-  } else {
-    Serial.println("Failed to connect to WebSocket server");
-    currentLEDStatus = LED_ERROR;
-    
+  if (!success) {
     // Offer to enter config mode on connection failure
-    Serial.println("Would you like to update the WebSocket server address? (y/n)");
+    Serial.println(message);
     delay(4000);
     
     if (Serial.available()) {
@@ -657,7 +418,7 @@ void connectToWebSocketServer() {
       if (input == "y") {
         handleConfigMenu();
         // Try connecting again after config
-        connectToWebSocketServer();
+        connectFunc();
       }
     }
   }
