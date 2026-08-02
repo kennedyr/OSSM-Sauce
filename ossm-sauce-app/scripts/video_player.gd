@@ -1,6 +1,6 @@
 extends Panel
 
-enum PlayerType { OFF, VLC, MPC, MPV, MPV_ANDROID }
+enum PlayerType {OFF, VLC, MPC, MPV, MPV_ANDROID}
 
 # Configuration — set these from your UI
 var player_type: PlayerType = PlayerType.OFF
@@ -25,7 +25,6 @@ signal player_seeked(video_time_seconds: float)
 signal connection_changed(is_connected: bool)
 
 var _cooldown: bool = false
-var _poll_in_flight: bool = false
 var _pending_action: String = ""
 var _seek_after_pause: float = -1.0
 
@@ -35,39 +34,10 @@ var _poll_timer: Timer
 var _delay_timer: Timer
 var _cooldown_timer: Timer
 
-var _mpc_state_regex: RegEx
-var _mpc_pos_regex: RegEx
-var _mpc_dur_regex: RegEx
-
-var _mpv_tcp: StreamPeerTCP = null
-var _mpv_buffer: String = ""
-var _mpv_pause: bool = true
-var _mpv_filename = null
-var _mpv_time_pos = null
-var _mpv_duration = null
-var _mpv_received_filename: bool = false
-var _mpv_reconnect_accum: float = 0.0
-
-const _MPV_ANDROID_HEARTBEAT_TIMEOUT := 3.0  # seconds without heartbeat change
-const _MPV_ANDROID_STATE_FILE := "ossm_bridge/state.json"
-const _MPV_ANDROID_BRIDGE_SUBDIR := "ossm_bridge"
-const _MPV_ANDROID_COMMAND_SUBDIR := "ossm_bridge/command_queue"
-const _MPV_ANDROID_SCRIPTS_SUBDIR := "scripts"
-const _MPV_ANDROID_LUA_FILE := "scripts/ossm_android_bridge.lua"
-const _MPV_ANDROID_LUA_SOURCE := "res://bridges/ossm_android_bridge.lua"
-# Hardcoded — mpv-android can only load scripts from its own /Android/media/
-# package dir under scoped storage, so this path is fixed by platform.
-const _MPV_ANDROID_SCRIPT_LINE := \
-	"script=/sdcard/Android/media/is.xyz.mpv/scripts/ossm_android_bridge.lua"
-const _MPV_ANDROID_EXPECTED_DOC_ID := "primary:Android/media/is.xyz.mpv"
-
-var _mpv_android_state: Dictionary = {}
-var _mpv_android_received_filename: bool = false
-var _mpv_android_last_heartbeat: int = 0
-var _mpv_android_last_heartbeat_seen_at: float = 0.0
-var _mpv_android_command_counter: int = 0
 var _mpv_android_pending_player_type: PlayerType = PlayerType.OFF
 var _mpv_desktop_pending_player_type: PlayerType = PlayerType.OFF
+
+var player_interface: VideoPlayerBase
 
 
 func _ready():
@@ -115,13 +85,6 @@ func _ready():
 	add_child(_cooldown_timer)
 	_cooldown_timer.timeout.connect(func(): _cooldown = false)
 	
-	_mpc_state_regex = RegEx.new()
-	_mpc_state_regex.compile('<p id="state">(\\d+)</p>')
-	_mpc_pos_regex = RegEx.new()
-	_mpc_pos_regex.compile('<p id="position">(\\d+)</p>')
-	_mpc_dur_regex = RegEx.new()
-	_mpc_dur_regex.compile('<p id="duration">(\\d+)</p>')
-
 
 func is_active() -> bool:
 	return player_type != PlayerType.OFF
@@ -155,33 +118,26 @@ func _load_video(path: String):
 func activate(type: PlayerType):
 	deactivate()
 	player_type = type
-	match type:
-		PlayerType.OFF:
-			pass
-		PlayerType.MPV:
-			_mpv_connect()
-		PlayerType.MPV_ANDROID:
-			_mpv_android_activate()
-			_poll_timer.wait_time = 0.1
-			_poll_timer.start()
-		_:
-			# Slower poll on Android: VLC/MPC HTTP polling keeps the WiFi
-			# radio busy continuously, draining battery. 500ms is well within
-			# what the offset inputs can absorb. Desktop stays at 100ms.
-			_poll_timer.wait_time = 0.5 if OS.get_name() == "Android" else 0.1
-			_poll_timer.start()
+	if type == PlayerType.OFF:
+		return
+
+	if player_interface:
+		player_interface.player_address = player_address
+		player_interface.player_port = player_port
+		if type == PlayerType.MPV_ANDROID:
+			player_interface.saf_mpv_bridge_uri = %FileUtil.saf_mpv_bridge_uri
+		if type == PlayerType.VLC:
+			player_interface.vlc_password = vlc_password
+		player_interface.activate(_poll_timer)
 
 
 func deactivate():
 	player_type = PlayerType.OFF
-	_poll_timer.stop()
+	if player_interface:
+		player_interface.deactivate(_poll_timer)
+
 	_delay_timer.stop()
 	_cooldown_timer.stop()
-	_poll_http.cancel_request()
-	_command_http.cancel_request()
-	_mpv_disconnect()
-	_mpv_android_disconnect()
-	_poll_in_flight = false
 	_cooldown = false
 	_pending_action = ""
 	player_state = "stopped"
@@ -248,8 +204,6 @@ func _on_delay_timeout():
 	_pending_action = ""
 
 
-# ---- HTTP Commands ----
-
 func _path_to_video_time(path_time_seconds: float) -> float:
 	var video_time = path_time_seconds - delay_ms / 1000.0 + video_offset_ms / 1000.0
 	if player_type == PlayerType.VLC and vlc_seek_correction != 0:
@@ -257,78 +211,31 @@ func _path_to_video_time(path_time_seconds: float) -> float:
 	return maxf(video_time, 0.0)
 
 
-func _base_url() -> String:
-	return "http://" + player_address + ":" + str(player_port)
-
-
-func _vlc_headers() -> PackedStringArray:
-	return PackedStringArray([
-		"Authorization: Basic " + Marshalls.utf8_to_base64(":" + vlc_password)
-	])
-
+# ---- Player Interface Commands ----
 
 func _send_play():
-	_command_http.cancel_request()
-	match player_type:
-		PlayerType.VLC:
-			_command_http.request(
-				_base_url() + "/requests/status.json?command=pl_forceresume",
-				_vlc_headers())
-		PlayerType.MPC:
-			_command_http.request(_base_url() + "/command.html?wm_command=887")
-		PlayerType.MPV:
-			_mpv_send_command(["set_property", "pause", false])
-		PlayerType.MPV_ANDROID:
-			_mpv_android_send_command(["set_property", "pause", false])
+	if player_interface:
+		player_interface.send_play()
 
 
 func _send_pause():
-	_command_http.cancel_request()
-	match player_type:
-		PlayerType.VLC:
-			_command_http.request(
-				_base_url() + "/requests/status.json?command=pl_forcepause",
-				_vlc_headers())
-		PlayerType.MPC:
-			_command_http.request(_base_url() + "/command.html?wm_command=888")
-		PlayerType.MPV:
-			_mpv_send_command(["set_property", "pause", true])
-		PlayerType.MPV_ANDROID:
-			_mpv_android_send_command(["set_property", "pause", true])
+	if player_interface:
+		player_interface.send_pause()
 
 
 func _send_seek(time_seconds: float):
-	_command_http.cancel_request()
-	match player_type:
-		PlayerType.VLC:
-			var pct = "0"
-			if player_duration > 0.0:
-				pct = "%f" % (time_seconds / player_duration * 100.0)
-			_command_http.request(
-				_base_url() + "/requests/status.json?command=seek&val=" \
-				+ pct + "%25",
-				_vlc_headers())
-		PlayerType.MPC:
-			var total_ms = int(time_seconds * 1000)
-			var h = int(total_ms / 3600000.0)
-			var m = int((total_ms % 3600000) / 60000.0)
-			var s = int((total_ms % 60000) / 1000.0)
-			var ms = total_ms % 1000
-			_command_http.request(
-				_base_url() + "/command.html?wm_command=-1&position=" \
-				+ "%02d:%02d:%02d.%03d" % [h, m, s, ms])
-		PlayerType.MPV:
-			_mpv_send_command(["seek", time_seconds, "absolute"])
-		PlayerType.MPV_ANDROID:
-			_mpv_android_send_command(["seek", time_seconds, "absolute"])
+	if player_interface:
+		player_interface.send_seek(time_seconds, player_duration)
 
 
 func _on_command_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
 		_seek_after_pause = -1.0
 		return
-	if player_type == PlayerType.VLC:
-		_parse_vlc(body)
+
+	if player_interface:
+		player_interface.on_command_completed(body)
+	
 	if _seek_after_pause >= 0.0:
 		var time = _seek_after_pause
 		_seek_after_pause = -1.0
@@ -341,21 +248,12 @@ func _on_command_completed(result: int, response_code: int, _headers: PackedStri
 func _poll_status():
 	if player_type == PlayerType.OFF:
 		return
-	if player_type == PlayerType.MPV_ANDROID:
-		_mpv_android_poll()
-		return
-	if _poll_in_flight:
-		return
-	_poll_in_flight = true
-	match player_type:
-		PlayerType.VLC:
-			_poll_http.request(_base_url() + "/requests/status.json", _vlc_headers())
-		PlayerType.MPC:
-			_poll_http.request(_base_url() + "/variables.html")
+
+	if player_interface:
+		player_interface.poll_status()
 
 
 func _on_poll_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
-	_poll_in_flight = false
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
 		if connected:
 			connected = false
@@ -366,48 +264,9 @@ func _on_poll_completed(result: int, response_code: int, _headers: PackedStringA
 	if not connected:
 		connected = true
 		connection_changed.emit(true)
-	match player_type:
-		PlayerType.VLC:
-			_parse_vlc(body)
-		PlayerType.MPC:
-			_parse_mpc(body)
 
-
-# ---- Response Parsing ----
-
-func _parse_vlc(body: PackedByteArray):
-	var json = JSON.parse_string(body.get_string_from_utf8())
-	if not json is Dictionary:
-		return
-	var length = float(json.get("length", 0))
-	var _position = float(json.get("position", 0))
-	_process_state(
-		json.get("state", "stopped"),
-		_position * length,
-		length)
-
-
-func _parse_mpc(body: PackedByteArray):
-	var html = body.get_string_from_utf8()
-	var state_match = _mpc_state_regex.search(html)
-	if not state_match:
-		return
-	var state_code = int(state_match.get_string(1))
-	var state: String
-	match state_code:
-		0: state = "stopped"
-		1: state = "paused"
-		2: state = "playing"
-		_: state = "stopped"
-	var time_sec := 0.0
-	var duration_sec := 0.0
-	var pos_match = _mpc_pos_regex.search(html)
-	if pos_match:
-		time_sec = float(pos_match.get_string(1)) / 1000.0
-	var dur_match = _mpc_dur_regex.search(html)
-	if dur_match:
-		duration_sec = float(dur_match.get_string(1)) / 1000.0
-	_process_state(state, time_sec, duration_sec)
+	if player_interface:
+		player_interface.on_poll_completed(body)
 
 
 func _process_state(new_state: String, new_time: float, new_duration: float):
@@ -430,137 +289,10 @@ func _process_state(new_state: String, new_time: float, new_duration: float):
 		player_seeked.emit(maxf(adjusted, 0.0))
 
 
-# ---- MPV TCP ----
-
-func _mpv_connect():
-	_mpv_tcp = StreamPeerTCP.new()
-	var err := _mpv_tcp.connect_to_host(player_address, player_port)
-	if err != OK:
-		push_warning("MPV TCP connect_to_host failed: %d" % err)
-		_mpv_tcp = null
-
-
-func _mpv_disconnect():
-	if _mpv_tcp != null:
-		_mpv_tcp.disconnect_from_host()
-		_mpv_tcp = null
-	_mpv_buffer = ""
-	_mpv_pause = true
-	_mpv_filename = null
-	_mpv_time_pos = null
-	_mpv_duration = null
-	_mpv_received_filename = false
-
-
 func _process(delta):
-	if player_type != PlayerType.MPV:
-		return
-	if _mpv_tcp == null:
-		_mpv_reconnect_accum += delta
-		if _mpv_reconnect_accum >= 1.0:
-			_mpv_reconnect_accum = 0.0
-			_mpv_connect()
-		return
-	_mpv_reconnect_accum = 0.0
-	_mpv_tcp.poll()
-	match _mpv_tcp.get_status():
-		StreamPeerTCP.STATUS_CONNECTED:
-			if not connected:
-				connected = true
-				connection_changed.emit(true)
-			var avail := _mpv_tcp.get_available_bytes()
-			if avail > 0:
-				var result = _mpv_tcp.get_data(avail)
-				if result[0] == OK:
-					_mpv_buffer += (result[1] as PackedByteArray).get_string_from_utf8()
-					_mpv_drain_buffer()
-		StreamPeerTCP.STATUS_ERROR, StreamPeerTCP.STATUS_NONE:
-			if connected:
-				connected = false
-				player_state = "stopped"
-				connection_changed.emit(false)
-				player_paused.emit()
-			_mpv_disconnect()
+	if player_interface:
+		player_interface.process(delta)
 
-
-func _mpv_drain_buffer():
-	while true:
-		var nl_idx := _mpv_buffer.find("\n")
-		if nl_idx < 0:
-			break
-		var line := _mpv_buffer.substr(0, nl_idx)
-		_mpv_buffer = _mpv_buffer.substr(nl_idx + 1)
-		if line.strip_edges().is_empty():
-			continue
-		_mpv_handle_line(line)
-
-
-func _mpv_handle_line(line: String):
-	var msg = JSON.parse_string(line)
-	if not msg is Dictionary:
-		return
-	if msg.has("event"):
-		_mpv_handle_event(msg)
-	# Replies (msg.has("error")) are intentionally ignored — property
-	# observers tell us everything we need to know about player state.
-
-
-func _mpv_handle_event(msg: Dictionary):
-	match msg.get("event", ""):
-		"property-change":
-			var prop_name: String = msg.get("name", "")
-			var value = msg.get("data")
-			match prop_name:
-				"pause":
-					if value is bool:
-						_mpv_pause = value
-				"time-pos":
-					_mpv_time_pos = value
-				"duration":
-					_mpv_duration = value
-				"filename":
-					_mpv_filename = value
-					_mpv_received_filename = true
-			_mpv_update_state()
-		"end-file":
-			_mpv_filename = null
-			_mpv_received_filename = true
-			_mpv_update_state()
-
-
-func _mpv_update_state():
-	# Wait for filename to arrive before deriving state — during the initial
-	# snapshot burst the other properties land first, and acting on them
-	# would emit phantom seek/pause signals before we know if a file is loaded.
-	if not _mpv_received_filename:
-		return
-	var state: String
-	if _mpv_filename == null:
-		state = "stopped"
-	elif _mpv_pause:
-		state = "paused"
-	else:
-		state = "playing"
-	var time := 0.0
-	var duration := 0.0
-	if _mpv_filename != null:
-		if _mpv_time_pos != null:
-			time = float(_mpv_time_pos)
-		if _mpv_duration != null:
-			duration = float(_mpv_duration)
-	_process_state(state, time, duration)
-
-
-func _mpv_send_command(arr: Array):
-	if _mpv_tcp == null:
-		return
-	if _mpv_tcp.get_status() != StreamPeerTCP.STATUS_CONNECTED:
-		return
-	var line := JSON.stringify({"command": arr}) + "\n"
-	_mpv_tcp.put_data(line.to_utf8_buffer())
-
-
-# ---- MPV Android File IPC (SAF) ----
 
 func _mpv_android_saf_path(rel: String) -> String:
 	# Builds a Godot SAF FileAccess path from the picked bridge tree URI.
@@ -568,59 +300,6 @@ func _mpv_android_saf_path(rel: String) -> String:
 	if uri.is_empty():
 		return ""
 	return uri + "#" + rel
-
-
-func _mpv_android_activate():
-	_mpv_android_state = {}
-	_mpv_android_received_filename = false
-	_mpv_android_last_heartbeat = 0
-	_mpv_android_last_heartbeat_seen_at = 0.0
-	_mpv_android_command_counter = 0
-	_mpv_android_ensure_subdir(_MPV_ANDROID_BRIDGE_SUBDIR)
-	_mpv_android_ensure_subdir(_MPV_ANDROID_COMMAND_SUBDIR)
-	_mpv_android_clear_command_queue()
-
-
-func _mpv_android_disconnect():
-	_mpv_android_state = {}
-	_mpv_android_received_filename = false
-	_mpv_android_last_heartbeat = 0
-	_mpv_android_last_heartbeat_seen_at = 0.0
-
-
-func _mpv_android_clear_command_queue():
-	# Stale commands from a previous session would otherwise be eaten by
-	# the bridge as soon as it sees them, with no relation to current intent.
-	var uri: String = %FileUtil.saf_mpv_bridge_uri
-	if uri.is_empty():
-		return
-	var DocumentsContract = JavaClassWrapper.wrap("android.provider.DocumentsContract")
-	var Uri = JavaClassWrapper.wrap("android.net.Uri")
-	var ActivityThread = JavaClassWrapper.wrap("android.app.ActivityThread")
-	if DocumentsContract == null or Uri == null or ActivityThread == null:
-		return
-	var tree_uri_obj = Uri.parse(uri)
-	if tree_uri_obj == null:
-		return
-	var tree_doc_id = DocumentsContract.getTreeDocumentId(tree_uri_obj)
-	var cmd_doc_id := str(tree_doc_id) + "/" + _MPV_ANDROID_COMMAND_SUBDIR
-	var children_uri = DocumentsContract.buildChildDocumentsUriUsingTree(tree_uri_obj, cmd_doc_id)
-	if children_uri == null:
-		return
-	var resolver = ActivityThread.currentActivityThread().getApplication().getContentResolver()
-	var projection := PackedStringArray(["document_id", "_display_name"])
-	var cursor = resolver.query(children_uri, projection, "", PackedStringArray(), "", null)
-	if cursor == null:
-		return
-	var doc_id_col = cursor.getColumnIndex("document_id")
-	var name_col = cursor.getColumnIndex("_display_name")
-	while cursor.moveToNext():
-		var name_val: String = cursor.getString(name_col)
-		if name_val.begins_with("cmd_"):
-			var doc_id = cursor.getString(doc_id_col)
-			var doc_uri = DocumentsContract.buildDocumentUriUsingTree(tree_uri_obj, doc_id)
-			DocumentsContract.deleteDocument(resolver, doc_uri)
-	cursor.close()
 
 
 func _mpv_android_ensure_subdir(rel_path: String) -> bool:
@@ -646,7 +325,7 @@ func _mpv_android_ensure_subdir(rel_path: String) -> bool:
 		if cursor != null:
 			var name_col = cursor.getColumnIndex("_display_name")
 			while cursor.moveToNext():
-				if cursor.getString(name_col) == part:
+				if cursor.getStrinFg(name_col) == part:
 					found = true
 					break
 			cursor.close()
@@ -660,117 +339,16 @@ func _mpv_android_ensure_subdir(rel_path: String) -> bool:
 	return true
 
 
-func _mpv_android_poll():
-	var state_path := _mpv_android_saf_path(_MPV_ANDROID_STATE_FILE)
-	if state_path.is_empty():
-		_mpv_android_set_disconnected()
-		return
-	
-	var f := FileAccess.open(state_path, FileAccess.READ)
-	if f == null:
-		_mpv_android_set_disconnected()
-		return
-	var body := f.get_as_text()
-	f.close()
-	
-	var json = JSON.parse_string(body)
-	if not json is Dictionary:
-		return  # Partial write race — retry next poll.
-	
-	var heartbeat := int(json.get("heartbeat", 0))
-	var now := Time.get_ticks_msec() / 1000.0
-	
-	# Bootstrap: first poll just records the heartbeat without marking alive.
-	# Liveness = heartbeat changed within HEARTBEAT_TIMEOUT seconds.
-	if _mpv_android_last_heartbeat_seen_at == 0.0:
-		_mpv_android_last_heartbeat = heartbeat
-		_mpv_android_last_heartbeat_seen_at = now
-		return
-	
-	if heartbeat != _mpv_android_last_heartbeat:
-		_mpv_android_last_heartbeat = heartbeat
-		_mpv_android_last_heartbeat_seen_at = now
-	
-	var alive := (now - _mpv_android_last_heartbeat_seen_at) < _MPV_ANDROID_HEARTBEAT_TIMEOUT
-	
-	if alive and not connected:
-		connected = true
-		connection_changed.emit(true)
-	elif not alive and connected:
-		_mpv_android_set_disconnected()
-		return
-	
-	if not connected:
-		return
-	
-	_mpv_android_state = json
-	if json.get("filename") != null:
-		_mpv_android_received_filename = true
-	_mpv_android_update_state()
-
-
-func _mpv_android_set_disconnected():
-	if connected:
-		connected = false
-		player_state = "stopped"
-		connection_changed.emit(false)
-		player_paused.emit()
-	_mpv_android_received_filename = false
-
-
-func _mpv_android_update_state():
-	# Mirrors _mpv_update_state — wait for filename to land before deriving,
-	# so phantom signals don't fire from a partial state snapshot.
-	if not _mpv_android_received_filename:
-		return
-	var filename = _mpv_android_state.get("filename")
-	var pause_val = _mpv_android_state.get("pause")
-	var time_pos = _mpv_android_state.get("time-pos")
-	var duration = _mpv_android_state.get("duration")
-	
-	var state: String
-	if filename == null:
-		state = "stopped"
-	elif pause_val == true:
-		state = "paused"
-	else:
-		state = "playing"
-	
-	var time_sec := 0.0
-	var duration_sec := 0.0
-	if filename != null:
-		if time_pos != null:
-			time_sec = float(time_pos)
-		if duration != null:
-			duration_sec = float(duration)
-	_process_state(state, time_sec, duration_sec)
-
-
-func _mpv_android_send_command(arr: Array):
-	_mpv_android_command_counter += 1
-	var seq := _mpv_android_command_counter
-	var rel := _MPV_ANDROID_COMMAND_SUBDIR + "/cmd_%010d.json" % seq
-	var path := _mpv_android_saf_path(rel)
-	if path.is_empty():
-		return
-	var f := FileAccess.open(path, FileAccess.WRITE)
-	if f == null:
-		push_warning("MPV_ANDROID: cannot open command file " + path)
-		return
-	f.store_string(JSON.stringify({"command": arr}))
-	f.close()
-
-
 func _mpv_android_install_lua() -> bool:
-	if not _mpv_android_ensure_subdir(_MPV_ANDROID_SCRIPTS_SUBDIR):
+	if not _mpv_android_ensure_subdir(VideoPlayerMpvAndroid._MPV_ANDROID_SCRIPTS_SUBDIR):
 		return false
-	var src := FileAccess.open(_MPV_ANDROID_LUA_SOURCE, FileAccess.READ)
+	var src := FileAccess.open(VideoPlayerMpvAndroid._MPV_ANDROID_LUA_SOURCE, FileAccess.READ)
 	if src == null:
-		push_warning("MPV_ANDROID: lua source missing at " + _MPV_ANDROID_LUA_SOURCE)
+		push_warning("MPV_ANDROID: lua source missing at " + VideoPlayerMpvAndroid._MPV_ANDROID_LUA_SOURCE)
 		return false
 	var body := src.get_as_text()
 	src.close()
-	var dst_path := _mpv_android_saf_path(_MPV_ANDROID_LUA_FILE)
+	var dst_path := _mpv_android_saf_path(VideoPlayerMpvAndroid._MPV_ANDROID_LUA_FILE)
 	var dst := FileAccess.open(dst_path, FileAccess.WRITE)
 	if dst == null:
 		push_warning("MPV_ANDROID: cannot write lua to " + dst_path)
@@ -834,19 +412,40 @@ func _on_player_selection_item_selected(index: int) -> void:
 			player_port = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_port', 8080)
 			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_delay_ms', 0)
 			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_advance_ms', 100)
+			player_interface = VideoPlayerVlc.new(player_address, player_port, vlc_password,
+				_poll_http,
+				_command_http,
+				Callable(self, "_on_state_change")
+			)
 		PlayerType.MPC:
 			player_port = UserSettings.get_value(UserSettings.Section.video_player, 'mpc_port', 13579)
 			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpc_delay_ms', 0)
 			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpc_advance_ms', 100)
+			player_interface = VideoPlayerMpc.new(player_address, player_port,
+				_poll_http,
+				_command_http,
+				Callable(self, "_on_state_change")
+			)
 		PlayerType.MPV:
 			player_port = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_port', 9001)
 			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_delay_ms', 0)
 			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_advance_ms', 100)
+			player_interface = VideoPlayerMpv.new(player_address, player_port,
+				Callable(self, "_on_connected"),
+				Callable(self, "_on_disconnected"),
+				Callable(self, "_on_state_change")
+			)
 		PlayerType.MPV_ANDROID:
 			$Main/PlayerAddress.hide()
 			$Main/PlayerPort.hide()
 			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_android_delay_ms', 0)
 			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_android_advance_ms', 100)
+			player_interface = VideoPlayerMpvAndroid.new(
+				%FileUtil.saf_mpv_bridge_uri,
+				Callable(self, "_on_connected"),
+				Callable(self, "_on_disconnected"),
+				Callable(self, "_on_state_change")
+			)
 	$Main/PlayerPort/Input.set_value_no_signal(player_port)
 	$Main/DelayMs/Input.value = delay_ms
 	$Main/AdvanceMs/Input.value = advance_ms
@@ -964,11 +563,11 @@ func _mpv_android_uri_is_correct_folder(uri: String) -> bool:
 	# SAF tree URI ends with the URL-encoded document ID, e.g.
 	# .../tree/primary%3AAndroid%2Fmedia%2Fis.xyz.mpv
 	return uri.uri_decode().trim_suffix("/").ends_with(
-		_MPV_ANDROID_EXPECTED_DOC_ID)
+		VideoPlayerMpvAndroid._MPV_ANDROID_EXPECTED_DOC_ID)
 
 
 func _on_mpv_bridge_copy_pressed() -> void:
-	DisplayServer.clipboard_set(_MPV_ANDROID_SCRIPT_LINE)
+	DisplayServer.clipboard_set(VideoPlayerMpvAndroid._MPV_ANDROID_SCRIPT_LINE)
 
 
 func _on_mpv_bridge_done_pressed() -> void:
@@ -992,10 +591,10 @@ func _populate_mpv_bridge_desktop_splash() -> void:
 	var conf_path := MPVBridgeInstaller.get_conf_path()
 	$MPVBridgeDesktopSplash/VBox/Label.text = (
 			"[u]To use mpv, OSSM Sauce needs to install a bridge script.[/u]\n\n"
-			+ "Files will be written to:\n\n"
+			+"Files will be written to:\n\n"
 			+ lua_path + "\n\n"
 			+ conf_path + "\n\n"
-			+ "[u]Make sure to restart mpv player after installing.[/u]")
+			+"[u]Make sure to restart mpv player after installing.[/u]")
 
 
 func _on_mpv_bridge_install_pressed() -> void:
@@ -1084,3 +683,23 @@ func _on_mpc_setup_instructions_pressed() -> void:
 	$Help/MPCInfo.hide()
 	$Help/mpvRestartReminder.hide()
 	$Help/MPCSetupInstructions.show()
+
+
+# ---- Video Player Callbacks ----
+
+func _on_connected() -> void:
+	if not connected:
+		connected = true
+		connection_changed.emit(true)
+
+
+func on_disconnected() -> void:
+	if connected:
+		connected = false
+		player_state = "stopped"
+		connection_changed.emit(false)
+		player_paused.emit()
+
+
+func on_state_change(state: String, time: float, duration: float) -> void:
+	_process_state(state, time, duration)
