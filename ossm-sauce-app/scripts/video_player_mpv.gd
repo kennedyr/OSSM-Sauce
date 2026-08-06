@@ -2,9 +2,8 @@ class_name VideoPlayerMpv
 
 extends VideoPlayerBase
 
-var on_connected: Callable
-var on_disconnected: Callable
-var on_state_change: Callable
+var _sync_connected: Callable
+var _on_state_change: Callable
 
 var _mpv_tcp: StreamPeerTCP = null
 var _mpv_buffer: String = ""
@@ -19,22 +18,20 @@ var _mpv_reconnect_accum: float = 0.0
 func _init(
 		player_address,
 		player_port,
-		on_connected: Callable,
-		on_disconnected: Callable,
+		sync_connected: Callable,
 		on_state_change: Callable
 	):
 	self.player_address = player_address
 	self.player_port = player_port
-	self.on_connected = on_connected
-	self.on_disconnected = on_disconnected
-	self.on_state_change = on_state_change
+	_sync_connected = sync_connected
+	_on_state_change = on_state_change
 
 
-func activate(_poll_timer: Timer):
+func activate():
 	_mpv_connect()
 
 
-func deactivate(_poll_timer: Timer):
+func deactivate():
 	_mpv_disconnect()
 
 
@@ -42,15 +39,17 @@ func send_play():
 	_mpv_send_command(["set_property", "pause", false])
 
 
-func send_pause():
+func send_pause(time_seconds := -1.0):
 	_mpv_send_command(["set_property", "pause", true])
+	if time_seconds >= 0.0:
+		send_seek(time_seconds)
 
 
-func send_seek(time_seconds: float, _player_duration: float):
+func send_seek(time_seconds: float):
 	_mpv_send_command(["seek", time_seconds, "absolute"])
 
 
-func process(delta):
+func _process(delta):
 	if _mpv_tcp == null:
 		_mpv_reconnect_accum += delta
 		if _mpv_reconnect_accum >= 1.0:
@@ -61,7 +60,7 @@ func process(delta):
 	_mpv_tcp.poll()
 	match _mpv_tcp.get_status():
 		StreamPeerTCP.STATUS_CONNECTED:
-			on_connected.call()
+			_sync_connected.call(true)
 			var avail := _mpv_tcp.get_available_bytes()
 			if avail > 0:
 				var result = _mpv_tcp.get_data(avail)
@@ -69,17 +68,8 @@ func process(delta):
 					_mpv_buffer += (result[1] as PackedByteArray).get_string_from_utf8()
 					_mpv_drain_buffer()
 		StreamPeerTCP.STATUS_ERROR, StreamPeerTCP.STATUS_NONE:
-			on_disconnected.call()
+			_sync_connected.call(false)
 			_mpv_disconnect()
-
-func poll_status():
-	pass
-
-func on_poll_completed(_body: PackedByteArray):
-	pass
-
-func on_command_completed(_body: PackedByteArray):
-	pass
 
 
 # ---- MPV TCP ----
@@ -169,7 +159,11 @@ func _mpv_update_state():
 			time = float(_mpv_time_pos)
 		if _mpv_duration != null:
 			duration = float(_mpv_duration)
-	on_state_change.call(state, time, duration)
+	_on_state_change.call({
+		"state": state,
+		"time": time,
+		"duration": duration
+	})
 
 
 func _mpv_send_command(arr: Array):

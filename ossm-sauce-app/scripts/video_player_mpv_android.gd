@@ -2,11 +2,6 @@ class_name VideoPlayerMpvAndroid
 
 extends VideoPlayerBase
 
-var saf_mpv_bridge_uri: String
-var on_connected: Callable
-var on_disconnected: Callable
-var on_state_change: Callable
-
 const _MPV_ANDROID_HEARTBEAT_TIMEOUT := 3.0 # seconds without heartbeat change
 const _MPV_ANDROID_STATE_FILE := "ossm_bridge/state.json"
 const _MPV_ANDROID_BRIDGE_SUBDIR := "ossm_bridge"
@@ -20,6 +15,12 @@ const _MPV_ANDROID_SCRIPT_LINE := \
 	"script=/sdcard/Android/media/is.xyz.mpv/scripts/ossm_android_bridge.lua"
 const _MPV_ANDROID_EXPECTED_DOC_ID := "primary:Android/media/is.xyz.mpv"
 
+var _sync_connected: Callable
+var _on_state_change: Callable
+
+var _poll_timer: Timer
+
+var saf_mpv_bridge_uri: String
 var _mpv_android_state: Dictionary = {}
 var _mpv_android_received_filename: bool = false
 var _mpv_android_last_heartbeat: int = 0
@@ -29,26 +30,30 @@ var _mpv_android_command_counter: int = 0
 
 func _init(
 		saf_mpv_bridge_uri: String,
-		on_connected: Callable,
-		on_disconnected: Callable,
+		sync_connected: Callable,
 		on_state_change: Callable
 	):
 	self.player_address = ""
 	self.player_port = 0
 	self.saf_mpv_bridge_uri = saf_mpv_bridge_uri
-	self.on_connected = on_connected
-	self.on_disconnected = on_disconnected
-	self.on_state_change = on_state_change
+	_sync_connected = sync_connected
+	_on_state_change = on_state_change
 
+func _ready():
+	_poll_timer = Timer.new()
+	_poll_timer.name = "PollTimer"
+	_poll_timer.wait_time = 0.1
+	add_child(_poll_timer)
+	_poll_timer.timeout.connect(_mpv_android_poll)
 
-func activate(poll_timer: Timer):
+func activate():
 	_mpv_android_activate()
-	poll_timer.wait_time = 0.1
-	poll_timer.start()
+	_poll_timer.wait_time = 0.1
+	_poll_timer.start()
 
 
-func deactivate(poll_timer: Timer):
-	poll_timer.stop()
+func deactivate():
+	_poll_timer.stop()
 	_mpv_android_disconnect()
 
 
@@ -56,25 +61,14 @@ func send_play():
 	_mpv_android_send_command(["set_property", "pause", false])
 
 
-func send_pause():
+func send_pause(time_seconds := -1.0):
 	_mpv_android_send_command(["set_property", "pause", true])
+	if time_seconds >= 0.0:
+		send_seek(time_seconds)
 
 
-func send_seek(time_seconds: float, _player_duration: float):
+func send_seek(time_seconds: float):
 	_mpv_android_send_command(["seek", time_seconds, "absolute"])
-
-
-func process(delta):
-	pass
-
-func poll_status():
-	_mpv_android_poll()
-
-func on_poll_completed(_body: PackedByteArray):
-	pass
-
-func on_command_completed(_body: PackedByteArray):
-	pass
 
 
 # ---- MPV Android File IPC (SAF) ----
@@ -211,7 +205,7 @@ func _mpv_android_poll():
 	var alive := (now - _mpv_android_last_heartbeat_seen_at) < _MPV_ANDROID_HEARTBEAT_TIMEOUT
 	
 	if alive:
-		on_connected.call()
+		_sync_connected.call(true)
 	else:
 		_mpv_android_set_disconnected()
 		return
@@ -223,7 +217,7 @@ func _mpv_android_poll():
 
 
 func _mpv_android_set_disconnected():
-	on_disconnected.call()
+	_sync_connected.call(false)
 	_mpv_android_received_filename = false
 
 
@@ -252,7 +246,11 @@ func _mpv_android_update_state():
 			time_sec = float(time_pos)
 		if duration != null:
 			duration_sec = float(duration)
-	on_state_change.call(state, time_sec, duration)
+	_on_state_change.call({
+		"state": state,
+		"time": time_sec,
+		"duration": duration
+	})
 
 
 func _mpv_android_send_command(arr: Array):

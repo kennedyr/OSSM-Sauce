@@ -1,6 +1,6 @@
 extends Panel
 
-enum PlayerType {OFF, VLC, MPC, MPV, MPV_ANDROID}
+enum PlayerType {OFF, VLC, MPC, MPV, MPV_ANDROID, STASH}
 
 # Configuration — set these from your UI
 var player_type: PlayerType = PlayerType.OFF
@@ -13,10 +13,24 @@ var video_offset_ms: int = 0
 var vlc_seek_correction: float = 0.0
 
 # Read-only state
-var connected: bool = false
-var player_state: String = "stopped"
-var player_time: float = 0.0
-var player_duration: float = 0.0
+var connected := false:
+	get:
+		return connected
+	set(is_connected):
+		if is_connected == connected:
+			return
+
+		connected = is_connected
+		if not connected:
+			player_state["state"] = "stopped"
+			player_paused.emit()
+		connection_changed.emit(connected)
+
+var player_state := {
+	"state": "stopped",
+	"time": 0.0,
+	"duration": 0.0
+}
 
 # Signals for bidirectional sync
 signal player_played(video_time_seconds: float, from_stopped: bool)
@@ -26,11 +40,7 @@ signal connection_changed(is_connected: bool)
 
 var _cooldown: bool = false
 var _pending_action: String = ""
-var _seek_after_pause: float = -1.0
 
-var _command_http: HTTPRequest
-var _poll_http: HTTPRequest
-var _poll_timer: Timer
 var _delay_timer: Timer
 var _cooldown_timer: Timer
 
@@ -53,24 +63,6 @@ func _ready():
 				$Main/ConnectionIndicator.show()
 			else:
 				$Main/ConnectionIndicator.hide())
-	
-	_command_http = HTTPRequest.new()
-	_command_http.name = "CommandHTTP"
-	_command_http.timeout = 2
-	add_child(_command_http)
-	_command_http.request_completed.connect(_on_command_completed)
-	
-	_poll_http = HTTPRequest.new()
-	_poll_http.name = "PollHTTP"
-	_poll_http.timeout = 2
-	add_child(_poll_http)
-	_poll_http.request_completed.connect(_on_poll_completed)
-	
-	_poll_timer = Timer.new()
-	_poll_timer.name = "PollTimer"
-	_poll_timer.wait_time = 0.1
-	add_child(_poll_timer)
-	_poll_timer.timeout.connect(_poll_status)
 	
 	_delay_timer = Timer.new()
 	_delay_timer.name = "DelayTimer"
@@ -128,30 +120,32 @@ func activate(type: PlayerType):
 			player_interface.saf_mpv_bridge_uri = %FileUtil.saf_mpv_bridge_uri
 		if type == PlayerType.VLC:
 			player_interface.vlc_password = vlc_password
-		player_interface.activate(_poll_timer)
+		player_interface.activate()
 
 
 func deactivate():
 	player_type = PlayerType.OFF
 	if player_interface:
-		player_interface.deactivate(_poll_timer)
+		player_interface.deactivate()
 
 	_delay_timer.stop()
 	_cooldown_timer.stop()
 	_cooldown = false
 	_pending_action = ""
-	player_state = "stopped"
-	player_time = 0.0
-	player_duration = 0.0
-	if connected:
-		connected = false
-		connection_changed.emit(false)
+	player_state.merge({
+		"state": "stopped",
+		"time": 0.0,
+		"duration": 0.0,
+	}, true)
+	connected = false
 
 
 # ---- App -> Video Player ----
 
 func sync_play():
-	_send_play()
+	if player_interface:
+		player_interface.send_play()
+
 	_start_cooldown()
 	if delay_ms > 0:
 		_pending_action = "play"
@@ -162,7 +156,9 @@ func sync_play():
 
 
 func sync_pause():
-	_send_pause()
+	if player_interface:
+		player_interface.send_pause()
+
 	_start_cooldown()
 	if delay_ms > 0:
 		_pending_action = "pause"
@@ -173,25 +169,27 @@ func sync_pause():
 
 
 func sync_seek(path_time_seconds: float):
-	_send_seek(_path_to_video_time(path_time_seconds))
+	var video_time = _path_to_video_time(path_time_seconds)
+	if player_interface:
+		player_interface.send_seek(video_time)
+
 	_start_cooldown()
 
 
 func pause_and_seek(path_time_seconds: float):
 	var video_time = _path_to_video_time(path_time_seconds)
-	if player_type == PlayerType.MPV or player_type == PlayerType.MPV_ANDROID:
-		_send_pause()
-		_send_seek(video_time)
-	else:
-		_seek_after_pause = video_time
-		_send_pause()
+	if player_interface:
+		player_interface.send_pause(video_time)
+
 	_start_cooldown()
 
 
 func pause_player():
 	if not is_active():
 		return
-	_send_pause()
+
+	if player_interface:
+		player_interface.send_pause()
 	_start_cooldown()
 
 
@@ -211,70 +209,13 @@ func _path_to_video_time(path_time_seconds: float) -> float:
 	return maxf(video_time, 0.0)
 
 
-# ---- Player Interface Commands ----
+func _process_state(state: Dictionary):
+	var old_state = player_state["state"]
+	var old_time = player_state["time"]
+	var new_state: String = state["state"] if state["state"] else old_state
+	var new_time: float = state["time"] if state["time"] else old_time
 
-func _send_play():
-	if player_interface:
-		player_interface.send_play()
-
-
-func _send_pause():
-	if player_interface:
-		player_interface.send_pause()
-
-
-func _send_seek(time_seconds: float):
-	if player_interface:
-		player_interface.send_seek(time_seconds, player_duration)
-
-
-func _on_command_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
-	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
-		_seek_after_pause = -1.0
-		return
-
-	if player_interface:
-		player_interface.on_command_completed(body)
-	
-	if _seek_after_pause >= 0.0:
-		var time = _seek_after_pause
-		_seek_after_pause = -1.0
-		await get_tree().create_timer(0.1).timeout
-		_send_seek(time)
-
-
-# ---- Polling ----
-
-func _poll_status():
-	if player_type == PlayerType.OFF:
-		return
-
-	if player_interface:
-		player_interface.poll_status()
-
-
-func _on_poll_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
-	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
-		if connected:
-			connected = false
-			player_state = "stopped"
-			connection_changed.emit(false)
-			player_paused.emit()
-		return
-	if not connected:
-		connected = true
-		connection_changed.emit(true)
-
-	if player_interface:
-		player_interface.on_poll_completed(body)
-
-
-func _process_state(new_state: String, new_time: float, new_duration: float):
-	var old_state = player_state
-	var old_time = player_time
-	player_state = new_state
-	player_time = new_time
-	player_duration = new_duration
+	player_state.merge(state, true)
 	if _cooldown:
 		return
 	if new_state != old_state:
@@ -287,11 +228,6 @@ func _process_state(new_state: String, new_time: float, new_duration: float):
 	elif abs(new_time - old_time) > 1.5:
 		var adjusted = new_time - video_offset_ms / 1000.0 + delay_ms / 1000.0
 		player_seeked.emit(maxf(adjusted, 0.0))
-
-
-func _process(delta):
-	if player_interface:
-		player_interface.process(delta)
 
 
 func _mpv_android_saf_path(rel: String) -> String:
@@ -394,6 +330,10 @@ func _on_player_selection_item_selected(index: int) -> void:
 	$Main/HelpButton.show()
 	$Main/VLCPassword.hide()
 	$Main/VLCSeekCorrection.hide()
+	if player_interface:
+		remove_child(player_interface)
+		player_interface = null
+	
 	player_type = index as PlayerType
 	UserSettings.set_value(UserSettings.Section.video_player, 'player_type', index)
 	match player_type:
@@ -413,8 +353,7 @@ func _on_player_selection_item_selected(index: int) -> void:
 			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_delay_ms', 0)
 			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'vlc_advance_ms', 100)
 			player_interface = VideoPlayerVlc.new(player_address, player_port, vlc_password,
-				_poll_http,
-				_command_http,
+				Callable(self, "_sync_connected"),
 				Callable(self, "_on_state_change")
 			)
 		PlayerType.MPC:
@@ -422,8 +361,7 @@ func _on_player_selection_item_selected(index: int) -> void:
 			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpc_delay_ms', 0)
 			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpc_advance_ms', 100)
 			player_interface = VideoPlayerMpc.new(player_address, player_port,
-				_poll_http,
-				_command_http,
+				Callable(self, "_sync_connected"),
 				Callable(self, "_on_state_change")
 			)
 		PlayerType.MPV:
@@ -431,8 +369,7 @@ func _on_player_selection_item_selected(index: int) -> void:
 			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_delay_ms', 0)
 			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_advance_ms', 100)
 			player_interface = VideoPlayerMpv.new(player_address, player_port,
-				Callable(self, "_on_connected"),
-				Callable(self, "_on_disconnected"),
+				Callable(self, "_sync_connected"),
 				Callable(self, "_on_state_change")
 			)
 		PlayerType.MPV_ANDROID:
@@ -442,10 +379,21 @@ func _on_player_selection_item_selected(index: int) -> void:
 			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'mpv_android_advance_ms', 100)
 			player_interface = VideoPlayerMpvAndroid.new(
 				%FileUtil.saf_mpv_bridge_uri,
-				Callable(self, "_on_connected"),
-				Callable(self, "_on_disconnected"),
+				Callable(self, "_sync_connected"),
 				Callable(self, "_on_state_change")
 			)
+		PlayerType.STASH:
+			$Main/PlayerPort.hide()
+			player_port = UserSettings.get_value(UserSettings.Section.video_player, 'mpc_port', 13579)
+			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'stash_delay_ms', 0)
+			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'stash_advance_ms', 100)
+			player_interface = VideoPlayerStash.new(player_port,
+				Callable(self, "_sync_connected"),
+				Callable(self, "_on_state_change")
+			)
+	if player_interface:
+		add_child(player_interface, false, INTERNAL_MODE_BACK)
+
 	$Main/PlayerPort/Input.set_value_no_signal(player_port)
 	$Main/DelayMs/Input.value = delay_ms
 	$Main/AdvanceMs/Input.value = advance_ms
@@ -500,6 +448,8 @@ func _on_delay_ms_value_changed(value: float) -> void:
 			UserSettings.set_value(UserSettings.Section.video_player, 'mpv_delay_ms', delay_ms)
 		PlayerType.MPV_ANDROID:
 			UserSettings.set_value(UserSettings.Section.video_player, 'mpv_android_delay_ms', delay_ms)
+		PlayerType.STASH:
+			UserSettings.set_value(UserSettings.Section.video_player, 'stash_delay_ms', delay_ms)
 
 
 func _on_advance_ms_value_changed(value: float) -> void:
@@ -513,6 +463,8 @@ func _on_advance_ms_value_changed(value: float) -> void:
 			UserSettings.set_value(UserSettings.Section.video_player, 'mpv_advance_ms', advance_ms)
 		PlayerType.MPV_ANDROID:
 			UserSettings.set_value(UserSettings.Section.video_player, 'mpv_android_advance_ms', advance_ms)
+		PlayerType.STASH:
+			UserSettings.set_value(UserSettings.Section.video_player, 'stash_advance_ms', advance_ms)
 
 
 func _on_video_offset_ms_value_changed(value: float) -> void:
@@ -687,19 +639,9 @@ func _on_mpc_setup_instructions_pressed() -> void:
 
 # ---- Video Player Callbacks ----
 
-func _on_connected() -> void:
-	if not connected:
-		connected = true
-		connection_changed.emit(true)
+func _sync_connected(is_connected: bool) -> void:
+	connected = is_connected
 
 
-func on_disconnected() -> void:
-	if connected:
-		connected = false
-		player_state = "stopped"
-		connection_changed.emit(false)
-		player_paused.emit()
-
-
-func on_state_change(state: String, time: float, duration: float) -> void:
-	_process_state(state, time, duration)
+func _on_state_change(state: Dictionary) -> void:
+	_process_state(state)
