@@ -354,43 +354,43 @@ func apply_device_settings():
 	$RangePanel.send_range_limits()
 
 
-func load_path_file_name(file_name: String) -> bool:
+func load_path_file_name(file_name: String) -> String:
 	var file_path = %FileUtil._resolve_storage_path(file_name, "paths")
 	return load_path(file_path)
 
-func load_raw(file_text: String) -> bool:
+func load_raw(file_text: String) -> String:
 	var funscript = Funscript.new()
-	funscript.load_string(file_text, true)
+	var title = funscript.load_string(file_text, true)
 	if not funscript.marker_data:
 		printerr("Error: Failed to read file.")
-		return false
+		return ""
 
 	if funscript.marker_data.size() < buffer_size:
 		printerr("Error: Insufficient path data in file.")
-		return false
+		return ""
 
 	funscripts.append(funscript)
 	create_path_line(funscript.path)
-	var index = %Menu/Playlist.add_item("virtual")
+	var index = %Menu/Playlist.add_item(title)
 	%Menu/Playlist.select_item_index(index)
 
-	return true
+	return title
 
-func load_path(file_path: String) -> bool:
+func load_path(file_path: String) -> String:
 	var funscript = Funscript.new()
-	funscript.load_path(file_path)
+	var title = funscript.load_path(file_path)
 	if not funscript.marker_data:
 		printerr("Error: Failed to read file.")
-		return false
+		return ""
 
 	if funscript.marker_data.size() < buffer_size:
 		printerr("Error: Insufficient path data in file.")
-		return false
+		return ""
 
 	funscripts.append(funscript)
 	create_path_line(funscript.path)
 
-	return true
+	return title
 
 func create_path_line(path: PackedFloat32Array):
 	var path_line := Line2D.new()

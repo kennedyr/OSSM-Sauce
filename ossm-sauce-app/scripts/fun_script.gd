@@ -2,7 +2,7 @@ extends Node
 
 class_name Funscript
 
-
+var title: String
 var marker_data: Dictionary[int, Marker]
 var path: PackedFloat32Array
 var frames: PackedInt32Array
@@ -10,7 +10,7 @@ var network_paths: Array[PackedByteArray]
 var chapters: Array[Chapter]
 
 
-func load_string(file_text: String, is_funscript: bool) -> bool:
+func load_string(file_text: String, is_funscript: bool) -> String:
 	var parsed_data = parse_file(file_text)
 	var file_data: Dictionary
 	if is_funscript:
@@ -20,10 +20,12 @@ func load_string(file_text: String, is_funscript: bool) -> bool:
 	var raw_marker_data: Array[Marker] = file_data.actions
 	if not raw_marker_data:
 		printerr("Error: Failed to read file.")
-		return false
+		return ""
+
 	if raw_marker_data.size() < 6:
 		printerr("Error: Insufficient path data in file.")
-		return false
+		return ""
+
 	network_paths.assign(raw_marker_data.map(func(m): return m.network_packet))
 	raw_marker_data.map(func(m): marker_data[m.marker_frame] = m)
 	path = create_path_lines(marker_data)
@@ -33,10 +35,10 @@ func load_string(file_text: String, is_funscript: bool) -> bool:
 	else:
 		chapters = raw_chapter_data
 
-	return true
+	return title
 
 
-func load_path(file_path: String) -> bool:
+func load_path(file_path: String) -> String:
 	var file_text = read_file(file_path)
 	var is_funscript = file_path.ends_with(".funscript")
 	return load_string(file_text, is_funscript)
@@ -88,6 +90,7 @@ func map_funscript_data(parsed_data: Dictionary):
 			if "chapters" in meta:
 				for chapt in meta["chapters"]:
 					chapter_data.append(Chapter.from_meta(chapt))
+			title = meta.get("title", "Unknown")
 			
 		if action_data:
 			var created_first_action = false

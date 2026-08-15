@@ -61,15 +61,17 @@ func _on_file_selected(path: String):
 
 func _on_add_path_pressed():
 	var file_name: String = $FileList.get_item_text($FileList.selected_index)
-	if owner.load_path_file_name(file_name):
-		%Menu/Playlist.add_item(file_name)
+	var title = owner.load_path_file_name(file_name)
+	if title:
+		%Menu/Playlist.add_item(title, file_name)
 	close()
 
 
 func _on_add_path(file_path: String):
 	lastPath = file_path.get_base_dir()
-	if owner.load_path(file_path):
-		%Menu/Playlist.add_item(file_path.get_file(), file_path)
+	var title = owner.load_path(file_path)
+	if title:
+		%Menu/Playlist.add_item(title, file_path)
 
 
 func _on_cancel():
@@ -91,8 +93,10 @@ func _on_load_playlist(file_path: String):
 			var end_index = line.find(")") - begin_index
 			var delay_duration = float(line.substr(begin_index, end_index))
 			owner.create_delay(delay_duration)
-		elif owner.load_path(line):
-			%Menu/Playlist.add_item(line.get_file(), line)
+		else:
+			var title = owner.load_path(line)
+			if title:
+				%Menu/Playlist.add_item(title, line)
 	%OSSMCommand.reset()
 	close()
 
