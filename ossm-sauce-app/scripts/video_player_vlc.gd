@@ -26,6 +26,7 @@ var _vlc_headers: PackedStringArray:
 			"Authorization: Basic " + Marshalls.utf8_to_base64(":" + _vlc_password)
 		])
 
+@warning_ignore("shadowed_variable_base_class")
 func _init(
 		player_address,
 		player_port,

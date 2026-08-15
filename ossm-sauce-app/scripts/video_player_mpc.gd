@@ -20,6 +20,7 @@ var _base_url: String:
 	get:
 		return "http://" + player_address + ":" + str(player_port)
 
+@warning_ignore("shadowed_variable_base_class")
 func _init(
 		player_address,
 		player_port,
@@ -115,7 +116,7 @@ func _on_poll_completed(result: int, response_code: int, _headers: PackedStringA
 	_parse_mpc(body)
 
 
-func _on_command_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
+func _on_command_completed(result: int, response_code: int, _headers: PackedStringArray, _body: PackedByteArray):
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
 		_seek_after_pause = -1.0
 		return

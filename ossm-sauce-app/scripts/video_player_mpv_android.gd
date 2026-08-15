@@ -28,6 +28,7 @@ var _mpv_android_last_heartbeat_seen_at: float = 0.0
 var _mpv_android_command_counter: int = 0
 
 
+@warning_ignore("shadowed_variable")
 func _init(
 		saf_mpv_bridge_uri: String,
 		sync_connected: Callable,
@@ -249,7 +250,7 @@ func _mpv_android_update_state():
 	_on_state_change.call({
 		"state": state,
 		"time": time_sec,
-		"duration": duration
+		"duration": duration_sec
 	})
 
 

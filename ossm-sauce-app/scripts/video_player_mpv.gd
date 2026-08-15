@@ -15,6 +15,7 @@ var _mpv_received_filename: bool = false
 var _mpv_reconnect_accum: float = 0.0
 
 
+@warning_ignore("shadowed_variable_base_class")
 func _init(
 		player_address,
 		player_port,
