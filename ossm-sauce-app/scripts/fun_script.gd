@@ -10,9 +10,8 @@ var network_paths: Array[PackedByteArray]
 var chapters: Array[Chapter]
 
 
-func load_path(file_path: String) -> bool:
-	var parsed_data = parse_file(file_path)
-	var is_funscript = file_path.ends_with(".funscript")
+func load_string(file_text: String, is_funscript: bool) -> bool:
+	var parsed_data = parse_file(file_text)
 	var file_data: Dictionary
 	if is_funscript:
 		file_data = map_funscript_data(parsed_data)
@@ -37,15 +36,29 @@ func load_path(file_path: String) -> bool:
 	return true
 
 
-func parse_file(file_path: String) -> Dictionary:
-	var file_data: Dictionary
+func load_path(file_path: String) -> bool:
+	var file_text = read_file(file_path)
+	var is_funscript = file_path.ends_with(".funscript")
+	return load_string(file_text, is_funscript)
+
+
+func read_file(file_path: String) -> String:
+	var file_text: String
 	var file = FileAccess.open(file_path, FileAccess.READ)
 	if file:
-		var file_text = file.get_as_text().replace("\n", "")
-		file_data = JSON.parse_string(file_text)
-		if not file_data:
-			printerr("Error: No JSON data found in file.")
+		file_text = file.get_as_text().replace("\n", "")
 		file.close()
+
+	return file_text
+
+
+func parse_file(file_text: String) -> Dictionary:
+	var file_data: Dictionary
+	if file_text:
+		file_data = JSON.parse_string(file_text)
+		
+	if not file_data:
+		printerr("Error: No JSON data found in file.")
 
 	return file_data
 
@@ -114,6 +127,7 @@ func map_other_data(parsed_data: Dictionary) -> Dictionary:
 	}
 
 
+@warning_ignore("shadowed_variable")
 func create_path_lines(marker_data: Dictionary[int, Marker]):
 	var path_lines: PackedFloat32Array
 
@@ -140,6 +154,7 @@ func create_path_lines(marker_data: Dictionary[int, Marker]):
 	return path_lines
 
 
+@warning_ignore("shadowed_variable")
 func create_virtual_chapters(marker_data: Dictionary[int, Marker]) -> Array[Chapter]:
 	var chapter_data: Array[Chapter]
 	var marker_frames = marker_data.keys()
