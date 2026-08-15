@@ -2107,14 +2107,14 @@ layout_mode = 2
 theme_override_constants/separation = 50
 alignment = 1
 
-[node name="LoopPlaylistButton" type="Button" parent="Menu/Main/LoopAndVideoButtons" unique_id=994928288]
+[node name="LoopScriptButton" type="Button" parent="Menu/Main/LoopAndVideoButtons" unique_id=994928288]
 layout_mode = 2
 size_flags_horizontal = 4
 mouse_default_cursor_shape = 2
 theme_override_colors/font_pressed_color = Color(0, 0.815686, 0.627451, 1)
 theme_override_font_sizes/font_size = 54
 toggle_mode = true
-text = "Loop Playlist: OFF"
+text = "Loop Script: OFF"
 
 [node name="VideoPlayerSync" type="Button" parent="Menu/Main/LoopAndVideoButtons" unique_id=741368855]
 layout_mode = 2
@@ -4209,6 +4209,8 @@ script = ExtResource("50_ov553")
 unique_name_in_owner = true
 script = ExtResource("59_0eolm")
 
+[node name="HTTPRequest" type="HTTPRequest" parent="." unique_id=83972363]
+
 [connection signal="gui_input" from="PathDisplay/PathArea" to="PathDisplay/PathArea" method="_on_gui_input"]
 [connection signal="timeout" from="PathDisplay/PathArea/Timer" to="PathDisplay/PathArea" method="_on_timer_timeout"]
 [connection signal="timeout" from="PathDisplay/AccelTimer" to="SpeedPanel" method="update_acceleration"]
@@ -4254,7 +4256,7 @@ script = ExtResource("59_0eolm")
 [connection signal="pressed" from="Menu/Main/PlaylistButtons/SavePlaylist" to="Menu" method="_on_save_playlist_pressed"]
 [connection signal="pressed" from="Menu/Main/PathButtons/AddPath" to="Menu" method="_on_add_path_pressed"]
 [connection signal="pressed" from="Menu/Main/PathButtons/AddDelay" to="Menu" method="_on_add_delay_pressed"]
-[connection signal="toggled" from="Menu/Main/LoopAndVideoButtons/LoopPlaylistButton" to="Menu" method="_on_loop_playlist_button_toggled"]
+[connection signal="toggled" from="Menu/Main/LoopAndVideoButtons/LoopScriptButton" to="Menu" method="_on_loop_script_button_toggled"]
 [connection signal="pressed" from="Menu/Main/LoopAndVideoButtons/VideoPlayerSync" to="Menu" method="_on_video_player_sync_pressed"]
 [connection signal="item_selected" from="Menu/LoopSettings/DisplayMode/OptionButton" to="Menu" method="_on_stroke_duration_display_mode_changed"]
 [connection signal="value_changed" from="Menu/LoopSettings/MaxStrokeDuration/Input" to="Menu" method="_on_max_stroke_duration_changed"]
@@ -4340,3 +4342,4 @@ script = ExtResource("59_0eolm")
 [connection signal="pressed" from="Splash/VBox/Accept" to="Splash" method="_on_accept_pressed"]
 [connection signal="timeout" from="XToysBridge/SpeedTimer" to="XToysBridge" method="_on_speed_timer_timeout"]
 [connection signal="timeout" from="XToysBridge/PingTimer" to="XToysBridge" method="_on_ping_timer_timeout"]
+[connection signal="request_completed" from="HTTPRequest" to="." method="_on_load_funscript"]

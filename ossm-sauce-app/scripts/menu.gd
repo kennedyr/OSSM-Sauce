@@ -193,13 +193,13 @@ func anim_finished():
 	hide()
 
 
-var loop_playlist: bool
-func _on_loop_playlist_button_toggled(toggled_on: bool) -> void:
-	loop_playlist = toggled_on
+var loop_script: bool
+func _on_loop_script_button_toggled(toggled_on: bool) -> void:
+	loop_script = toggled_on
 	if toggled_on:
-		$Main/LoopAndVideoButtons/LoopPlaylistButton.text = "Loop Playlist: ON"
+		$Main/LoopAndVideoButtons/LoopScriptButton.text = "Loop Script: ON"
 	else:
-		$Main/LoopAndVideoButtons/LoopPlaylistButton.text = "Loop Playlist: OFF"
+		$Main/LoopAndVideoButtons/LoopScriptButton.text = "Loop Scrit: OFF"
 
 
 func _on_video_player_sync_pressed() -> void:

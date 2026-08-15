@@ -46,10 +46,12 @@ func _ready():
 	$Menu/VersionLabel.text = "v" + app_version_number
 	%WebSocket.start_server()
 	
+	%VideoPlayer.player_played.connect(_on_video_player_open)
 	%VideoPlayer.player_played.connect(_on_video_player_played)
 	%VideoPlayer.player_paused.connect(_on_video_player_paused)
 	%VideoPlayer.player_seeked.connect(_on_video_player_seeked)
-	
+	%VideoPlayer.player_loop.connect(_on_video_player_loop)
+
 	if OS.get_name() != 'Android':
 		var window_size = get_viewport().size
 		var screen_size = DisplayServer.screen_get_size()
@@ -75,9 +77,9 @@ func _physics_process(_delta) -> void:
 		# There is a next path in playlist
 		if Global.active_path_index < funscripts.size() - 1:
 			transition_to_path(Global.active_path_index + 1)
-		elif $Menu.loop_playlist:
-			# Loop the playlist
-			transition_to_path(0)
+		elif $Menu.loop_script:
+			# Loop the script
+			transition_to_path(Global.active_path_index)
 		else:
 			# Nothing to do
 			Global.paused = true
@@ -102,9 +104,9 @@ func _physics_process(_delta) -> void:
 				var next_path = next_funscript.network_paths
 				if overreach_index < next_path.size():
 					%OSSMCommand.broadcast_binary(next_path[overreach_index])
-			elif $Menu.loop_playlist:
+			elif $Menu.loop_script:
 				var overreach_index = buffer_marker_index - active_path.size()
-				var next_path = funscripts[0].network_paths
+				var next_path = funscripts[Global.active_path_index].network_paths
 				if overreach_index < next_path.size():
 					%OSSMCommand.broadcast_binary(next_path[overreach_index])
 		if current_marker < frames.size() - 1:
@@ -610,7 +612,7 @@ func activate_move_mode():
 	$ChapterDisplay.show()
 	%Menu/Main/PlaylistButtons.show()
 	%Menu/Main/PathButtons.show()
-	%Menu/Main/LoopAndVideoButtons/LoopPlaylistButton.show()
+	%Menu/Main/LoopAndVideoButtons/LoopScriptButton.show()
 	%Menu/Main/LoopAndVideoButtons/VideoPlayerSync.show()
 	%Menu/PathControls.show()
 	%Menu/Playlist.show()
@@ -632,7 +634,7 @@ func deactivate_move_mode():
 	$ChapterDisplay.hide()
 	%Menu/Main/PlaylistButtons.hide()
 	%Menu/Main/PathButtons.hide()
-	%Menu/Main/LoopAndVideoButtons/LoopPlaylistButton.hide()
+	%Menu/Main/LoopAndVideoButtons/LoopScriptButton.hide()
 	%Menu/Main/LoopAndVideoButtons/VideoPlayerSync.hide()
 	%Menu/PathControls.hide()
 	%Menu/Playlist.hide()
@@ -685,6 +687,15 @@ func exit():
 			%OSSMCommand.set_range_limit_max(Global.motor_direction * 10000)
 		home_to(1500)
 
+func _on_video_player_open(url: String):
+	%HTTPRequest.cancel_request()
+	%HTTPRequest.request(url)
+
+func _on_load_funscript(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		push_error("Funscript load Request failed %d - %s " % [result, response_code])
+		return
+	load_raw(body.get_string_from_utf8())
 
 func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
 	if Global.active_path_index == null or not Global.paused or AppMode.active != AppMode.MOVE:
@@ -725,7 +736,6 @@ func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
 	%CircleSelection.hide()
 	play()
 
-
 func _on_video_player_paused():
 	if Global.paused or AppMode.active != AppMode.MOVE:
 		return
@@ -733,7 +743,6 @@ func _on_video_player_paused():
 	%ActionPanel/Pause.hide()
 	%ActionPanel/Play.show()
 	pause()
-
 
 func _on_video_player_seeked(video_time_seconds: float):
 	if Global.active_path_index == null or AppMode.active != AppMode.MOVE:
@@ -745,6 +754,8 @@ func _on_video_player_seeked(video_time_seconds: float):
 	$SeekSlider.set_value_no_signal(float(target_frame) / (total_frames - 1))
 	seek(false)
 
+func _on_video_player_loop(loop: bool):
+	%Menu._on_loop_script_button_toggled(loop)
 
 func _check_storage_setup() -> void:
 	if !%FileUtil.check_storage_setup():

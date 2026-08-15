@@ -144,10 +144,10 @@ func parse_vlc(body: PackedByteArray):
 	_vlc_state = json
 
 	var length = float(json.get("length", 0))
-	var _position = float(json.get("position", 0))
+	var position = float(json.get("position", 0))
 	
 	_on_state_change.call({
 		"state": json.get("state", "stopped"),
-		"time": _position * length,
+		"time": position * length,
 		"duration": length
 	})

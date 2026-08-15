@@ -9,9 +9,11 @@ var _poll_timer: Timer
 
 var _ws_server: WebSocketServer
 var _stash_state := {
-	"state": "stopped",
-	"time": 0.0,
-	"duration": 0.0
+	# "filename": null,
+	# "state": "stopped",
+	# "time": 0.0,
+	# "duration": 0.0,
+	# "loop": false
 }
 
 var _client_id
@@ -86,14 +88,11 @@ func send_play():
 func send_pause(time_seconds := -1.0):
 	if _is_ready:
 		print_verbose("[Stash] send_pause")
+		var properties = { "currentTime": time_seconds } if time_seconds >= 0.0 else {}
 		_ws_server.send_text(_client_id, JSON.stringify({
 			"command": "pause",
-			"properties": {
-				"currentTime": time_seconds
-			}
+			"properties": properties
 		}))
-	# if time_seconds >= 0.0:
-	# 	send_seek(time_seconds)
 
 
 func send_seek(time_seconds: float):
@@ -242,6 +241,7 @@ func _on_server_error(error):
 
 func _stash_update_state(state: Dictionary):
 	_stash_state.merge(state, true)
+
 	if not _stash_state.get("filename"):
 		return
 	

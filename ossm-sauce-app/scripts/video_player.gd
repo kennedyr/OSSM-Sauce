@@ -26,6 +26,11 @@ var connected := false:
 			player_paused.emit()
 		connection_changed.emit(connected)
 
+# "filename": null,
+# "state": "stopped",
+# "time": 0.0,
+# "duration": 0.0,
+# "loop": false
 var player_state := {
 	"state": "stopped",
 	"time": 0.0,
@@ -33,6 +38,8 @@ var player_state := {
 }
 
 # Signals for bidirectional sync
+signal player_open(funscriptUrl: String)
+signal player_loop(loop: bool)
 signal player_played(video_time_seconds: float, from_stopped: bool)
 signal player_paused
 signal player_seeked(video_time_seconds: float)
@@ -43,7 +50,6 @@ var _pending_action: String = ""
 
 var _delay_timer: Timer
 var _cooldown_timer: Timer
-var _load_file_http: HTTPRequest
 
 var _mpv_android_pending_player_type: PlayerType = PlayerType.OFF
 var _mpv_desktop_pending_player_type: PlayerType = PlayerType.OFF
@@ -78,12 +84,6 @@ func _ready():
 	add_child(_cooldown_timer)
 	_cooldown_timer.timeout.connect(func(): _cooldown = false)
 
-	_load_file_http = HTTPRequest.new()
-	_load_file_http.name = "CommandHTTP"
-	_load_file_http.timeout = 2
-	add_child(_load_file_http)
-	_load_file_http.request_completed.connect(_on_load_funscript)
-	
 
 func is_active() -> bool:
 	return player_type != PlayerType.OFF
@@ -117,20 +117,6 @@ func _load_video(path: String):
 	OS.create_process("cmd", ["/c", command])
 
 
-func _load_funscript(url: String):
-	_load_file_http.cancel_request()
-	_load_file_http.request(url)
-
-
-func _on_load_funscript(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
-	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
-		push_error("[videoplayer] Funscript Request failed %d - %s " % [result, response_code])
-		return
-	var json_raw = body.get_string_from_utf8()
-	
-	owner.load_raw(json_raw)
-
-
 func activate(type: PlayerType):
 	deactivate()
 	player_type = type
@@ -155,7 +141,6 @@ func deactivate():
 	_delay_timer.stop()
 	_cooldown_timer.stop()
 	_cooldown = false
-	_load_file_http.cancel_request()
 	_pending_action = ""
 	player_state.merge({
 		"state": "stopped",
@@ -235,22 +220,35 @@ func _path_to_video_time(path_time_seconds: float) -> float:
 
 
 func _process_state(state: Dictionary):
-	var old_state = player_state.get("state")
-	var old_time = player_state.get("time")
-	var new_state: String = state.get("state", old_state)
-	var new_time: float = state.get("time", old_time)
-	var funscriptUrl = state.get('filename')
-	if funscriptUrl and player_state.get('filename') != funscriptUrl:
-		_load_funscript(funscriptUrl)
-
+	var old_state = player_state.duplicate()
+	_process_state_filename(state.get("filename"))
+	_process_state_loop(state.get("loop"))
 	player_state.merge(state, true)
-	if _cooldown:
-		return
-	if new_state != old_state:
-		match new_state:
+	if not _cooldown:
+		_process_state_player_state(old_state, state)
+
+
+func _process_state_filename(funscriptUrl: Variant):
+	if funscriptUrl and player_state.get('filename') != funscriptUrl:
+		player_open.emit(funscriptUrl)
+
+
+func _process_state_loop(loop: Variant):
+	if loop != null and player_state.get('loop') != loop:
+		player_loop.emit(loop)
+
+
+func _process_state_player_state(old_state: Dictionary, new_state: Dictionary):
+	var old_player_state = old_state.get("state")
+	var new_player_state = new_state.get("state")
+	var old_time: float = old_state.get("time", 0.0)
+	var new_time: float = new_state.get("time", old_time)
+
+	if new_player_state != old_player_state:
+		match new_player_state:
 			"playing":
 				var adjusted = new_time - video_offset_ms / 1000.0 + delay_ms / 1000.0 + advance_ms / 1000.0
-				player_played.emit(maxf(adjusted, 0.0), old_state == "stopped")
+				player_played.emit(maxf(adjusted, 0.0), old_player_state == "stopped")
 			"paused", "stopped":
 				player_paused.emit()
 	elif abs(new_time - old_time) > 1.5:
