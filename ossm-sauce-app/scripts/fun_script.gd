@@ -233,7 +233,7 @@ func _get_chapter_idx(frame: int) -> int:
 	if idx == 0:
 		return idx
 
-	if chapters[idx].start_at == at and idx < chapters.size():
+	if idx < chapters.size() and chapters[idx].start_at == at:
 		return idx
 
 	return idx - 1

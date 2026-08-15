@@ -20,7 +20,7 @@ var _seeking: bool
 
 var current_funscript:
 	get:
-		if Global.active_path_index >= 0 and Global.active_path_index < funscripts.size():
+		if Global.active_path_index != null and Global.active_path_index >= 0 and Global.active_path_index < funscripts.size():
 			return funscripts[Global.active_path_index]
 
 func _ready():
@@ -46,7 +46,7 @@ func _ready():
 	$Menu/VersionLabel.text = "v" + app_version_number
 	%WebSocket.start_server()
 	
-	%VideoPlayer.player_played.connect(_on_video_player_open)
+	%VideoPlayer.player_open.connect(_on_video_player_open)
 	%VideoPlayer.player_played.connect(_on_video_player_played)
 	%VideoPlayer.player_paused.connect(_on_video_player_paused)
 	%VideoPlayer.player_seeked.connect(_on_video_player_seeked)
@@ -688,8 +688,8 @@ func exit():
 		home_to(1500)
 
 func _on_video_player_open(url: String):
-	%HTTPRequest.cancel_request()
-	%HTTPRequest.request(url)
+	$HTTPRequest.cancel_request()
+	$HTTPRequest.request(url)
 
 func _on_load_funscript(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:

@@ -240,7 +240,7 @@ func _process_state_loop(loop: Variant):
 
 func _process_state_player_state(old_state: Dictionary, new_state: Dictionary):
 	var old_player_state = old_state.get("state")
-	var new_player_state = new_state.get("state")
+	var new_player_state = new_state.get("state", old_player_state)
 	var old_time: float = old_state.get("time", 0.0)
 	var new_time: float = new_state.get("time", old_time)
 
