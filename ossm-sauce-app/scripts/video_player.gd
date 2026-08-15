@@ -16,11 +16,11 @@ var vlc_seek_correction: float = 0.0
 var connected := false:
 	get:
 		return connected
-	set(is_connected):
-		if is_connected == connected:
+	set(is_conn):
+		if is_conn == connected:
 			return
 
-		connected = is_connected
+		connected = is_conn
 		if not connected:
 			player_state["state"] = "stopped"
 			player_paused.emit()
@@ -36,13 +36,14 @@ var player_state := {
 signal player_played(video_time_seconds: float, from_stopped: bool)
 signal player_paused
 signal player_seeked(video_time_seconds: float)
-signal connection_changed(is_connected: bool)
+signal connection_changed(is_conn: bool)
 
 var _cooldown: bool = false
 var _pending_action: String = ""
 
 var _delay_timer: Timer
 var _cooldown_timer: Timer
+var _load_file_http: HTTPRequest
 
 var _mpv_android_pending_player_type: PlayerType = PlayerType.OFF
 var _mpv_desktop_pending_player_type: PlayerType = PlayerType.OFF
@@ -76,6 +77,12 @@ func _ready():
 	_cooldown_timer.wait_time = 0.5
 	add_child(_cooldown_timer)
 	_cooldown_timer.timeout.connect(func(): _cooldown = false)
+
+	_load_file_http = HTTPRequest.new()
+	_load_file_http.name = "CommandHTTP"
+	_load_file_http.timeout = 2
+	add_child(_load_file_http)
+	_load_file_http.request_completed.connect(_on_load_funscript)
 	
 
 func is_active() -> bool:
@@ -83,6 +90,9 @@ func is_active() -> bool:
 
 
 func try_load_video(funscript_path: String):
+	if player_type == PlayerType.OFF or player_type == PlayerType.STASH:
+		return
+
 	var extensionless_path = funscript_path.get_basename()
 	var mp4Path = extensionless_path + ".mp4"
 	if FileAccess.file_exists(mp4Path):
@@ -105,6 +115,20 @@ func try_load_video(funscript_path: String):
 func _load_video(path: String):
 	var command = r'mpv "' + path + r'"'
 	OS.create_process("cmd", ["/c", command])
+
+
+func _load_funscript(url: String):
+	_load_file_http.cancel_request()
+	_load_file_http.request(url)
+
+
+func _on_load_funscript(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		push_error("[videoplayer] Funscript Request failed %d - %s " % [result, response_code])
+		return
+	var json_raw = body.get_string_from_utf8()
+	
+	owner.load_raw(json_raw)
 
 
 func activate(type: PlayerType):
@@ -131,6 +155,7 @@ func deactivate():
 	_delay_timer.stop()
 	_cooldown_timer.stop()
 	_cooldown = false
+	_load_file_http.cancel_request()
 	_pending_action = ""
 	player_state.merge({
 		"state": "stopped",
@@ -210,10 +235,13 @@ func _path_to_video_time(path_time_seconds: float) -> float:
 
 
 func _process_state(state: Dictionary):
-	var old_state = player_state["state"]
-	var old_time = player_state["time"]
-	var new_state: String = state["state"] if state["state"] else old_state
-	var new_time: float = state["time"] if state["time"] else old_time
+	var old_state = player_state.get("state")
+	var old_time = player_state.get("time")
+	var new_state: String = state.get("state", old_state)
+	var new_time: float = state.get("time", old_time)
+	var funscriptUrl = state.get('filename')
+	if funscriptUrl and player_state.get('filename') != funscriptUrl:
+		_load_funscript(funscriptUrl)
 
 	player_state.merge(state, true)
 	if _cooldown:
@@ -384,7 +412,7 @@ func _on_player_selection_item_selected(index: int) -> void:
 			)
 		PlayerType.STASH:
 			$Main/PlayerPort.hide()
-			player_port = UserSettings.get_value(UserSettings.Section.video_player, 'mpc_port', 13579)
+			player_port = UserSettings.get_value(UserSettings.Section.video_player, 'stash_port', 9009)
 			delay_ms = UserSettings.get_value(UserSettings.Section.video_player, 'stash_delay_ms', 0)
 			advance_ms = UserSettings.get_value(UserSettings.Section.video_player, 'stash_advance_ms', 100)
 			player_interface = VideoPlayerStash.new(player_port,
@@ -639,8 +667,8 @@ func _on_mpc_setup_instructions_pressed() -> void:
 
 # ---- Video Player Callbacks ----
 
-func _sync_connected(is_connected: bool) -> void:
-	connected = is_connected
+func _sync_connected(is_conn: bool) -> void:
+	connected = is_conn
 
 
 func _on_state_change(state: Dictionary) -> void:

@@ -358,6 +358,24 @@ func load_path_file_name(file_name: String) -> bool:
 	var file_path = %FileUtil._resolve_storage_path(file_name, "paths")
 	return load_path(file_path)
 
+func load_raw(file_text: String) -> bool:
+	var funscript = Funscript.new()
+	funscript.load_string(file_text, true)
+	if not funscript.marker_data:
+		printerr("Error: Failed to read file.")
+		return false
+
+	if funscript.marker_data.size() < buffer_size:
+		printerr("Error: Insufficient path data in file.")
+		return false
+
+	funscripts.append(funscript)
+	create_path_line(funscript.path)
+	var index = %Menu/Playlist.add_item("virtual")
+	%Menu/Playlist.select_item_index(index)
+
+	return true
+
 func load_path(file_path: String) -> bool:
 	var funscript = Funscript.new()
 	funscript.load_path(file_path)

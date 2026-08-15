@@ -11,6 +11,15 @@ func _ready():
 	$Scroll/VBox.remove_child(Item)
 
 
+func select_item_index(index):
+	deselect_all()
+
+	selected_index = index
+	var item = $Scroll/VBox.get_child(index)
+	item.select()
+	%Menu._on_play_pressed()
+
+
 func _on_item_selected(item):
 	if drag_delta > 7:
 		return
@@ -47,6 +56,7 @@ func add_item(item_text:String, item_path:String = ""):
 	var item_button = item.get_node('Button')
 	item_button.connect('pressed', _on_item_selected.bind(item))
 	%Menu/Main/PlaylistButtons/SavePlaylist.disabled = false
+	return item.get_index()
 
 
 func move_item(current_index, new_index):
