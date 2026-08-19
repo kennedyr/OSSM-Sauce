@@ -84,3 +84,8 @@ static var playlists_dir: String:
 static var cfg_path: String:
 	get:
 		return storage_dir + "/OSSM Sauce/UserSettings.cfg"
+
+
+var path_time: float:
+	get:
+		return maxf(float(Global.frame) / Global.ticks_per_second, 0.0)

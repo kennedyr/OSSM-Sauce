@@ -80,7 +80,7 @@ func send_play():
 		_ws_server.send_text(_client_id, JSON.stringify({
 			"command": "play",
 			"properties": {
-				"currentTime": _stash_state.get('time')
+				"currentTime": Global.path_time
 			}
 		}))
 
@@ -120,9 +120,29 @@ func send_loop(looping: bool):
 func ack_open_funscript(title: String):
 	if _is_ready:
 		_ws_server.send_text(_client_id, JSON.stringify({
-			"event": "open",
+			"ack": "open",
 			"properties": {
 				"title": title
+			}
+		}))
+
+
+func ack_play():
+	if _is_ready:
+		_ws_server.send_text(_client_id, JSON.stringify({
+			"ack": "play",
+			"properties": {
+				"currentTime": Global.path_time
+			}
+		}))
+
+
+func ack_pause():
+	if _is_ready:
+		_ws_server.send_text(_client_id, JSON.stringify({
+			"ack": "pause",
+			"properties": {
+				"currentTime": Global.path_time
 			}
 		}))
 
@@ -140,7 +160,11 @@ func _poll_status():
 			_ws_server.send_text(_client_id, JSON.stringify({
 				"type": 'ping',
 				"timestamp": int(now),
-				"serverTime": int(now)
+				"serverTime": int(now),
+				"properties": {
+					"state": 'paused' if Global.paused else 'playing',
+					"currentTime": Global.path_time
+				}
 			}))
 			_last_heartbeat = now;
 		return
@@ -189,7 +213,11 @@ func _on_message_received(client_id, message):
 			_ws_server.send_text(client_id, JSON.stringify({
 				"type": 'pong',
 				"timestamp": int(payload.timestamp),
-				"serverTime": int(now)
+				"serverTime": int(now),
+				"properties": {
+					"state": 'paused' if Global.paused else 'playing',
+					"currentTime": Global.path_time
+				}
 			}))
 			return
 
@@ -212,6 +240,7 @@ func _on_message_received(client_id, message):
 					"time": properties.get("currentTime"),
 					"duration": properties.get("duration")
 				})
+				call_deferred('ack_play')
 				return
 			"pause":
 				_stash_update_state({
@@ -219,6 +248,7 @@ func _on_message_received(client_id, message):
 					"time": properties.get("currentTime"),
 					"duration": properties.get("duration")
 				})
+				call_deferred('ack_pause')
 				return
 			"seek":
 				_stash_update_state({

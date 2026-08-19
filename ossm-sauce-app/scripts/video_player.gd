@@ -231,10 +231,13 @@ func _process_state(state: Dictionary):
 func _process_state_filename(funscriptUrl: Variant):
 	if funscriptUrl and player_state.get('filename') != funscriptUrl:
 		player_open.emit(funscriptUrl)
+	player_state["state"] = "loading"
+
 
 func ack_open_funscript(title: String):
 	if player_interface and player_interface.has_method('ack_open_funscript'):
 		player_interface.ack_open_funscript(title)
+	player_state["state"] = "ready"
 
 
 func _process_state_loop(loop: Variant):
