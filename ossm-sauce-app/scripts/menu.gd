@@ -80,7 +80,7 @@ func _on_delete_pressed():
 		%ActionPanel/Play.show()
 		%ActionPanel/Pause.hide()
 		%OSSMCommand.pause()
-		%SOSSMCommand.reset()
+		%OSSMCommand.reset()
 		owner.home_to(0)
 	elif Global.active_path_index != null and selected_item < Global.active_path_index:
 		Global.active_path_index -= 1

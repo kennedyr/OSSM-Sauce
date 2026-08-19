@@ -117,6 +117,16 @@ func send_loop(looping: bool):
 		}))
 
 
+func ack_open_funscript(title: String):
+	if _is_ready:
+		_ws_server.send_text(_client_id, JSON.stringify({
+			"event": "open",
+			"properties": {
+				"title": title
+			}
+		}))
+
+
 func _process(_delta):
 	if _ws_server and _ws_server.is_listening():
 		_ws_server.process()

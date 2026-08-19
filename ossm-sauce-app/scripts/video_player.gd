@@ -232,6 +232,10 @@ func _process_state_filename(funscriptUrl: Variant):
 	if funscriptUrl and player_state.get('filename') != funscriptUrl:
 		player_open.emit(funscriptUrl)
 
+func ack_open_funscript(title: String):
+	if player_interface and player_interface.has_method('ack_open_funscript'):
+		player_interface.ack_open_funscript(title)
+
 
 func _process_state_loop(loop: Variant):
 	if loop != null and player_state.get('loop') != loop:
@@ -249,9 +253,11 @@ func _process_state_player_state(old_state: Dictionary, new_state: Dictionary):
 			"playing":
 				var adjusted = new_time - video_offset_ms / 1000.0 + delay_ms / 1000.0 + advance_ms / 1000.0
 				player_played.emit(maxf(adjusted, 0.0), old_player_state == "stopped")
+				return
 			"paused", "stopped":
 				player_paused.emit()
-	elif abs(new_time - old_time) > 1.5:
+
+	if abs(new_time - old_time) > 1.5:
 		var adjusted = new_time - video_offset_ms / 1000.0 + delay_ms / 1000.0
 		player_seeked.emit(maxf(adjusted, 0.0))
 

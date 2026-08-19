@@ -695,7 +695,10 @@ func _on_load_funscript(result: int, response_code: int, _headers: PackedStringA
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
 		push_error("Funscript load Request failed %d - %s " % [result, response_code])
 		return
-	load_raw(body.get_string_from_utf8())
+	var title = load_raw(body.get_string_from_utf8())
+	if title:
+		%VideoPlayer.ack_open_funscript(title)
+
 
 func _on_video_player_played(video_time_seconds: float, from_stopped: bool):
 	if Global.active_path_index == null or not Global.paused or AppMode.active != AppMode.MOVE:
