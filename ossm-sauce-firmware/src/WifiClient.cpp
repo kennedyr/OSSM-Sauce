@@ -1,5 +1,5 @@
-#include "WifiClient.h"
 #include "LEDStatus.h"
+#include "WifiClient.h"
 
 String ssid;
 String password;
@@ -61,8 +61,7 @@ bool connectToWiFi() {
       WiFi.disconnect();
       currentLEDStatus = LED_ERROR;
       return false;
-    } else {
-      numberOfTries--;
     }
+    numberOfTries--;
   }
 }

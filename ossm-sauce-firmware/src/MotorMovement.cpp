@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include "MotorMovement.h"
 #include "Configuration.h"
+#include "MotorMovement.h"
 
 float powerAvgRangeMultiplier = 1.5; // Raise to decrease, or lower to increase sensitivity of sensorless homing
 const int outliersSampleSize = 10;
@@ -64,15 +64,16 @@ bool powerSpikeTriggered;
 float deltaArray[deltaSampleLength];
 void getPowerReading(bool takeDeltaSample = false, int deltaSampleIndex = 0) {
   float sum = 0;
-  for (int i = 0; i < powerSampleSize; i++)
+  for (int i = 0; i < powerSampleSize; i++) {
     sum += analogRead(powerSensorPin);
+  }
   float sampleAverage = sum / powerSampleSize;
 
-  powerEMAFast = ((sampleAverage - powerEMAFast) * 0.1) + powerEMAFast;
+  powerEMAFast = ((sampleAverage - powerEMAFast) * 0.1F) + powerEMAFast;
 
-  powerEMASlow = ((sampleAverage - powerEMASlow) * 0.02) + powerEMASlow;
-  powerEMASlowSmooth = ((powerEMASlow - powerEMASlowSmooth) * 0.02) + powerEMASlowSmooth;
-  powerEMASlowDoubleSmooth = ((powerEMASlowSmooth - powerEMASlowDoubleSmooth) * 0.01) + powerEMASlowDoubleSmooth;
+  powerEMASlow = ((sampleAverage - powerEMASlow) * 0.02F) + powerEMASlow;
+  powerEMASlowSmooth = ((powerEMASlow - powerEMASlowSmooth) * 0.02F) + powerEMASlowSmooth;
+  powerEMASlowDoubleSmooth = ((powerEMASlowSmooth - powerEMASlowDoubleSmooth) * 0.01F) + powerEMASlowDoubleSmooth;
 
   if (takeDeltaSample) {
     deltaArray[deltaSampleIndex] = powerEMAFast - powerEMASlowDoubleSmooth;
@@ -185,7 +186,7 @@ void sensorlessHoming() {
   digitalWrite(motorEnablePin, LOW);
 
   // Set hard limits
-  float hardLimitBuffer = abs(limitPhysicalMax - limitPhysicalMin) * 0.06;
+  int hardLimitBuffer = round(abs(limitPhysicalMax - limitPhysicalMin) * 0.06F);
 
   if (enablePreferences && preferences.getBool("motor_reversed", false)) {
     rangeLimitHardMin = limitPhysicalMax - hardLimitBuffer;
@@ -287,10 +288,11 @@ double interpolate(double weight, TransType transType, EaseType easeType) {
 // Amplify base move speed to match traversal time with linear move
 uint32_t getMoveBaseSpeedHz(StrokeCommand stroke, uint32_t moveDuration, bool useFullUserRange) {
   int moveDelta;
-  if (useFullUserRange)
+  if (useFullUserRange) {
     moveDelta = rangeLimitUserMax - rangeLimitUserMin;
-  else
+  } else {
     moveDelta = stroke.targetPosition - stepper->getCurrentPosition();
+  }
   float linearMoveSpeed = abs(moveDelta) / (moveDuration * 0.001);
   switch (stroke.transType) {
     case TRANS_SINE:
@@ -316,19 +318,22 @@ uint32_t getMoveBaseSpeedHz(StrokeCommand stroke, uint32_t moveDuration, bool us
 void processSafeAccel() {
   int32_t currentPosition = stepper->getCurrentPosition();
   if (currentPosition < previousStrokePosition) {
-    if (movementDirection == OUT)
+    if (movementDirection == OUT) {
       applyAcceleration = true;
+    }
     movementDirection = IN;
   } else if (currentPosition > previousStrokePosition) {
-    if (movementDirection == IN)
+    if (movementDirection == IN) {
       applyAcceleration = true;
+    }
     movementDirection = OUT;
   }
   previousStrokePosition = currentPosition;
   if (applyAcceleration) {
     applyAcceleration = false;
-    if (stepper->getAcceleration() == globalAcceleration)
+    if (stepper->getAcceleration() == globalAcceleration) {
       return;
+    }
     stepper->forceStop();
     stepper->setAcceleration(globalAcceleration);
     stepper->applySpeedAcceleration();

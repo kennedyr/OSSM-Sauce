@@ -1,7 +1,7 @@
 #include "Configuration.h"
+#include "LEDStatus.h"
 #include "MotorMovement.h"
 #include "secrets.h"
-#include "LEDStatus.h"
 #include "WebsocketClient.h"
 #include "WifiClient.h"
 
@@ -375,9 +375,9 @@ String constructWebSocketAddress() {
   String serverAddress;
   serverAddress += "ws://";
   if (enablePreferences) {
-    if (preferences.isKey("ws_server"))
+    if (preferences.isKey("ws_server")){
       serverAddress += preferences.getString("ws_server");
-    else {
+    } else {
       // No server configured, enter config mode
       Serial.println("No WebSocket server configured!");
       handleConfigMenu();

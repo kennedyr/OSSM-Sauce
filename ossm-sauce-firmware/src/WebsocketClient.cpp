@@ -1,6 +1,6 @@
-#include "WebsocketClient.h"
 #include "LEDStatus.h"
 #include "Ossm.h"
+#include "WebsocketClient.h"
 
 // Global variables
 esp_websocket_client_config_t wsConfig;
@@ -25,8 +25,9 @@ void parseBinaryMessage(esp_websocket_event_data_t* data) {
   }
 
   case MOVE: {
-    if (messageLength != 10)
+    if (messageLength != 10) {
       return;
+    }
     StrokeCommand inputMove;
     memcpy(&inputMove, message + 1, 9);
     enqueueMove(inputMove);
@@ -34,8 +35,9 @@ void parseBinaryMessage(esp_websocket_event_data_t* data) {
   }
 
   case LOOP: {
-    if (messageLength != 19)
+    if (messageLength != 19) {
       return;
+    }
     StrokeCommand loopPush;
     memcpy(&loopPush, message + 1, 9);
     StrokeCommand loopPull;
@@ -52,8 +54,9 @@ void parseBinaryMessage(esp_websocket_event_data_t* data) {
   }
 
   case VIBRATE: {
-    if (messageLength != 13)
+    if (messageLength != 13) {
       return;
+    }
     Vibration vibration;
     memcpy(&vibration, message + 1, 12);
     initiateVibrate(vibration);
@@ -61,8 +64,9 @@ void parseBinaryMessage(esp_websocket_event_data_t* data) {
   }
 
   case SMOOTH_MOVE: {
-    if (messageLength != 10)
+    if (messageLength != 10) {
       return;
+    }
     StrokeCommand smoothMoveCommand;
     memcpy(&smoothMoveCommand, message + 1, 9);
     initiateSmoothMove(smoothMoveCommand);
@@ -141,8 +145,9 @@ void parseBinaryMessage(esp_websocket_event_data_t* data) {
 
 char* substr(char* arr, int begin, int len) {
   char* res = new char[len + 1];
-  for (int i = 0; i < len; i++)
+  for (int i = 0; i < len; i++) {
     res[i] = *(arr + begin + i);
+  }
   res[len] = 0;
   return res;
 }
@@ -217,11 +222,10 @@ bool connectToWebSocketServer() {
     esp_websocket_client_send_text(wsClient, "Hello WebSocket", strlen("Hello WebSocket"), portMAX_DELAY);
 
     return true;
-  } else {
-    Serial.println("Failed to connect to WebSocket server");
-    currentLEDStatus = LED_ERROR;
-    return false;
   }
+  Serial.println("Failed to connect to WebSocket server");
+  currentLEDStatus = LED_ERROR;
+  return false;
 }
 
 

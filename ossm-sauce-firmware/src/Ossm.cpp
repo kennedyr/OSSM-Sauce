@@ -56,22 +56,25 @@ void moveStart() {
 }
 
 void enqueueMove(StrokeCommand movement) {
-  if (movementMode == MODE_HOMING)
+  if (movementMode == MODE_HOMING) {
     return;
+  }
 
   if (!xQueueSend(moveQueue, &movement, (TickType_t)10)) {
     Serial.println("ERROR: Failed to add move command to queue. Is queue full?");
     return;
   }
 
-  if (moveQueueIsEmpty)
+  if (moveQueueIsEmpty) {
     moveStart();
+  }
   moveQueueIsEmpty = false;
 }
 
 void initiateLoop(StrokeCommand loopPushInput, StrokeCommand loopPullInput) {
-  if (movementMode == MODE_HOMING)
+  if (movementMode == MODE_HOMING) {
     return;
+  }
 
   if (loopPushInput.endTimeMs != 0) {
     loopPushInput.targetPosition = rangeLimitUserMax;
@@ -90,8 +93,9 @@ void initiateLoop(StrokeCommand loopPushInput, StrokeCommand loopPullInput) {
 }
 
 void moveToPosition(uint32_t positionInput) {
-  if (movementMode != MODE_POSITION)
+  if (movementMode != MODE_POSITION) {
     return;
+  }
 
   int constrainedPosition = constrain(positionInput, 0, 10000);
   int targetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
@@ -100,8 +104,9 @@ void moveToPosition(uint32_t positionInput) {
   bool lockedMin = targetPosition < currentPosition && positionDelta > 0;
   bool lockedMax = targetPosition > currentPosition && positionDelta < 0;
   previousTargetPosition = targetPosition;
-  if (lockedMin || lockedMax)
+  if (lockedMin || lockedMax) {
     return;
+  }
 
   uint32_t speed = abs(positionDelta) * 50;
   stepper->setSpeedInHz(min(speed, globalSpeedLimitHz));
@@ -110,19 +115,20 @@ void moveToPosition(uint32_t positionInput) {
 }
 
 void initiateVibrate(Vibration vibrationInput) {
-  if (movementMode == MODE_HOMING)
+  if (movementMode == MODE_HOMING) {
     return;
+  }
 
   int constrainedPosition = constrain(vibrationInput.position, 0, 10000);
   vibrationInput.origin = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
   uint32_t totalRange = abs(rangeLimitUserMax - rangeLimitUserMin);
-  uint32_t vibrationRange = vibrationInput.rangePercent * 0.01 * totalRange;
+  uint32_t vibrationRange = vibrationInput.rangePercent * 0.01f * totalRange;
   long vibrationEndpoint = vibrationInput.origin + vibrationRange;
   vibrationInput.crest = constrain(vibrationEndpoint, rangeLimitUserMin, rangeLimitUserMax);
 
   float halfPeriodReciprocal = 1 / float(vibrationInput.halfPeriodMs);
   uint32_t duration = 1000 * halfPeriodReciprocal;
-  float waveformSpeedScaling = vibrationInput.speedScaling * 0.01;
+  float waveformSpeedScaling = vibrationInput.speedScaling * 0.01f;
   uint32_t newSpeed = vibrationRange * duration * waveformSpeedScaling;
   stepper->setSpeedInHz(min(newSpeed, globalSpeedLimitHz));
 
@@ -143,8 +149,9 @@ void initiateVibrate(Vibration vibrationInput) {
 }
 
 void initiateSmoothMove(StrokeCommand smoothMoveInput) {
-  if (movementMode == MODE_HOMING)
+  if (movementMode == MODE_HOMING) {
     return;
+  }
 
   short constrainedPosition = constrain(smoothMoveInput.depth, 0, 10000);
   smoothMoveInput.targetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
@@ -159,32 +166,36 @@ void initiateSmoothMove(StrokeCommand smoothMoveInput) {
 }
 
 void play(MovementMode movementModeInput) {
-  if (movementMode == MODE_HOMING)
+  if (movementMode == MODE_HOMING) {
     return;
+  }
 
   movementMode = movementModeInput;
   playStartTime = millis() - playTimeMs;
 }
 
 void play(MovementMode movementModeInput, unsigned long playTimeMsInput) {
-  if (movementMode == MODE_HOMING)
+  if (movementMode == MODE_HOMING) {
     return;
+  }
 
   playTimeMs = playTimeMsInput;
   play(movementModeInput);
 }
 
 void pauseNow() {
-  if (movementMode == MODE_HOMING)
+  if (movementMode == MODE_HOMING) {
     return;
+  }
 
   movementMode = MODE_IDLE;
   stepper->stopMove();
 }
 
 void resetNow() {
-  if (movementMode == MODE_HOMING)
+  if (movementMode == MODE_HOMING) {
     return;
+  }
 
   movementMode = MODE_IDLE;
   playTimeMs = 0;
@@ -193,8 +204,9 @@ void resetNow() {
 }
 
 void initiateHoming(uint32_t positionInput) {
-  if (movementMode == MODE_HOMING)
+  if (movementMode == MODE_HOMING) {
     return;
+  }
 
   int constrainedPosition = constrain(positionInput, 0, 10000);
   homingTargetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
@@ -245,14 +257,15 @@ void setHomingTrigger(float homingTriggerInput) {
 }
 
 void updateState() {
-
   switch (movementMode) {
   case MODE_MOVE: {
     playTimeMs = millis() - playStartTime;
-    if (playTimeMs >= activeMove.endTimeMs)
+    if (playTimeMs >= activeMove.endTimeMs) {
       moveStart();
-    if (activeMove.active)
+    }
+    if (activeMove.active) {
       processStroke(&activeMove, playTimeMs - activeMove.playTimeStartedMs);
+    }
     break;
   }
 
