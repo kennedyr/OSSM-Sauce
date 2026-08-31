@@ -1,11 +1,27 @@
+#include <FastLED.h>
 #include "LEDStatus.h"
+
+#define LED_PIN 25
+#define NUM_LEDS 1
+#define LED_TYPE WS2812B
+#define COLOR_ORDER GRB
+
+// LED status colors
+const CRGB COLOR_OFF = CRGB::Black;
+const CRGB COLOR_WAITING = CRGB::Blue;      // Waiting for config input
+const CRGB COLOR_CONFIG = CRGB::Purple;     // In configuration mode
+const CRGB COLOR_CONNECTING = CRGB::Orange; // Connecting to WiFi/WebSocket
+const CRGB COLOR_CONNECTED = CRGB::Green;   // Successfully connected
+const CRGB COLOR_ERROR = CRGB::Red;         // Error/connection failed
+
+void setLEDColor(CRGB color);
 
 // RGB LED variables
 CRGB leds[NUM_LEDS];
 unsigned long lastLEDUpdate = 0;
-uint8_t breatheValue = 0;
+byte breatheValue = 0;
 bool breatheDirection = true;
-uint8_t ledBrightness = 25; // 0-255, adjust as needed
+byte ledBrightness = 25; // 0-255, adjust as needed
 
 // LED status tracking
 LEDStatus currentLEDStatus = LED_OFF;
@@ -14,11 +30,6 @@ void initializeLED() {
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setBrightness(ledBrightness);
   setLEDColor(COLOR_OFF);
-}
-
-void setLEDColor(CRGB color) {
-  leds[0] = color;
-  FastLED.show();
 }
 
 void updateLED() {
@@ -98,4 +109,11 @@ void setLEDStatus(LEDStatus status) {
   lastLEDUpdate = millis(); // Reset timing for new status
   breatheValue = 30;        // Reset breathing animation
   breatheDirection = true;
+}
+
+// private
+
+void setLEDColor(CRGB color) {
+  leds[0] = color;
+  FastLED.show();
 }
