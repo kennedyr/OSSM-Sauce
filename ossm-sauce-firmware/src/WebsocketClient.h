@@ -6,14 +6,14 @@
 #include "esp_websocket_client.h"
 
 // Global variables
-extern esp_websocket_client_config_t wsConfig;
 extern esp_websocket_client_handle_t wsClient;
-extern String websocketAddress;
 
 struct Response {
   CommandType commandType = RESPONSE;
   CommandType responseType;
 };
+
+void setWebsocketAddress(const String& newWebsocketAddress);
 
 // Configuration and connection functions
 bool connectToWebSocketServer();

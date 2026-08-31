@@ -5,13 +5,15 @@
 // Global variables
 esp_websocket_client_config_t wsConfig;
 esp_websocket_client_handle_t wsClient;
-String websocketAddress;
-
+const char* websocketAddress;
+void setWebsocketAddress(const String& newWebsocketAddress) {
+  websocketAddress = newWebsocketAddress.c_str();
+}
 
 // Message Handling
 void parseBinaryMessage(esp_websocket_event_data_t* data) {
   byte* message = (byte*)data->data_ptr;
-  size_t messageLength = data->data_len;
+  int messageLength = data->data_len;
   CommandType commandType = static_cast<CommandType>(message[0]);
 
   switch (commandType) {
@@ -47,7 +49,7 @@ void parseBinaryMessage(esp_websocket_event_data_t* data) {
   }
 
   case POSITION: {
-    u32_t inputPosition;
+    int inputPosition;
     memcpy(&inputPosition, message + 1, 4);
     moveToPosition(inputPosition);
     break;
@@ -95,7 +97,7 @@ void parseBinaryMessage(esp_websocket_event_data_t* data) {
   }
 
   case HOMING: {
-    u32_t inputPosition;
+    int inputPosition;
     memcpy(&inputPosition, message + 1, 4);
     initiateHoming(inputPosition);
     break;
@@ -142,24 +144,19 @@ void parseBinaryMessage(esp_websocket_event_data_t* data) {
   }
 }
 
-
-char* substr(char* arr, int begin, int len) {
-  char* res = new char[len + 1];
-  for (int i = 0; i < len; i++) {
-    res[i] = *(arr + begin + i);
-  }
-  res[len] = 0;
-  return res;
+void slice(const char* str, char* result, size_t start, size_t end) {
+    strncpy(result, str + start, end - start);
 }
-
 
 void parseTextMessage(esp_websocket_event_data_t* data) {
   char* message = (char*)data->data_ptr;
-  size_t messageLength = data->data_len;
+  int messageLength = data->data_len;
   if (strncmp(message, "PING", strlen("PING")) == 0) {
     char buf[messageLength + 1];
     strcpy(buf, "PONG");
-    strcat(buf, substr(message, 4, messageLength));
+    char slicedFoo[messageLength] = "";
+    slice(message, slicedFoo, 4, messageLength);
+    strcat(buf, slicedFoo);
     sendTextResponse(buf, data->data_len);
   }
 }
@@ -190,18 +187,19 @@ static void websocket_event_handler(void* arg, esp_event_base_t event_base, int3
 
 // Connect
 bool connectToWebSocketServer() {
-  currentLEDStatus = LED_CONNECTING;
+  setLEDStatus(LED_CONNECTING);
 
-  Serial.println("Connecting to: " + websocketAddress);
+  Serial.println("Connecting to: ");
+  Serial.println(websocketAddress);
 
-  wsConfig = { .uri = websocketAddress.c_str() };
+  wsConfig = { .uri = websocketAddress };
   wsClient = esp_websocket_client_init(&wsConfig);
 
   if (wsClient) {
     Serial.println("WebSocket client initialized");
   } else {
     Serial.println("Failed to initialize WebSocket client");
-    currentLEDStatus = LED_ERROR;
+    setLEDStatus(LED_ERROR);
     return false;
   }
 
@@ -218,13 +216,13 @@ bool connectToWebSocketServer() {
 
   if (esp_websocket_client_is_connected(wsClient)) {
     Serial.println("WebSocket client connected successfully");
-    currentLEDStatus = LED_CONNECTED;
+    setLEDStatus(LED_CONNECTED);
     esp_websocket_client_send_text(wsClient, "Hello WebSocket", strlen("Hello WebSocket"), portMAX_DELAY);
 
     return true;
   }
   Serial.println("Failed to connect to WebSocket server");
-  currentLEDStatus = LED_ERROR;
+  setLEDStatus(LED_ERROR);
   return false;
 }
 

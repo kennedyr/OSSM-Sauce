@@ -1,19 +1,31 @@
 #include "LEDStatus.h"
+#include <WiFi.h>
 #include "WifiClient.h"
 
-String ssid;
-String password;
+
+const char* ssid;
+const char* getSSID() {
+  return ssid;
+}
+void setSSID(const String& newSSID) {
+  ssid = newSSID.c_str();
+}
+
+const char* password;
+void setPassword(const String& newPassword) {
+  password = newPassword.c_str();
+}
 
 bool connectToWiFi() {
   WiFi.mode(WIFI_STA);
-  currentLEDStatus = LED_CONNECTING;
+  setLEDStatus(LED_CONNECTING);
 
   Serial.println("");
   Serial.println("-- CONNECTING TO WIFI --");
   Serial.println("--     PLEASE WAIT    --");
   Serial.println("");
 
-  WiFi.begin(ssid.c_str(), password.c_str());
+  WiFi.begin(ssid, password);
 
   // Will try for about 10 seconds (20x 500ms)
   int tryDelay = 500;
@@ -27,7 +39,7 @@ bool connectToWiFi() {
     case WL_CONNECT_FAILED:
       Serial.print("[WiFi] Failed - WiFi not connected! Reason: ");
       Serial.println(WiFi.status());
-      currentLEDStatus = LED_ERROR;
+      setLEDStatus(LED_ERROR);
       return false;
       break;
     case WL_CONNECTION_LOST:
@@ -43,9 +55,9 @@ bool connectToWiFi() {
       Serial.println("[WiFi] WiFi is connected!");
       Serial.print("[WiFi] IP address: ");
       Serial.println(WiFi.localIP());
-      currentLEDStatus = LED_CONNECTED;
+      setLEDStatus(LED_CONNECTED);
       delay(500);
-      currentLEDStatus = LED_OFF;
+      setLEDStatus(LED_OFF);
       return true;
       break;
     default:
@@ -59,7 +71,7 @@ bool connectToWiFi() {
       Serial.print("[WiFi] Failed to connect to WiFi!");
       // Use disconnect function to force stop trying to connect
       WiFi.disconnect();
-      currentLEDStatus = LED_ERROR;
+      setLEDStatus(LED_ERROR);
       return false;
     }
     numberOfTries--;

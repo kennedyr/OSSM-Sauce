@@ -1,4 +1,6 @@
 #include "Arduino.h"
+#include "Common.h"
+#include "Configuration.h"
 #include "Ossm.h"
 #include "WebsocketClient.h"
 
@@ -49,7 +51,7 @@ void moveStart() {
   short constrainedPosition = constrain(activeMove.depth, 0, 10000);
   activeMove.targetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
   activeMove.playTimeStartedMs = playTimeMs;
-  uint32_t durationMs = activeMove.endTimeMs - activeMove.playTimeStartedMs;
+  unsigned long durationMs = activeMove.endTimeMs - activeMove.playTimeStartedMs;
   activeMove.durationReciprocal = 1.0 / durationMs;
   activeMove.baseSpeedHz = getMoveBaseSpeedHz(activeMove, durationMs);
   activeMove.active = true;
@@ -92,7 +94,7 @@ void initiateLoop(StrokeCommand loopPushInput, StrokeCommand loopPullInput) {
   movementMode = MODE_LOOP;
 }
 
-void moveToPosition(uint32_t positionInput) {
+void moveToPosition(int positionInput) {
   if (movementMode != MODE_POSITION) {
     return;
   }
