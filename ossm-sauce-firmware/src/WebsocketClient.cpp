@@ -10,6 +10,17 @@ void setWebsocketAddress(const String& newWebsocketAddress) {
   websocketAddress = newWebsocketAddress.c_str();
 }
 
+WebsocketStatus getWebsocketStatus() {
+    if (wsClient != nullptr && esp_websocket_client_is_connected(wsClient)) {
+      return WS_CONNECTED;
+    }
+    if (wsClient != nullptr) {
+      return WS_DISCONNECTED;
+    } 
+    
+    return WS_NOT_INITIALIZED;
+}
+
 // Message Handling
 void parseBinaryMessage(esp_websocket_event_data_t* data) {
   byte* message = (byte*)data->data_ptr;
@@ -126,7 +137,7 @@ void parseBinaryMessage(esp_websocket_event_data_t* data) {
   }
 
   case SET_HOMING_SPEED: {
-    u32_t homingSpeedInputHz;
+    unsigned int homingSpeedInputHz;
     memcpy(&homingSpeedInputHz, message + 1, 4);
     setHomingSpeed(homingSpeedInputHz);
     break;
@@ -162,7 +173,7 @@ void parseTextMessage(esp_websocket_event_data_t* data) {
 }
 
 
-static void websocket_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+static void websocket_event_handler(void* arg, esp_event_base_t event_base, int event_id, void* event_data) {
   esp_websocket_event_data_t* data = (esp_websocket_event_data_t*)event_data;
   switch (event_id) {
   case WEBSOCKET_EVENT_CONNECTED:

@@ -1,12 +1,14 @@
 #ifndef WEBSOCKETCLIENT_H
 #define WEBSOCKETCLIENT_H
 
-#include "Arduino.h"
-#include "CommandType.h"
+#include "Common.h"
 #include "esp_websocket_client.h"
 
-// Global variables
-extern esp_websocket_client_handle_t wsClient;
+enum WebsocketStatus {
+  WS_CONNECTED,
+  WS_DISCONNECTED,
+  WS_NOT_INITIALIZED
+};
 
 struct Response {
   CommandType commandType = RESPONSE;
@@ -14,7 +16,7 @@ struct Response {
 };
 
 void setWebsocketAddress(const String& newWebsocketAddress);
-
+WebsocketStatus getWebsocketStatus();
 // Configuration and connection functions
 bool connectToWebSocketServer();
 
