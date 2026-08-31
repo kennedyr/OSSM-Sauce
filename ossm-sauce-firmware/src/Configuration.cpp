@@ -1,7 +1,6 @@
 #include "Common.h"
 #include "Configuration.h"
 #include "LEDStatus.h"
-#include "MotorMovement.h"
 #include <Preferences.h>
 #include "secrets.h"
 #include "WebsocketClient.h"
@@ -14,6 +13,12 @@ const bool enablePreferences = false;
 
 bool checkForConfigMode();
 void handleConfigMenu();
+
+float getPreferenceHomingTrigger() {
+  if (enablePreferences) {
+    preferences.getFloat("homing_trigger", DEFAULT_HOMING_TRIGGER);
+  }
+}
 
 void setPreferenceHomingTrigger(float homingTrigger) {
   if (enablePreferences) {
@@ -34,9 +39,6 @@ void initializeConfiguration(bool fastBoot) {
 
   if (enablePreferences) {
     preferences.begin("ossm_sauce");
-
-    // Set sensorless homing sensitivity
-    powerAvgRangeMultiplier = preferences.getFloat("homing_trigger", 1.5);
     setSSID(preferences.getString("wifi_ssid", WIFI_SSID));
     setPassword(preferences.getString("wifi_pass", WIFI_PASSWORD));
     setWebsocketAddress(preferences.getString("ws_server", WS_SERVER));
@@ -116,7 +118,7 @@ void showConfigMenu() {
   Serial.println("Current Settings:");
   Serial.println("WiFi SSID: " + preferences.getString("wifi_ssid", "Not set"));
   Serial.println("WebSocket Server: " + preferences.getString("ws_server", "Not set"));
-  Serial.println("Homing Sensitivity: " + String(powerAvgRangeMultiplier));
+  Serial.println("Homing Sensitivity: " + String(preferences.getFloat("homing_trigger", DEFAULT_HOMING_TRIGGER)));
   Serial.println("");
 
   Serial.println("Options:");
@@ -261,7 +263,7 @@ void handleConfigMenu() {
     } else if (choice == "4") {
       // Update sensorless homing sensitivity
       Serial.println("");
-      Serial.println("Current homing sensitivity: " + String(powerAvgRangeMultiplier));
+      Serial.println("Current homing sensitivity: " + String(preferences.getFloat("homing_trigger", DEFAULT_HOMING_TRIGGER)));
       Serial.println("Higher values = less sensitive (default: 1.5)");
       Serial.println("Lower values = more sensitive");
       Serial.println("Recommended range: 1.0 - 2.0");
@@ -272,10 +274,9 @@ void handleConfigMenu() {
       float sensitivityValue = newSensitivity.toFloat();
 
       if (sensitivityValue >= 0.1 && sensitivityValue <= 10.0) {
-        powerAvgRangeMultiplier = sensitivityValue;
-        preferences.putFloat("homing_trigger", powerAvgRangeMultiplier);
+        preferences.putFloat("homing_trigger", sensitivityValue);
 
-        Serial.println("Homing sensitivity updated to: " + String(powerAvgRangeMultiplier));
+        Serial.println("Homing sensitivity updated to: " + String(sensitivityValue));
         Serial.println("Changes will take effect on next homing cycle.");
 
         setLEDStatus(LED_CONNECTED);

@@ -10,8 +10,13 @@ unsigned long playTimeMs;
 
 StrokeCommand activeMove;
 
+MovementMode movementMode;
+
+LoopPhase activeLoopPhase;
 StrokeCommand loopPush;
 StrokeCommand loopPull;
+
+Vibration vibration;
 
 QueueHandle_t moveQueue;
 const char moveQueueSize = 50;
@@ -223,15 +228,15 @@ void setGlobalAcceleration(int acceleration) {
   globalAcceleration = max(acceleration, 0);
 }
 
-void setRangeLimit(short rangeLimitInput, RangeLimitType selectedRange) {
-  rangeLimitInput = constrain(rangeLimitInput, 0, 10000);
-  rangeLimitInput = map(rangeLimitInput, 0, 10000, rangeLimitHardMin, rangeLimitHardMax);
-  switch (selectedRange) {
+void setRangeLimit(RangeLimit rangeLimitInput) {
+  auto rangeLimitValue = constrain(rangeLimitInput.rangeLimitValue, 0, 10000);
+  rangeLimitValue = map(rangeLimitInput.rangeLimitValue, 0, 10000, rangeLimitHardMin, rangeLimitHardMax);
+  switch (rangeLimitInput.rangeLimitType) {
   case MIN_RANGE:
-    rangeLimitUserMin = rangeLimitInput;
+    rangeLimitUserMin = rangeLimitValue;
     break;
   case MAX_RANGE:
-    rangeLimitUserMax = rangeLimitInput;
+    rangeLimitUserMax = rangeLimitValue;
     break;
   }
   if (movementMode == MODE_LOOP) {
@@ -251,7 +256,8 @@ void setHomingSpeed(unsigned long homingSpeedHzInput) {
 }
 
 void setHomingTrigger(float homingTriggerInput) {
-  powerAvgRangeMultiplier = constrain(homingTriggerInput, 0.1, 2);
+  auto powerAvgRangeMultiplier = constrain(homingTriggerInput, 0.1, 2);
+  setPowerAvgRangeMultiplier(powerAvgRangeMultiplier);
   setPreferenceHomingTrigger(powerAvgRangeMultiplier);
 }
 

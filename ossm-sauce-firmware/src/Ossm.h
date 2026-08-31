@@ -17,6 +17,6 @@ void resetNow();
 void initiateHoming(int positionInput);
 void setSpeedLimit(int speedLimit);
 void setGlobalAcceleration(int acceleration);
-void setRangeLimit(short rangeLimitInput, byte selectedRange);
+void setRangeLimit(RangeLimit rangeLimitInput);
 void setHomingSpeed(unsigned long homingSpeedHzInput);
 void setHomingTrigger(float homingTriggerInput);

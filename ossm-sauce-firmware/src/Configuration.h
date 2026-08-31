@@ -1,6 +1,7 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
+float getPreferenceHomingTrigger();
 void setPreferenceHomingTrigger(float homingTrigger);
 bool getPreferenceMotorReversed();
 

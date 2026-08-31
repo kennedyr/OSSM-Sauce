@@ -3,12 +3,6 @@
 
 #include "Common.h"
 
-extern LoopPhase activeLoopPhase;
-extern MovementMode movementMode;
-extern Vibration vibration;
-
-extern float powerAvgRangeMultiplier;
-
 extern int rangeLimitHardMin;
 extern int rangeLimitHardMax;
 
@@ -22,6 +16,7 @@ extern int homingTargetPosition;
 extern unsigned long homingSpeedHz;
 
 void initializeMotor();
+void setPowerAvgRangeMultiplier(float value);
 void sensorlessHoming();
 unsigned long getMoveBaseSpeedHz(StrokeCommand stroke, unsigned long moveDuration, bool useFullUserRange = false);
 void processSafeAccel();

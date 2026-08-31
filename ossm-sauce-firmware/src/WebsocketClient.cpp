@@ -131,8 +131,8 @@ void parseBinaryMessage(esp_websocket_event_data_t* data) {
   case SET_RANGE_LIMIT: {
     short rangeLimitInput;
     memcpy(&rangeLimitInput, message + 2, 2);
-    byte selectedRange = message[1];
-    setRangeLimit(rangeLimitInput, selectedRange);
+    RangeLimitType selectedRange = static_cast<RangeLimitType>(message[1]);
+    setRangeLimit({rangeLimitInput, selectedRange});
     break;
   }
 

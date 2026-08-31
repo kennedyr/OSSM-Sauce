@@ -11,13 +11,12 @@ const byte motorStopPin = 19;
 const byte limitSwitchPin = 12;
 const byte powerSensorPin = 36;
 
-float powerAvgRangeMultiplier = 1.5; // Raise to decrease, or lower to increase sensitivity of sensorless homing
 const int outliersSampleSize = 10;
 const int powerSampleSize = 10;
 const int deltaSampleLength = 5000;
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
-FastAccelStepper *stepper = NULL;
+FastAccelStepper* stepper = NULL;
 
 int rangeLimitHardMin;
 int rangeLimitHardMax;
@@ -29,9 +28,6 @@ unsigned long globalSpeedLimitHz = 20000;
 unsigned long globalAcceleration = 20000;
 bool applyAcceleration;
 
-MovementMode movementMode;
-
-LoopPhase activeLoopPhase;
 
 int previousStrokePosition;
 Direction movementDirection;
@@ -39,7 +35,6 @@ Direction movementDirection;
 int homingTargetPosition;
 unsigned long homingSpeedHz = 1000;
 
-Vibration vibration;
 
 
 void initializeMotor() {
@@ -61,6 +56,11 @@ void initializeMotor() {
   Serial.println(F_CPU);
   Serial.print("    TICKS_PER_S=");
   Serial.println(TICKS_PER_S);
+}
+
+float powerAvgRangeMultiplier = DEFAULT_HOMING_TRIGGER; // Raise to decrease, or lower to increase sensitivity of sensorless homing
+void setPowerAvgRangeMultiplier(float value) {
+  powerAvgRangeMultiplier = constrain(value, 0.1, 2);
 }
 
 
@@ -95,7 +95,8 @@ void getPowerReading(bool takeDeltaSample = false, int deltaSampleIndex = 0) {
 
 
 void sensorlessHoming() {
-// Root mean square could be a better way to determine averages
+  powerAvgRangeMultiplier = getPreferenceHomingTrigger();
+  // Root mean square could be a better way to determine averages
   Serial.println("");
   Serial.println("Scanning power consumption variance...");
   Serial.println("");
@@ -244,7 +245,7 @@ double interpolate(double weight, TransType transType, EaseType easeType) {
   switch (transType) {
     case TRANS_LINEAR:
       return 1;
-    
+
     case TRANS_SINE:
       switch (easeType) {
         case EASE_IN:
@@ -256,7 +257,7 @@ double interpolate(double weight, TransType transType, EaseType easeType) {
         case EASE_OUT_IN:
           return 1 - sin((1 - abs(2 * weight - 1)) * PI * 0.5);
       }
-    
+
     case TRANS_CIRC:
       switch (easeType) {
         case EASE_IN:
@@ -268,7 +269,7 @@ double interpolate(double weight, TransType transType, EaseType easeType) {
         case EASE_OUT_IN:
           return 1 - sqrt(1 - pow((1 - abs(2 * weight - 1)) - 1, 2));
       }
-    
+
     case TRANS_EXPO:
       switch (easeType) {
         case EASE_IN:
@@ -289,7 +290,7 @@ double interpolate(double weight, TransType transType, EaseType easeType) {
       return exponentEasing(weight, easeType, 4);
     case TRANS_QUINT:
       return abs(exponentEasing(weight, easeType, 5));
-    
+
     default:
       return 0;
   }
@@ -361,15 +362,15 @@ void processStroke(StrokeCommand* stroke, unsigned long elapsedTimeMs) {
   processSafeAccel();
 }
 
-void stepperSetSpeedInHz(unsigned long newSpeed){
+void stepperSetSpeedInHz(unsigned long newSpeed) {
   stepper->setSpeedInHz(min(newSpeed, globalSpeedLimitHz));
 }
-void stepperMoveTo(int targetPosition){
+void stepperMoveTo(int targetPosition) {
   stepper->moveTo(targetPosition);
 }
 void stepperStop() {
   stepper->stopMove();
 }
-int stepperGetCurrentPosition(){
+int stepperGetCurrentPosition() {
   return stepper->getCurrentPosition();
 }

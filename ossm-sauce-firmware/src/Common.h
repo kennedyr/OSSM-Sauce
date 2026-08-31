@@ -85,4 +85,11 @@ struct Vibration {
 
 enum RangeLimitType { MIN_RANGE, MAX_RANGE };
 
+struct RangeLimit {
+    short rangeLimitValue;
+    RangeLimitType rangeLimitType;
+};
+
+const float DEFAULT_HOMING_TRIGGER = 1.5;
+
 #endif
