@@ -1,6 +1,15 @@
 #include <Arduino.h>
+#include "Common.h"
 #include "Configuration.h"
+#include "FastAccelStepper.h"
 #include "MotorMovement.h"
+
+const byte motorDirectionPin = 27;
+const byte motorEnablePin = 26;
+const byte motorStepPin = 14;
+const byte motorStopPin = 19;
+const byte limitSwitchPin = 12;
+const byte powerSensorPin = 36;
 
 float powerAvgRangeMultiplier = 1.5; // Raise to decrease, or lower to increase sensitivity of sensorless homing
 const int outliersSampleSize = 10;
@@ -16,19 +25,19 @@ int rangeLimitHardMax;
 int rangeLimitUserMin;
 int rangeLimitUserMax;
 
-uint32_t globalSpeedLimitHz = 20000;
-uint32_t globalAcceleration = 20000;
+unsigned long globalSpeedLimitHz = 20000;
+unsigned long globalAcceleration = 20000;
 bool applyAcceleration;
 
 MovementMode movementMode;
 
 LoopPhase activeLoopPhase;
 
-int32_t previousStrokePosition;
+int previousStrokePosition;
 Direction movementDirection;
 
 int homingTargetPosition;
-uint32_t homingSpeedHz = 1000;
+unsigned long homingSpeedHz = 1000;
 
 Vibration vibration;
 
@@ -188,7 +197,7 @@ void sensorlessHoming() {
   // Set hard limits
   int hardLimitBuffer = round(abs(limitPhysicalMax - limitPhysicalMin) * 0.06F);
 
-  if (enablePreferences && preferences.getBool("motor_reversed", false)) {
+  if (getPreferenceMotorReversed()) {
     rangeLimitHardMin = limitPhysicalMax - hardLimitBuffer;
     rangeLimitHardMax = limitPhysicalMin + hardLimitBuffer;
   } else {
@@ -210,6 +219,8 @@ void sensorlessHoming() {
   Serial.println("TOTAL RANGE: ");
   Serial.println(abs(rangeLimitHardMax - rangeLimitHardMin));
   Serial.println("");
+
+  stepper->setAcceleration(globalAcceleration);
 }
 
 
@@ -286,7 +297,7 @@ double interpolate(double weight, TransType transType, EaseType easeType) {
 
 
 // Amplify base move speed to match traversal time with linear move
-uint32_t getMoveBaseSpeedHz(StrokeCommand stroke, uint32_t moveDuration, bool useFullUserRange) {
+unsigned long getMoveBaseSpeedHz(StrokeCommand stroke, unsigned long moveDuration, bool useFullUserRange) {
   int moveDelta;
   if (useFullUserRange) {
     moveDelta = rangeLimitUserMax - rangeLimitUserMin;
@@ -316,7 +327,7 @@ uint32_t getMoveBaseSpeedHz(StrokeCommand stroke, uint32_t moveDuration, bool us
 
 
 void processSafeAccel() {
-  int32_t currentPosition = stepper->getCurrentPosition();
+  int currentPosition = stepper->getCurrentPosition();
   if (currentPosition < previousStrokePosition) {
     if (movementDirection == OUT) {
       applyAcceleration = true;
@@ -341,11 +352,24 @@ void processSafeAccel() {
 }
 
 
-void processStroke(StrokeCommand* stroke, uint32_t elapsedTimeMs) {
+void processStroke(StrokeCommand* stroke, unsigned long elapsedTimeMs) {
   double percentage = elapsedTimeMs * stroke->durationReciprocal;
   double accelerationCurve = interpolate(percentage, stroke->transType, stroke->easeType);
-  uint32_t moveSpeedHz = round(stroke->baseSpeedHz * max(accelerationCurve, 0.01));
+  unsigned long moveSpeedHz = round(stroke->baseSpeedHz * max(accelerationCurve, 0.01));
   stepper->setSpeedInHz(min(moveSpeedHz, globalSpeedLimitHz));
   stepper->moveTo(stroke->targetPosition);
   processSafeAccel();
+}
+
+void stepperSetSpeedInHz(unsigned long newSpeed){
+  stepper->setSpeedInHz(min(newSpeed, globalSpeedLimitHz));
+}
+void stepperMoveTo(int targetPosition){
+  stepper->moveTo(targetPosition);
+}
+void stepperStop() {
+  stepper->stopMove();
+}
+int stepperGetCurrentPosition(){
+  return stepper->getCurrentPosition();
 }

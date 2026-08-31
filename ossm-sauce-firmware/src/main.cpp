@@ -35,8 +35,6 @@ void setup() {
 
   sensorlessHoming();
 
-  stepper->setAcceleration(globalAcceleration);
-
   delay(400);
 
   Serial.println("-- OSSM Ready! --");

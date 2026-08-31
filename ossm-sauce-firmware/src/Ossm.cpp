@@ -102,7 +102,7 @@ void moveToPosition(int positionInput) {
   int constrainedPosition = constrain(positionInput, 0, 10000);
   int targetPosition = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
   int positionDelta = targetPosition - previousTargetPosition;
-  int currentPosition = stepper->getCurrentPosition();
+  int currentPosition = stepperGetCurrentPosition();
   bool lockedMin = targetPosition < currentPosition && positionDelta > 0;
   bool lockedMax = targetPosition > currentPosition && positionDelta < 0;
   previousTargetPosition = targetPosition;
@@ -110,9 +110,9 @@ void moveToPosition(int positionInput) {
     return;
   }
 
-  uint32_t speed = abs(positionDelta) * 50;
-  stepper->setSpeedInHz(min(speed, globalSpeedLimitHz));
-  stepper->moveTo(targetPosition);
+  unsigned long speed = abs(positionDelta) * 50;
+  stepperSetSpeedInHz(min(speed, globalSpeedLimitHz));
+  stepperMoveTo(targetPosition);
   processSafeAccel();
 }
 
@@ -123,16 +123,16 @@ void initiateVibrate(Vibration vibrationInput) {
 
   int constrainedPosition = constrain(vibrationInput.position, 0, 10000);
   vibrationInput.origin = map(constrainedPosition, 0, 10000, rangeLimitUserMin, rangeLimitUserMax);
-  uint32_t totalRange = abs(rangeLimitUserMax - rangeLimitUserMin);
-  uint32_t vibrationRange = vibrationInput.rangePercent * 0.01f * totalRange;
+  unsigned long totalRange = abs(rangeLimitUserMax - rangeLimitUserMin);
+  unsigned long vibrationRange = vibrationInput.rangePercent * 0.01f * totalRange;
   long vibrationEndpoint = vibrationInput.origin + vibrationRange;
   vibrationInput.crest = constrain(vibrationEndpoint, rangeLimitUserMin, rangeLimitUserMax);
 
   float halfPeriodReciprocal = 1 / float(vibrationInput.halfPeriodMs);
-  uint32_t duration = 1000 * halfPeriodReciprocal;
+  unsigned long duration = 1000 * halfPeriodReciprocal;
   float waveformSpeedScaling = vibrationInput.speedScaling * 0.01f;
-  uint32_t newSpeed = vibrationRange * duration * waveformSpeedScaling;
-  stepper->setSpeedInHz(min(newSpeed, globalSpeedLimitHz));
+  unsigned long newSpeed = vibrationRange * duration * waveformSpeedScaling;
+  stepperSetSpeedInHz(min(newSpeed, globalSpeedLimitHz));
 
   vibration = vibrationInput;
 
@@ -191,7 +191,7 @@ void pauseNow() {
   }
 
   movementMode = MODE_IDLE;
-  stepper->stopMove();
+  stepperStop();
 }
 
 void resetNow() {
@@ -205,7 +205,7 @@ void resetNow() {
   moveQueueIsEmpty = true;
 }
 
-void initiateHoming(uint32_t positionInput) {
+void initiateHoming(int positionInput) {
   if (movementMode == MODE_HOMING) {
     return;
   }
@@ -223,10 +223,9 @@ void setGlobalAcceleration(int acceleration) {
   globalAcceleration = max(acceleration, 0);
 }
 
-void setRangeLimit(short rangeLimitInput, byte selectedRange) {
+void setRangeLimit(short rangeLimitInput, RangeLimitType selectedRange) {
   rangeLimitInput = constrain(rangeLimitInput, 0, 10000);
   rangeLimitInput = map(rangeLimitInput, 0, 10000, rangeLimitHardMin, rangeLimitHardMax);
-  enum { MIN_RANGE, MAX_RANGE };
   switch (selectedRange) {
   case MIN_RANGE:
     rangeLimitUserMin = rangeLimitInput;
@@ -247,15 +246,13 @@ void setRangeLimit(short rangeLimitInput, byte selectedRange) {
   }
 }
 
-void setHomingSpeed(uint32_t homingSpeedHzInput) {
+void setHomingSpeed(unsigned long homingSpeedHzInput) {
   homingSpeedHz = min(globalSpeedLimitHz, homingSpeedHzInput);
 }
 
 void setHomingTrigger(float homingTriggerInput) {
   powerAvgRangeMultiplier = constrain(homingTriggerInput, 0.1, 2);
-  // if(enablePreferences) {
-  //   preferences.putFloat("homing_trigger", powerAvgRangeMultiplier);
-  // }
+  setPreferenceHomingTrigger(powerAvgRangeMultiplier);
 }
 
 void updateState() {
@@ -288,7 +285,7 @@ void updateState() {
     if (currentMs - vibration.currentMs >= vibration.halfPeriodMs) {
       vibration.currentMs = currentMs;
       vibration.direction = (vibration.direction == IN) ? OUT : IN;
-      stepper->moveTo((vibration.direction == IN) ? vibration.origin : vibration.crest);
+      stepperMoveTo((vibration.direction == IN) ? vibration.origin : vibration.crest);
     }
     if (vibration.timed && currentMs >= vibration.endMs) {
       movementMode = MODE_IDLE;
@@ -297,12 +294,12 @@ void updateState() {
   }
 
   case MODE_HOMING: {
-    if (stepper->getCurrentPosition() == homingTargetPosition) {
+    if (stepperGetCurrentPosition() == homingTargetPosition) {
       movementMode = MODE_IDLE;
       sendResponse(HOMING);
     } else {
-      stepper->setSpeedInHz(min(homingSpeedHz, globalSpeedLimitHz));
-      stepper->moveTo(homingTargetPosition);
+      stepperSetSpeedInHz(min(homingSpeedHz, globalSpeedLimitHz));
+      stepperMoveTo(homingTargetPosition);
     }
     break;
   }
