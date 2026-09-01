@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "MotorMovement.h"
-#include "Configuration.h"
+#include "Config.h"
+#include "ConfigurationMenu.h"
 #include "WebsocketClient.h"
 #include "WifiClient.h"
 #include "LEDStatus.h"
@@ -11,6 +12,7 @@ void setup() {
   Serial.begin(115200);
   Serial.flush();
 
+  Config::initializeConfig();
   initializeConfiguration();
 
   withConfigMenufallback(&connectToWiFi, "Would you like to update the Wifi connection? (y/n)");
