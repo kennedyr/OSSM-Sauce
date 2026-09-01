@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "Common.h"
-#include "Configuration.h"
+#include "Config.h"
 #include "FastAccelStepper.h"
 #include "MotorMovement.h"
 
@@ -95,7 +95,7 @@ void getPowerReading(bool takeDeltaSample = false, int deltaSampleIndex = 0) {
 
 
 void sensorlessHoming() {
-  powerAvgRangeMultiplier = getPreferenceHomingTrigger();
+  powerAvgRangeMultiplier = Config::getHomingTrigger();
   // Root mean square could be a better way to determine averages
   Serial.println("");
   Serial.println("Scanning power consumption variance...");
@@ -198,7 +198,7 @@ void sensorlessHoming() {
   // Set hard limits
   int hardLimitBuffer = round(abs(limitPhysicalMax - limitPhysicalMin) * 0.06F);
 
-  if (getPreferenceMotorReversed()) {
+  if (Config::getMotorReversed()) {
     rangeLimitHardMin = limitPhysicalMax - hardLimitBuffer;
     rangeLimitHardMax = limitPhysicalMin + hardLimitBuffer;
   } else {

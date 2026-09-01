@@ -1,6 +1,6 @@
 #include "Arduino.h"
 #include "Common.h"
-#include "Configuration.h"
+#include "Config.h"
 #include "Ossm.h"
 #include "WebsocketClient.h"
 
@@ -258,7 +258,7 @@ void setHomingSpeed(unsigned long homingSpeedHzInput) {
 void setHomingTrigger(float homingTriggerInput) {
   auto powerAvgRangeMultiplier = constrain(homingTriggerInput, 0.1, 2);
   setPowerAvgRangeMultiplier(powerAvgRangeMultiplier);
-  setPreferenceHomingTrigger(powerAvgRangeMultiplier);
+  Config::setHomingTrigger(powerAvgRangeMultiplier);
 }
 
 void updateState() {

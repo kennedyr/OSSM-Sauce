@@ -1,5 +1,6 @@
 #include "Common.h"
-#include "Configuration.h"
+#include "Config.h"
+#include "ConfigurationMenu.h"
 #include "LEDStatus.h"
 #include <Preferences.h>
 #include "secrets.h"
@@ -8,27 +9,8 @@
 
 const int CONFIG_TIMEOUT_MS = 5000;
 
-Preferences preferences;
-const bool enablePreferences = false;
-
 bool checkForConfigMode();
 void handleConfigMenu();
-
-float getPreferenceHomingTrigger() {
-  if (enablePreferences) {
-    preferences.getFloat("homing_trigger", DEFAULT_HOMING_TRIGGER);
-  }
-}
-
-void setPreferenceHomingTrigger(float homingTrigger) {
-  if (enablePreferences) {
-    preferences.putFloat("homing_trigger", homingTrigger);
-  }
-}
-
-bool getPreferenceMotorReversed() {
-  return enablePreferences && preferences.getBool("motor_reversed", false);
-}
 
 void initializeConfiguration(bool fastBoot) {
   initializeLED();  // Initialize RGB LED first
@@ -37,8 +19,8 @@ void initializeConfiguration(bool fastBoot) {
   setPassword(WIFI_PASSWORD);
   setWebsocketAddress(WS_SERVER);
 
-  if (enablePreferences) {
-    preferences.begin("ossm_sauce");
+  if (Config::configEnabled()) {
+    auto preferences = Config::getConfig();
     setSSID(preferences.getString("wifi_ssid", WIFI_SSID));
     setPassword(preferences.getString("wifi_pass", WIFI_PASSWORD));
     setWebsocketAddress(preferences.getString("ws_server", WS_SERVER));
@@ -108,6 +90,7 @@ String getSerialInput(const char* prompt) {
 
 void showConfigMenu() {
   setLEDStatus(LED_CONFIG_MODE);
+  auto preferences = Config::getConfig();
 
   Serial.println("");
   Serial.println("=================================");
@@ -134,11 +117,12 @@ void showConfigMenu() {
 }
 
 void handleConfigMenu() {
-  if (!enablePreferences) {
+  if (!Config::configEnabled()) {
     return;
   }
 
   showConfigMenu();
+  auto preferences = Config::getConfig();
 
   while (true) {
     while (!Serial.available()) {
@@ -385,7 +369,8 @@ bool checkForConfigMode() {
 String constructWebSocketAddress() {
   String serverAddress;
   serverAddress += "ws://";
-  if (enablePreferences) {
+  if (Config::configEnabled()) {
+    auto preferences = Config::getConfig();
     if (preferences.isKey("ws_server")) {
       serverAddress += preferences.getString("ws_server");
     } else {
